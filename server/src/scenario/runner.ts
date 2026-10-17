@@ -69,6 +69,18 @@ export function describeTarget(step: ScenarioStep): string | undefined {
   }
   if ("screenshot" in step) return `"${step.screenshot}"`;
   if ("wait_ms" in step) return `${step.wait_ms} ms`;
+  if ("set" in step) {
+    const props = Object.entries(step.set.properties).map(([k, v]) => `${k} = ${JSON.stringify(v)}`);
+    return `${step.set.node}: ${props.join(", ")}`;
+  }
+  if ("call" in step) {
+    return `${step.call.node}.${step.call.method}(${(step.call.args ?? []).map((a) => JSON.stringify(a)).join(", ")})`;
+  }
+  if ("repeat" in step) {
+    const inner = step.repeat.steps.map((x) => describeTarget(x) ?? kindOf(x)).join(", ");
+    const text = `${step.repeat.times}× [${inner}]`;
+    return text.length > 120 ? `${text.slice(0, 117)}...` : text;
+  }
   return undefined;
 }
 
@@ -186,6 +198,28 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
     }
   } else if ("wait_ms" in step) {
     await new Promise((r) => setTimeout(r, step.wait_ms));
+  } else if ("set" in step) {
+    res.detail = await call("game.set", step.set);
+  } else if ("call" in step) {
+    const t = step.call.timeout_ms ?? 10_000;
+    res.detail = await call("game.call", step.call, { timeoutMs: t + GRACE_MS });
+  } else if ("repeat" in step) {
+    const { times, steps } = step.repeat;
+    for (let it = 1; it <= times; it++) {
+      for (let j = 0; j < steps.length; j++) {
+        const inner = steps[j]!;
+        const innerRes: StepResult = { index: j, kind: kindOf(inner), status: "pass", duration_ms: 0 };
+        try {
+          await runStep(inner, call, innerRes, report);
+        } catch (e) {
+          const target = describeTarget(inner);
+          const where = `iteration ${it}/${times}, step ${j + 1} (${kindOf(inner)}${target ? ` ${target}` : ""})`;
+          if (e instanceof BridgeError) throw new BridgeError(e.code, `${where}: ${e.message}`, e.hint);
+          throw new Error(`${where}: ${describeError(e)}`, { cause: e });
+        }
+      }
+    }
+    res.detail = { iterations: times, steps_per_iteration: steps.length };
   } else if ("assert_no_errors" in step) {
     const errors = await readErrors(call);
     if (errors.length > 0) {

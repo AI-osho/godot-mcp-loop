@@ -56,4 +56,34 @@ describe("e2e: scenario_run against the platformer", () => {
     expect(report.steps[1].message).toMatch(/error/i);
     expect(report.errors.length).toBeGreaterThan(0);
   }, 60_000);
+
+  it("set, call and repeat steps work against the real game", async () => {
+    const { summary, report } = await run({
+      scenario: {
+        name: "setup and repeat",
+        steps: [
+          { wait_for: { node: "Player", property: "position:y", op: ">=", value: 370, timeout_ms: 5000 } },
+          { set: { node: "Player", properties: { "position:x": 500 } } },
+          { assert: { node: "Player", property: "position:x", op: ">=", value: 499 } },
+          {
+            repeat: {
+              times: 2,
+              steps: [
+                { input: { action: "jump", hold_ms: 50 } },
+                { wait_for: { node: "Player", property: "position:y", op: "<", value: 360, timeout_ms: 2000 } },
+                { wait_for: { node: "Player", property: "position:y", op: ">=", value: 370, timeout_ms: 3000 } },
+              ],
+            },
+          },
+          { assert: { node: "Player", property: "jumps", op: "==", value: 2 } },
+          { call: { node: "Player", method: "get_position" } },
+        ],
+      },
+      include_screenshots: false,
+    });
+    expect(summary, summary).toMatch(/PASSED/);
+    expect(report.steps).toHaveLength(6);
+    expect(report.steps[3].detail).toEqual({ iterations: 2, steps_per_iteration: 3 });
+    expect(report.steps[5].detail.returned[0]).toBeGreaterThan(499);
+  }, 90_000);
 });

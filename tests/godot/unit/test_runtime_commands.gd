@@ -267,3 +267,110 @@ func test_record_accepts_indexed_paths() -> void:
 	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 50}], "record": {"node": "Holder", "properties": ["items:0"]}})
 	assert_eq(r.ok, true, JSON.stringify(r))
 	assert_eq(r.result.record.summary["items:0"].first, 1)
+
+
+# ---- set / call in the running game ----
+
+const SETTABLE_SRC := """extends Node2D
+var count := 1
+var label := "a"
+var enabled := true
+var items := [1, 2, 3]
+var stats := {"hp": 10}
+var area := Rect2(0, 0, 4, 4)
+var calls := 0
+
+func add(a: int, b: int = 10) -> int:
+	calls += 1
+	return a + b
+
+func place(at: Vector2) -> Vector2:
+	position = at
+	return position
+
+func later(v: int) -> int:
+	await get_tree().process_frame
+	return v * 2
+"""
+
+
+func _settable() -> Node2D:
+	_setup()
+	var s := GDScript.new()
+	s.source_code = SETTABLE_SRC
+	s.reload()
+	var n := Node2D.new()
+	n.name = "Game"
+	n.set_script(s)
+	_scene.add_child(n)
+	return n
+
+
+func test_set_top_level_values_with_type_conversion() -> void:
+	var g := _settable()
+	var r: Dictionary = await _cmds.handle("set", {"node": "Game", "properties": {"count": 5.0, "label": "zz", "enabled": "false"}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(g.count, 5)
+	assert_eq(typeof(g.count), TYPE_INT)
+	assert_eq(g.label, "zz")
+	assert_eq(g.enabled, false)
+	assert_eq(r.result.changes["count"], {"before": 1, "after": 5})
+
+
+func test_set_members_elements_and_keys() -> void:
+	var g := _settable()
+	var r: Dictionary = await _cmds.handle("set", {"node": "Game", "properties": {
+		"position:x": 40, "items:1": 99, "stats:hp": 3, "area:size": [8, 2]}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(g.position.x, 40.0)
+	assert_eq(g.items, [1, 99, 3])
+	assert_eq(g.stats.hp, 3)
+	assert_eq(g.area.size, Vector2(8, 2))
+
+
+func test_set_is_all_or_nothing() -> void:
+	var g := _settable()
+	var r: Dictionary = await _cmds.handle("set", {"node": "Game", "properties": {"count": 7, "items:9": 1}})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_string_contains(r.error.message, "out of range")
+	assert_eq(g.count, 1, "nothing applied when one value is invalid")
+
+
+func test_set_rejects_bad_values_and_unknown_properties() -> void:
+	_settable()
+	var bad: Dictionary = await _cmds.handle("set", {"node": "Game", "properties": {"count": "lots"}})
+	assert_error_code(bad, Protocol.INVALID_PARAMS)
+	var unknown: Dictionary = await _cmds.handle("set", {"node": "Game", "properties": {"nope": 1}})
+	assert_error_code(unknown, Protocol.INVALID_PARAMS)
+	var missing: Dictionary = await _cmds.handle("set", {"node": "Nobody", "properties": {"count": 1}})
+	assert_error_code(missing, Protocol.NODE_NOT_FOUND)
+
+
+func test_call_converts_args_and_returns_the_result() -> void:
+	var g := _settable()
+	var r: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "add", "args": [2.0]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.returned, 12)
+	assert_eq(g.calls, 1)
+	var v: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "place", "args": [[3, 4]]})
+	assert_eq(v.result.returned, [3.0, 4.0])
+
+
+func test_call_awaits_coroutines() -> void:
+	_settable()
+	var r: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "later", "args": [21]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.returned, 42)
+
+
+func test_call_rejects_unknown_methods_and_bad_arity() -> void:
+	_settable()
+	var unknown: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "nope"})
+	assert_error_code(unknown, Protocol.INVALID_PARAMS)
+	assert_string_contains(unknown.error.message, "add")
+	var few: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "add", "args": []})
+	assert_error_code(few, Protocol.INVALID_PARAMS)
+	var many: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "add", "args": [1, 2, 3]})
+	assert_error_code(many, Protocol.INVALID_PARAMS)
+	var bad: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "add", "args": ["x"]})
+	assert_error_code(bad, Protocol.INVALID_PARAMS)

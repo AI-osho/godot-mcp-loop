@@ -99,6 +99,18 @@ describe("e2e: run / observe loop", () => {
     expect(r.record.samples.length).toBeLessThanOrEqual(50);
   });
 
+  it("game_set changes live state and game_call calls methods with converted arguments", async () => {
+    const set = await ok("game_set", { node: "Player", properties: { "position:x": 300 } });
+    expect(set.changes["position:x"].after).toBeCloseTo(300, 0);
+    const pos = await ok("game_call", { node: "Player", method: "get_position" });
+    expect(pos.returned[0]).toBeCloseTo(300, 0);
+    await ok("game_call", { node: "Player", method: "set_position", args: [[150, 200]] });
+    const q = await ok("game_query", { node: "Player", properties: ["position:x"] });
+    expect(q.properties["position:x"]).toBeCloseTo(150, 0);
+    expect(await fails("game_call", { node: "Player", method: "no_such_method" })).toContain("no method");
+    expect(await fails("game_set", { node: "Player", properties: { "position:x": 1, nope: 2 } })).toContain("nope");
+  });
+
   it("game_wait_for times out with the last value", async () => {
     const msg = await fails("game_wait_for", { node: "Player", property: "jumps", op: ">", value: 5, timeout_ms: 300 });
     expect(msg).toContain("TIMEOUT");

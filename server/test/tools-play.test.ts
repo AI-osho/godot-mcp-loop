@@ -71,6 +71,15 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(text).toMatch(/interval_ms is not needed for accuracy/i);
   });
 
+  it("game_set and game_call forward to the runtime", async () => {
+    addon.handlers.set("game.set", (p) => ({ ok: true, result: { got: p } }));
+    addon.handlers.set("game.call", (p) => ({ ok: true, result: { got: p } }));
+    const set = await client.callTool({ name: "game_set", arguments: { node: "Game", properties: { score: 300, "items:1": 5 } } });
+    expect(jsonOf(set)).toEqual({ got: { node: "Game", properties: { score: 300, "items:1": 5 } } });
+    const called = await client.callTool({ name: "game_call", arguments: { node: "Game", method: "restart", args: [] } });
+    expect(jsonOf(called)).toEqual({ got: { node: "Game", method: "restart", args: [] } });
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

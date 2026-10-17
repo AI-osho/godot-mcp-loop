@@ -4,6 +4,8 @@ extends RefCounted
 ## (string or int keys) and objects, with errors that say what went wrong.
 ## Built-in types (vectors, colors, rects, transforms) use their member names.
 
+const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
+
 const MEMBERS := {
 	TYPE_VECTOR2: ["x", "y"], TYPE_VECTOR2I: ["x", "y"],
 	TYPE_VECTOR3: ["x", "y", "z"], TYPE_VECTOR3I: ["x", "y", "z"],
@@ -82,3 +84,79 @@ static func _step(value: Variant, key: String, at: String) -> Dictionary:
 			return {"ok": false, "error": "%s (%s) has no member '%s' (members: %s)." % [at, type_string(t), key, ", ".join(MEMBERS[t])]}
 		return {"ok": true, "value": value[key]}
 	return {"ok": false, "error": "%s is a %s and has no members, so '%s' can't be read." % [at, type_string(t), key]}
+
+
+static func _declared_type(obj: Object, name: String) -> int:
+	for info in obj.get_property_list():
+		if info.name == name:
+			return info.type
+	return TYPE_NIL
+
+
+static func _decode_like(raw: Variant, current: Variant, declared: int = TYPE_NIL) -> Dictionary:
+	var target := declared if declared != TYPE_NIL else typeof(current)
+	if target == TYPE_NIL:
+		return {"ok": true, "value": raw}
+	return Codec.decode(raw, target)
+
+
+## Prepares a write of `raw` (a JSON value) at `path`: validates the path and
+## converts the value to the type found there. Returns {ok, apply: Callable,
+## before} — call `apply` to perform it — or {ok: false, error}.
+static func prepare_write(obj: Object, path: String, raw: Variant) -> Dictionary:
+	var parts := path.split(":")
+	var head := parts[0]
+	if not _has_property(obj, head):
+		return {"ok": false, "error": "%s has no property '%s'." % [obj.get_class(), head]}
+	if parts.size() == 1:
+		var current: Variant = obj.get(head)
+		var d := _decode_like(raw, current, _declared_type(obj, head))
+		if not d.ok:
+			return {"ok": false, "error": "%s: %s" % [path, d.error]}
+		var value: Variant = d.value
+		return {"ok": true, "before": current, "apply": func() -> void: obj.set(head, value)}
+	var parent := read(obj, ":".join(parts.slice(0, parts.size() - 1)))
+	if not parent.ok:
+		return parent
+	var container: Variant = parent.value
+	var key := parts[parts.size() - 1]
+	match typeof(container):
+		TYPE_ARRAY:
+			var at := _step(container, key, path)
+			if not at.ok:
+				return at
+			var idx := int(key)
+			if idx < 0:
+				idx += container.size()
+			var d := _decode_like(raw, at.value)
+			if not d.ok:
+				return {"ok": false, "error": "%s: %s" % [path, d.error]}
+			var value: Variant = d.value
+			return {"ok": true, "before": at.value, "apply": func() -> void: container[idx] = value}
+		TYPE_DICTIONARY:
+			var k: Variant = key
+			if not container.has(key) and key.is_valid_int() and container.has(int(key)):
+				k = int(key)
+			var current: Variant = container.get(k)
+			var d := _decode_like(raw, current)
+			if not d.ok:
+				return {"ok": false, "error": "%s: %s" % [path, d.error]}
+			var value: Variant = d.value
+			return {"ok": true, "before": current, "apply": func() -> void: container[k] = value}
+		TYPE_OBJECT:
+			if container == null or not is_instance_valid(container):
+				return {"ok": false, "error": "%s is null." % ":".join(parts.slice(0, parts.size() - 1))}
+			return prepare_write(container, key, raw)
+	# Built-in value types (vectors, rects...): only through plain member chains.
+	for i in range(1, parts.size()):
+		var partial := read(obj, ":".join(parts.slice(0, i)))
+		if not partial.ok or not MEMBERS.has(typeof(partial.value)):
+			return {"ok": false, "error": "%s can't be set: only members of vectors/colors/rects, array elements and dictionary keys are settable." % path}
+	var cur := read(obj, path)
+	if not cur.ok:
+		return cur
+	var d := _decode_like(raw, cur.value)
+	if not d.ok:
+		return {"ok": false, "error": "%s: %s" % [path, d.error]}
+	var value: Variant = d.value
+	return {"ok": true, "before": cur.value, "apply": func() -> void: obj.set_indexed(NodePath(path), value)}

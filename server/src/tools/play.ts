@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { dropUndefined, registerForwardTool, type ForwardToolDef } from "./forward.js";
 import { safe } from "./helpers.js";
-import { JsonValue } from "./schemas.js";
+import { JsonValue, PropertyMap } from "./schemas.js";
 
 const GRACE_MS = 10_000;
 
@@ -99,6 +99,34 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
         ),
     },
     timeoutFor: inputTimeoutMs,
+  },
+  {
+    name: "game_set",
+    method: "game.set",
+    title: "Set values in running game",
+    description:
+      "Change state in the running game, e.g. to set up a test: {\"score\": 300, \"position:x\": 40, \"items:2\": 5}. " +
+      "Paths may address members, array elements and dictionary keys. Values are converted to the existing type; " +
+      "all of them are validated first and nothing changes if one is invalid. Returns before/after per path.",
+    input: {
+      node: z.string().optional().describe(`${GAME_NODE} Default: the running scene root.`),
+      properties: PropertyMap.describe("Property path -> new value."),
+    },
+  },
+  {
+    name: "game_call",
+    method: "game.call",
+    title: "Call method in running game",
+    description:
+      "Call a method on a node in the running game (e.g. a test hook such as restart() or spawn_wave(3)) and return its result. " +
+      "Arguments are converted to the declared parameter types; coroutines are awaited.",
+    input: {
+      node: z.string().optional().describe(`${GAME_NODE} Default: the running scene root.`),
+      method: z.string().min(1).describe("Method name."),
+      args: z.array(JsonValue).max(16).optional().describe("Positional arguments."),
+      timeout_ms: z.number().int().min(100).max(60_000).optional().describe("How long to wait for the result. Default 10000."),
+    },
+    timeoutFor: (a) => Number(a.timeout_ms ?? 10_000) + GRACE_MS,
   },
   {
     name: "game_wait_for",

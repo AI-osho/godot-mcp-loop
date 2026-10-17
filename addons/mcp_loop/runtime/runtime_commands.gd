@@ -31,6 +31,10 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return await _wait_for(p)
 		"screenshot":
 			return await _screenshot(p)
+		"set":
+			return _set_properties(p)
+		"call":
+			return await _call_method(p)
 	return Protocol.err(Protocol.UNKNOWN_METHOD, "Unknown runtime method '%s'." % method)
 
 
@@ -90,6 +94,74 @@ func _query(p: Dictionary) -> Dictionary:
 		"children": node.get_children().map(func(c: Node) -> String: return String(c.name)),
 		"properties": out,
 	})
+
+
+# ------------------------------------------------------------------ set / call
+
+func _set_properties(p: Dictionary) -> Dictionary:
+	var path := String(p.get("node", "."))
+	var node := _resolve(path)
+	if node == null:
+		return _not_found(path)
+	var props: Variant = p.get("properties")
+	if typeof(props) != TYPE_DICTIONARY or props.is_empty():
+		return Protocol.err(Protocol.INVALID_PARAMS, "'properties' must be a non-empty object {path: value}.")
+	# Validate everything first so a bad value leaves the game untouched.
+	var prepared := {}
+	for key in props:
+		var w := PropertyPath.prepare_write(node, String(key), props[key])
+		if not w.ok:
+			return Protocol.err(Protocol.INVALID_PARAMS, w.error, "Nothing was changed.")
+		prepared[String(key)] = w
+	var changes := {}
+	for key in prepared:
+		prepared[key].apply.call()
+		var after := PropertyPath.read(node, key)
+		changes[key] = {"before": Codec.encode(prepared[key].before), "after": Codec.encode(after.get("value"))}
+	return Protocol.ok({"node": str(node.get_path()), "changes": changes})
+
+
+func _call_method(p: Dictionary) -> Dictionary:
+	var path := String(p.get("node", "."))
+	var node := _resolve(path)
+	if node == null:
+		return _not_found(path)
+	var method := String(p.get("method", ""))
+	var raw_args: Variant = p.get("args", [])
+	if typeof(raw_args) != TYPE_ARRAY:
+		return Protocol.err(Protocol.INVALID_PARAMS, "'args' must be an array.")
+	var info := {}
+	for m in node.get_method_list():
+		if m.name == method:
+			info = m
+			break
+	if info.is_empty():
+		var own: Array = []
+		var script: Script = node.get_script()
+		if script != null:
+			for m in script.get_script_method_list():
+				if not String(m.name).begins_with("_") and not own.has(m.name):
+					own.append(m.name)
+		return Protocol.err(Protocol.INVALID_PARAMS, "%s has no method '%s'. Script methods: %s" % [node.get_class(), method, ", ".join(own.slice(0, 30))])
+	var params: Array = info.get("args", [])
+	var defaults: Array = info.get("default_args", [])
+	var required: int = params.size() - defaults.size()
+	var vararg: bool = info.get("flags", 0) & METHOD_FLAG_VARARG
+	if raw_args.size() < required or (raw_args.size() > params.size() and not vararg):
+		return Protocol.err(Protocol.INVALID_PARAMS, "%s() takes %s argument(s), got %d." % [method,
+			str(params.size()) if required == params.size() else "%d-%d" % [required, params.size()], raw_args.size()])
+	var args: Array = []
+	for i in raw_args.size():
+		var t: int = params[i].type if i < params.size() else TYPE_NIL
+		var d := Codec.decode(raw_args[i], t) if t != TYPE_NIL else {"ok": true, "value": raw_args[i]}
+		if not d.ok:
+			return Protocol.err(Protocol.INVALID_PARAMS, "Argument %d (%s): %s" % [i + 1, params[i].name if i < params.size() else "?", d.error])
+		args.append(d.value)
+	var result: Variant = node.callv(method, args)
+	# A coroutine returns a function state; wait for its real result.
+	if result is Object and is_instance_valid(result) and result.has_signal("completed"):
+		result = await result.completed
+	return Protocol.ok({"node": str(node.get_path()), "method": method, "returned": Codec.encode(result)})
 
 
 # ------------------------------------------------------------------ wait_for

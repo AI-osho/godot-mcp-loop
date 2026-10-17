@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `game_set` / `game_call`: change state in the running game (members, array elements, dictionary keys; values
+  converted to the existing type; all-or-nothing) and call methods (arguments converted to declared types,
+  coroutines awaited). Scenario steps `set` and `call` do the same, so test setups no longer need extra scenes.
+- Scenario `repeat: {times, steps}` (nestable, up to 10 000 expanded steps). Reported as one step; a failure names
+  the iteration and inner step.
+- Indexed property paths everywhere values are read (`items:3`, `items:-1`, `stats:hp`, `area:size:x`) with errors
+  that explain the problem (index out of range with size, missing key with the available keys, unknown member).
+
 ### Performance
 - The editor throttles its main loop to 100 ms per iteration while its window is in the background, and every bridge
   hop waited for an iteration: an editor call took ~100 ms and a game round trip ~300 ms. While requests are active

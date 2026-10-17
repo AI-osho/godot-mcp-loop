@@ -162,6 +162,81 @@ describe("runScenario", () => {
     expect(calls.map(([m]) => m)).not.toContain("game.stop");
   });
 
+  it("set and call steps drive game.set / game.call and describe themselves", async () => {
+    const { call, calls } = fakeBridge({
+      "game.set": () => ({ changes: {} }),
+      "game.call": () => ({ returned: 7 }),
+    });
+    const s = parseScenario({
+      name: "setup",
+      steps: [
+        { set: { node: "Game", properties: { sequence: "OOT", gravity_enabled: false } } },
+        { call: { node: "Game", method: "restart" } },
+        { call: { node: "Game", method: "add", args: [1, 2] } },
+      ],
+    });
+    const report = await runScenario(s, call);
+    expect(report.passed).toBe(true);
+    expect(calls.find(([m]) => m === "game.set")![1]).toEqual({ node: "Game", properties: { sequence: "OOT", gravity_enabled: false } });
+    expect(calls.filter(([m]) => m === "game.call").map(([, p]) => p)).toEqual([
+      { node: "Game", method: "restart" },
+      { node: "Game", method: "add", args: [1, 2] },
+    ]);
+    expect(report.steps.map((x) => x.target)).toEqual([
+      'Game: sequence = "OOT", gravity_enabled = false',
+      "Game.restart()",
+      "Game.add(1, 2)",
+    ]);
+    expect(report.steps[2]!.detail).toEqual({ returned: 7 });
+  });
+
+  it("repeat runs its steps n times as one reported step", async () => {
+    const { call, calls } = fakeBridge({ "game.input": () => ({}), "game.wait_for": () => ({ met: true, value: 1 }) });
+    const s = parseScenario({
+      name: "rep",
+      steps: [
+        { repeat: { times: 3, steps: [{ input: { key: "Right" } }, { assert: { node: "P", property: "x", op: ">", value: 0 } }] } },
+        { repeat: { times: 2, steps: [{ repeat: { times: 2, steps: [{ input: { key: "Up" } }] } }] } },
+      ],
+    });
+    const report = await runScenario(s, call);
+    expect(report.passed).toBe(true);
+    expect(report.steps).toHaveLength(2);
+    expect(report.steps[0]!.kind).toBe("repeat");
+    expect(report.steps[0]!.detail).toEqual({ iterations: 3, steps_per_iteration: 2 });
+    expect(report.steps[0]!.target).toMatch(/^3× \[input key Right \(hold 50 ms\)|^3× \[key Right/);
+    expect(calls.filter(([m]) => m === "game.input")).toHaveLength(3 + 4);
+  });
+
+  it("a failure inside repeat says which iteration and inner step failed", async () => {
+    let n = 0;
+    const { call } = fakeBridge({
+      "game.input": () => ({}),
+      "game.wait_for": () => {
+        n++;
+        if (n === 2) throw new BridgeError("ASSERTION_FAILED", "Condition x > 0 is false. Actual value: 0");
+        return { met: true, value: 1 };
+      },
+    });
+    const s = parseScenario({
+      name: "rep-fail",
+      steps: [{ repeat: { times: 3, steps: [{ input: { key: "Right" } }, { assert: { node: "P", property: "x", op: ">", value: 0 } }] } }],
+    });
+    const report = await runScenario(s, call);
+    expect(report.passed).toBe(false);
+    expect(report.steps[0]!.status).toBe("fail");
+    expect(report.steps[0]!.message).toContain("iteration 2/3, step 2 (assert P.x > 0)");
+    expect(report.steps[0]!.message).toContain("Actual value: 0");
+  });
+
+  it("rejects repeat blocks that are empty or too large", () => {
+    expect(() => parseScenario({ name: "x", steps: [{ repeat: { times: 2, steps: [] } }] })).toThrowError(BridgeError);
+    expect(() => parseScenario({ name: "x", steps: [{ repeat: { times: 0, steps: [{ wait_ms: 1 }] } }] })).toThrowError(BridgeError);
+    expect(() =>
+      parseScenario({ name: "x", steps: [{ repeat: { times: 1000, steps: [{ repeat: { times: 1000, steps: [{ wait_ms: 1 }] } }] } }] }),
+    ).toThrowError(/too many/);
+  });
+
   it("keep_running leaves the game up", async () => {
     const { call, calls } = fakeBridge({});
     await runScenario(parseScenario({ name: "s", keep_running: true, steps: [{ wait_ms: 1 }] }), call);

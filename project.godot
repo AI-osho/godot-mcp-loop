@@ -1,0 +1,12 @@
+; Engine configuration file.
+; Development / test project for the godot-mcp-loop addon.
+config_version=5
+
+[application]
+
+config/name="godot-mcp-loop"
+config/features=PackedStringArray("4.7")
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/mcp_loop/plugin.cfg")

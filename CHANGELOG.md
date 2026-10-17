@@ -11,8 +11,14 @@ All notable changes to this project are documented here. The format follows
   coroutines awaited). Scenario steps `set` and `call` do the same, so test setups no longer need extra scenes.
 - Scenario `repeat: {times, steps}` (nestable, up to 10 000 expanded steps). Reported as one step; a failure names
   the iteration and inner step.
+- `script_edit`: partial edits by exact text replacement (unique match or `replace_all`, applied in order),
+  compile-checked and undoable like `script_write`. In the trial the model bypassed the editor for small fixes because
+  every change needed the whole file.
 - Indexed property paths everywhere values are read (`items:3`, `items:-1`, `stats:hp`, `area:size:x`) with errors
   that explain the problem (index out of range with size, missing key with the available keys, unknown member).
+
+### Changed
+- `script_write` returns a one-line summary for new files instead of a diff of every line; diffs are capped at 300 lines.
 
 ### Performance
 - The editor throttles its main loop to 100 ms per iteration while its window is in the background, and every bridge

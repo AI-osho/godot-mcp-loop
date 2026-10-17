@@ -145,10 +145,12 @@ describe("e2e: safe editing tools", () => {
     expect(await fails("node_delete", { path: "." })).toContain("INVALID_PARAMS");
   });
 
-  it("script_write creates a valid script and returns a diff", async () => {
+  it("script_write creates a valid script and returns a summary", async () => {
     const r = await ok("script_write", { path: "res://scripts/hero.gd", content: VALID_SCRIPT });
     expect(r.created).toBe(true);
-    expect(r.diff).toContain("+@export var speed: float = 120.0");
+    // A new file is summarised instead of echoing every line back as a diff.
+    expect(r.diff).toBeUndefined();
+    expect(r.summary).toMatch(/^created res:\/\/scripts\/hero\.gd \(\d+ lines\)$/);
     expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(VALID_SCRIPT);
   });
 
@@ -248,6 +250,36 @@ describe("e2e: safe editing tools", () => {
     const got = await ok("node_get", { path: "Hero", properties: ["position", "rotation"] });
     expect(got.properties.position).toEqual([5, 6]);
     expect(got.properties.rotation).toBeCloseTo(0.5);
+  });
+
+  it("script_edit replaces exact text, compile-checks, returns a diff and is undoable", async () => {
+    const before = readFileSync(file("scripts/hero.gd"), "utf8");
+    const r = await ok("script_edit", {
+      path: "res://scripts/hero.gd",
+      edits: [{ old: "@export var speed: float = 120.0", new: "@export var speed: float = 200.0" }],
+    });
+    expect(r.diff).toContain("-@export var speed: float = 120.0");
+    expect(r.diff).toContain("+@export var speed: float = 200.0");
+    expect(readFileSync(file("scripts/hero.gd"), "utf8")).toContain("speed: float = 200.0");
+    await ok("edit_undo");
+    expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(before);
+  });
+
+  it("script_edit leaves the file untouched when an edit doesn't match or breaks compilation", async () => {
+    const before = readFileSync(file("scripts/hero.gd"), "utf8");
+    expect(
+      await fails("script_edit", { path: "res://scripts/hero.gd", edits: [{ old: "no such line", new: "x" }] }),
+    ).toContain("not found");
+    expect(
+      await fails("script_edit", {
+        path: "res://scripts/hero.gd",
+        edits: [{ old: "@export var speed: float = 120.0", new: "@export var speed: float = " }],
+      }),
+    ).toContain("SCRIPT_PARSE_ERROR");
+    expect(await fails("script_edit", { path: "res://scripts/missing.gd", edits: [{ old: "a", new: "b" }] })).toContain(
+      "FILE_NOT_FOUND",
+    );
+    expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(before);
   });
 
   it("scene_open switches the edited scene", async () => {

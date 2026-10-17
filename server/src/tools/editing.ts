@@ -129,10 +129,34 @@ export const EDITING_TOOLS: ForwardToolDef[] = [
     title: "Write script",
     description:
       "Create or overwrite a GDScript (.gd) file. The code is compiled first; on errors nothing is written and the errors (with line numbers) are returned. " +
-      "Returns a unified diff. Undoable with edit_undo.",
+      "Returns a unified diff for changed files and a one-line summary for new ones. Undoable with edit_undo. " +
+      "For small changes to an existing file prefer script_edit.",
     input: {
       path: z.string().describe("res:// path ending in .gd."),
       content: z.string().describe("Full new file content."),
+      dry_run: DRY_RUN,
+    },
+  },
+  {
+    name: "script_edit",
+    method: "script.edit",
+    title: "Edit script",
+    description:
+      "Change part of an existing GDScript file by exact text replacement, without resending the whole file. " +
+      "Each edit's 'old' must match exactly once (including indentation; GDScript uses tabs) unless replace_all is set; edits apply in order. " +
+      "The result is compiled first; on errors or a non-matching edit nothing is written. Returns a unified diff. Undoable with edit_undo.",
+    input: {
+      path: z.string().describe("res:// path of an existing .gd file."),
+      edits: z
+        .array(
+          z.object({
+            old: z.string().min(1).describe("Exact text to replace (copy it from script_read)."),
+            new: z.string().describe("Replacement text."),
+            replace_all: z.boolean().optional().describe("Replace every occurrence instead of requiring a unique match."),
+          }),
+        )
+        .min(1)
+        .max(50),
       dry_run: DRY_RUN,
     },
   },

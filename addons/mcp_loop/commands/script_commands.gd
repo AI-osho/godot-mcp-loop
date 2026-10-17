@@ -1,12 +1,14 @@
 @tool
 extends RefCounted
-## script.read, script.write, script.attach
+## script.read, script.write, script.edit, script.attach
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 const TextDiff = preload("res://addons/mcp_loop/util/text_diff.gd")
+const TextEdits = preload("res://addons/mcp_loop/util/text_edits.gd")
 
 const MAX_BYTES := 1024 * 1024
+const MAX_DIFF_LINES := 300
 
 var ctx: RefCounted
 var _class_name_re := RegEx.create_from_string("(?m)^(\\s*)class_name\\s+([A-Za-z_][A-Za-z0-9_]*)")
@@ -23,6 +25,7 @@ func _init(context: RefCounted) -> void:
 func register(router: RefCounted) -> void:
 	router.register("script.read", _read)
 	router.register("script.write", _write)
+	router.register("script.edit", _edit)
 	router.register("script.attach", _attach)
 
 
@@ -50,6 +53,28 @@ func _write(p: Dictionary) -> Dictionary:
 	var content: Variant = p.get("content")
 	if typeof(content) != TYPE_STRING:
 		return Protocol.err(Protocol.INVALID_PARAMS, "'content' must be a string.")
+	return _apply_write(path, content, p.get("dry_run", false), "script_write")
+
+
+func _edit(p: Dictionary) -> Dictionary:
+	var path := PathGuard.normalize(String(p.get("path", "")))
+	var reason := PathGuard.check_write(path, ["gd"])
+	if reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
+	if not FileAccess.file_exists(path):
+		return Protocol.err(Protocol.FILE_NOT_FOUND, "File not found: %s" % path, "Create new scripts with script_write.")
+	var current := FileAccess.get_file_as_string(path)
+	var edited := TextEdits.apply(current, p.get("edits"))
+	if not edited.ok:
+		return Protocol.err(Protocol.INVALID_PARAMS, edited.error, edited.get("hint", "Nothing was written."))
+	var result := _apply_write(path, edited.content, p.get("dry_run", false), "script_edit")
+	if result.get("ok", false):
+		result.result["replacements"] = edited.replacements
+	return result
+
+
+## Shared by script_write and script_edit: size check, compile check, diff, undoable write.
+func _apply_write(path: String, content: String, dry_run: bool, tool: String) -> Dictionary:
 	if content.to_utf8_buffer().size() > MAX_BYTES:
 		return Protocol.err(Protocol.INVALID_PARAMS, "Content is larger than 1 MB.")
 
@@ -57,15 +82,24 @@ func _write(p: Dictionary) -> Dictionary:
 	if not errors.is_empty():
 		var lines: Array = errors.map(func(e: Dictionary) -> String: return "line %d: %s" % [e.line, e.message])
 		return Protocol.err(Protocol.SCRIPT_PARSE_ERROR, "GDScript does not compile: " + "; ".join(lines),
-			"Nothing was written. Fix the code and call script_write again.")
+			"Nothing was written. Fix the code and call %s again." % tool)
 
 	var exists := FileAccess.file_exists(path)
 	var old := FileAccess.get_file_as_string(path) if exists else ""
-	var diff := TextDiff.unified(old, content, path)
-	var result := {"path": path, "created": not exists, "diff": diff, "stats": TextDiff.stats(old, content)}
+	var result := {"path": path, "created": not exists, "stats": TextDiff.stats(old, content)}
+	if exists:
+		var diff := TextDiff.unified(old, content, path)
+		var diff_lines := diff.split("\n")
+		if diff_lines.size() > MAX_DIFF_LINES:
+			diff = "\n".join(diff_lines.slice(0, MAX_DIFF_LINES)) + "\n... (%d more diff lines)" % (diff_lines.size() - MAX_DIFF_LINES)
+			result["diff_truncated"] = true
+		result["diff"] = diff
+	else:
+		# Echoing a whole new file back as a diff only costs tokens.
+		result["summary"] = "created %s (%d lines)" % [path, content.count("\n") + (0 if content.ends_with("\n") or content == "" else 1)]
 	if _tool_re.search(content) != null:
 		result["warnings"] = [TOOL_WARNING]
-	if p.get("dry_run", false):
+	if dry_run:
 		result["dry_run"] = true
 		return Protocol.ok(result)
 	if exists and old == content:

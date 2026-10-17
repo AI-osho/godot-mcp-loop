@@ -26,6 +26,10 @@ describe("readSession", () => {
     expect(() => readSession(project)).toThrowError(expect.objectContaining({ code: "GODOT_NOT_RUNNING" }));
   });
 
+  it("the not-running hint names the minimum supported Godot version (4.5+)", () => {
+    expect(() => readSession(project)).toThrowError(expect.objectContaining({ hint: expect.stringContaining("4.5+") }));
+  });
+
   it("throws GODOT_NOT_RUNNING for a stale file whose pid is dead", () => {
     write({ port: 6511, token: "t", protocol: 1, pid: 2 ** 22 + 12345 });
     expect(() => readSession(project)).toThrowError(expect.objectContaining({ code: "GODOT_NOT_RUNNING" }));

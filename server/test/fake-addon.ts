@@ -43,7 +43,7 @@ export class FakeAddon {
             env = { ok: false, error: { code: "PROTOCOL_MISMATCH", message: "bad protocol" } };
           } else {
             authed = true;
-            env = { ok: true, result: { protocol: 1, godot_version: "4.7.2-fake", addon_version: "0.1.0" } };
+            env = { ok: true, result: { protocol: 1, godot_version: "4.7.2-fake", addon_version: "0.2.0" } };
           }
         } else if (!authed) {
           env = { ok: false, error: { code: "UNAUTHORIZED", message: "hello first" } };

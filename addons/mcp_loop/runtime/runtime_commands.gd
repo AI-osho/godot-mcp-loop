@@ -118,6 +118,10 @@ func _wait_for(p: Dictionary) -> Dictionary:
 		var elapsed := Time.get_ticks_msec() - start
 		if elapsed >= timeout_ms:
 			var shown: String = JSON.stringify(last) if node != null else "(node '%s' not found)" % path
+			if timeout_ms == 0:
+				return Protocol.err(Protocol.ASSERTION_FAILED,
+					"Condition %s %s %s is false. Actual value: %s" % [prop, op, JSON.stringify(expected), shown],
+					"Use a timeout to wait for the condition instead of checking it once.")
 			return Protocol.err(Protocol.TIMEOUT,
 				"Condition %s %s %s not met within %d ms. Last value: %s" % [prop, op, JSON.stringify(expected), timeout_ms, shown],
 				"Inspect the state with game_query or screenshot, or raise timeout_ms.")
@@ -159,7 +163,106 @@ func _input(p: Dictionary) -> Dictionary:
 	var problem := _validate_steps(steps)
 	if problem != "":
 		return Protocol.err(Protocol.INVALID_PARAMS, problem)
+	var recorder: Dictionary = {}
+	if p.get("record") != null:
+		var made := _make_recorder(p.record)
+		if not made.ok:
+			return made
+		recorder = made.result
 	var start := Time.get_ticks_msec()
+	# Keep the per-frame callback out of the recorder dictionary: a callable
+	# stored inside the data it captures is a reference cycle and leaks.
+	var tick := _record_sample.bind(recorder)
+	if not recorder.is_empty():
+		recorder.start = start
+		_record_sample(recorder)
+		_tree.process_frame.connect(tick)
+	await _run_steps(steps)
+	var out := {"steps": steps.size(), "duration_ms": Time.get_ticks_msec() - start}
+	if not recorder.is_empty():
+		_tree.process_frame.disconnect(tick)
+		_record_sample(recorder, true)
+		out["record"] = _record_result(recorder)
+	return Protocol.ok(out)
+
+
+# ------------------------------------------------------------------ record
+
+const MAX_RECORD_SAMPLES := 3000
+const MAX_RECORD_PROPERTIES := 8
+const RETURNED_SAMPLES := 50
+
+
+func _make_recorder(spec: Variant) -> Dictionary:
+	if typeof(spec) != TYPE_DICTIONARY:
+		return Protocol.err(Protocol.INVALID_PARAMS, "'record' must be an object {node, properties, interval_ms?}.")
+	var props: Variant = spec.get("properties", [])
+	if typeof(props) != TYPE_ARRAY or props.is_empty() or props.size() > MAX_RECORD_PROPERTIES:
+		return Protocol.err(Protocol.INVALID_PARAMS, "record.properties must list 1 to %d properties." % MAX_RECORD_PROPERTIES)
+	var path := String(spec.get("node", ""))
+	var node := _resolve(path)
+	if node == null:
+		return _not_found(path)
+	for prop in props:
+		if not _has_property(node, String(prop)):
+			return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop])
+	var rec := {
+		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
+		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000),
+		"samples": [], "total": 0, "last_t": -1000000, "start": 0,
+	}
+	return Protocol.ok(rec)
+
+
+func _record_sample(rec: Dictionary, force: bool = false) -> void:
+	var t: int = Time.get_ticks_msec() - rec.start
+	if not force and t - rec.last_t < rec.interval:
+		return
+	if not is_instance_valid(rec.node) or rec.samples.size() >= MAX_RECORD_SAMPLES:
+		return
+	var sample := {"t_ms": t}
+	for prop in rec.properties:
+		sample[prop] = Codec.encode(rec.node.get_indexed(NodePath(prop)))
+	rec.samples.append(sample)
+	rec.last_t = t
+	rec.total += 1
+
+
+func _record_result(rec: Dictionary) -> Dictionary:
+	var samples: Array = rec.samples
+	var summary := {}
+	for prop in rec.properties:
+		if samples.is_empty():
+			break
+		var first: Variant = samples[0][prop]
+		var entry := {"first": first, "last": samples[-1][prop]}
+		if typeof(first) == TYPE_INT or typeof(first) == TYPE_FLOAT:
+			entry.min = first
+			entry.max = first
+			entry.min_at_ms = samples[0].t_ms
+			entry.max_at_ms = samples[0].t_ms
+			for s in samples:
+				var v: Variant = s[prop]
+				if typeof(v) != TYPE_INT and typeof(v) != TYPE_FLOAT:
+					continue
+				if v < entry.min:
+					entry.min = v
+					entry.min_at_ms = s.t_ms
+				if v > entry.max:
+					entry.max = v
+					entry.max_at_ms = s.t_ms
+		summary[prop] = entry
+	# Return an evenly spaced subset; always keep the first and last sample.
+	var shown: Array = samples
+	if samples.size() > RETURNED_SAMPLES:
+		shown = []
+		for i in RETURNED_SAMPLES:
+			shown.append(samples[roundi(float(i) * (samples.size() - 1) / (RETURNED_SAMPLES - 1))])
+	return {"node": rec.path, "samples_total": rec.total, "samples": shown, "summary": summary,
+		"note": "" if is_instance_valid(rec.node) else "The node was freed during recording."}
+
+
+func _run_steps(steps: Array) -> void:
 	for s in steps:
 		if s.has("action"):
 			var action := StringName(s.action)
@@ -188,7 +291,6 @@ func _input(p: Dictionary) -> Dictionary:
 			_send_click(pos, button, false)
 		if s.has("wait_ms"):
 			await _sleep(int(s.wait_ms))
-	return Protocol.ok({"steps": steps.size(), "duration_ms": Time.get_ticks_msec() - start})
 
 
 func _sleep(ms: int) -> void:

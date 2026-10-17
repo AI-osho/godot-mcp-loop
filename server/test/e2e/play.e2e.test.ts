@@ -51,6 +51,17 @@ describe("e2e: run / observe loop", () => {
     expect(r.met).toBe(true);
   });
 
+  it("game_wait_for accepts a number sent as a string", async () => {
+    const r = await ok("game_wait_for", { node: "Player", property: "position:y", op: ">=", value: "370", timeout_ms: 5000 });
+    expect(r.met).toBe(true);
+  });
+
+  it("game_wait_for with timeout_ms 0 fails as an assertion with the actual value", async () => {
+    const msg = await fails("game_wait_for", { node: "Player", property: "position:x", op: ">", value: 5000, timeout_ms: 0 });
+    expect(msg).toContain("ASSERTION_FAILED");
+    expect(msg).toMatch(/Actual value: \d+/);
+  });
+
   it("game_query reads live values and script variables", async () => {
     const q = await ok("game_query", { node: "Player" });
     expect(q.type).toBe("CharacterBody2D");
@@ -73,10 +84,25 @@ describe("e2e: run / observe loop", () => {
     expect(logs.entries.map((e: any) => e.message)).toContain("jump #1");
   });
 
+  it("game_input record captures the top of a jump in one call", async () => {
+    await ok("game_wait_for", { node: "Player", property: "position:y", op: ">=", value: 370, timeout_ms: 3000 });
+    const r = await ok("game_input", {
+      steps: [{ action: "jump", hold_ms: 100 }, { wait_ms: 800 }],
+      record: { node: "Player", properties: ["position:y"] },
+    });
+    const y = r.record.summary["position:y"];
+    expect(y.first).toBeGreaterThan(370); // on the floor
+    expect(y.min).toBeLessThan(320); // the apex (about 286) was captured
+    expect(y.min_at_ms).toBeGreaterThan(200);
+    expect(y.min_at_ms).toBeLessThan(700);
+    expect(r.record.samples.length).toBeGreaterThan(5);
+    expect(r.record.samples.length).toBeLessThanOrEqual(50);
+  });
+
   it("game_wait_for times out with the last value", async () => {
     const msg = await fails("game_wait_for", { node: "Player", property: "jumps", op: ">", value: 5, timeout_ms: 300 });
     expect(msg).toContain("TIMEOUT");
-    expect(msg).toContain("Last value: 1");
+    expect(msg).toMatch(/Last value: \d+/); // jump count so far (depends on earlier tests)
   });
 
   it("game_input rejects unknown actions without side effects", async () => {

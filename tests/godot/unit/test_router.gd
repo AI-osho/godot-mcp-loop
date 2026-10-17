@@ -131,3 +131,13 @@ func test_reset_session_requires_new_hello() -> void:
 	router.reset_session()
 	var res: Dictionary = await router.handle({"id": 11, "method": "ping", "params": {}})
 	assert_error_code(res, Protocol.UNAUTHORIZED)
+
+
+func test_hello_reports_the_addon_version_from_plugin_cfg() -> void:
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load("res://addons/mcp_loop/plugin.cfg"), OK)
+	var expected := str(cfg.get_value("plugin", "version"))
+	var router := Router.new(TOKEN)
+	var res := await _hello(router)
+	assert_eq(res.result.addon_version, expected)
+	assert_eq(Protocol.addon_version(), expected)

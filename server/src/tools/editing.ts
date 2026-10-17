@@ -6,7 +6,8 @@ import { PropertyMap } from "./schemas.js";
 
 const VALUE_FORMATS =
   "Value formats: Vector2/3 as [x, y(, z)] or {x, y}; Color as '#rrggbb', '#rrggbbaa', a name like 'red', or [r, g, b, a] in 0..1; " +
-  "NodePath/StringName as strings; Rect2 as [x, y, w, h]; resources as {\"res\": \"res://path\"} (null clears). " +
+  "NodePath/StringName as strings; Rect2 as [x, y, w, h]; resources as {\"res\": \"res://path\"} for a file, or " +
+  "{\"new\": \"RectangleShape2D\", \"properties\": {\"size\": [32, 48]}} to create an embedded one (shapes, materials, styles; not scripts); null clears. " +
   "Nested fields can be set with Godot's indexed syntax, e.g. \"position:x\".";
 
 const NODE_PATH =

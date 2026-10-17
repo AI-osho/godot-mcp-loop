@@ -1,6 +1,8 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { GodotConnection } from "../src/connection.js";
+import { SERVER_VERSION } from "../src/server.js";
 import { FakeAddon } from "./fake-addon.js";
 import { connectClient, textOf } from "./helpers.js";
 
@@ -23,6 +25,12 @@ describe("godot_status tool", () => {
     await client.close();
     conn.close();
     await addon.stop();
+  });
+
+  it("reports the server version from package.json", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+    expect(SERVER_VERSION).toBe(pkg.version);
+    expect(client.getServerVersion()?.version).toBe(pkg.version);
   });
 
   it("is listed with a description", async () => {

@@ -114,7 +114,7 @@ static func decode(v: Variant, target_type: int, depth: int = 0) -> Dictionary:
 				return _ok(Rect2(nums[0], nums[1], nums[2], nums[3]))
 			return _ok(Rect2i(int(nums[0]), int(nums[1]), int(nums[2]), int(nums[3])))
 		TYPE_OBJECT:
-			return _decode_resource(v)
+			return _decode_resource(v, depth)
 		TYPE_ARRAY:
 			return _ok(v) if typeof(v) == TYPE_ARRAY else _fail("Expected an array.")
 		TYPE_DICTIONARY:
@@ -146,11 +146,13 @@ static func _decode_color(v: Variant) -> Dictionary:
 	return _fail("Invalid color. Use '#rrggbb', a name, or [r, g, b(, a)].")
 
 
-static func _decode_resource(v: Variant) -> Dictionary:
+static func _decode_resource(v: Variant, depth: int = 0) -> Dictionary:
 	if v == null:
 		return _ok(null)
+	if typeof(v) == TYPE_DICTIONARY and typeof(v.get("new")) == TYPE_STRING:
+		return _decode_new_resource(v, depth)
 	if typeof(v) != TYPE_DICTIONARY or typeof(v.get("res")) != TYPE_STRING:
-		return _fail("Resources are referenced as {\"res\": \"res://path\"} (or null to clear).")
+		return _fail("Resources are given as {\"res\": \"res://path\"} for a file, {\"new\": \"ClassName\", \"properties\": {...}} for an embedded resource, or null to clear.")
 	var path: String = v["res"]
 	var reason := PathGuard.check_read(path)
 	if reason != "":
@@ -161,6 +163,67 @@ static func _decode_resource(v: Variant) -> Dictionary:
 	if res == null:
 		return _fail("Could not load resource: %s" % path)
 	return _ok(res)
+
+
+## {"new": "RectangleShape2D", "properties": {"size": [32, 48]}} -> a new embedded
+## resource. Scripts are excluded: code goes through script_write/script_attach.
+static func _decode_new_resource(spec: Dictionary, depth: int) -> Dictionary:
+	var cls: String = spec["new"]
+	if not ClassDB.class_exists(cls):
+		return _fail("Unknown resource class: %s" % cls)
+	if cls == "Script" or ClassDB.is_parent_class(cls, "Script"):
+		return _fail("Scripts can't be created inline; write them with script_write and attach them with script_attach.")
+	if not ClassDB.is_parent_class(cls, "Resource"):
+		return _fail("%s is not a Resource class." % cls)
+	if not ClassDB.can_instantiate(cls):
+		return _fail("%s is abstract; use a concrete subclass (e.g. RectangleShape2D for Shape2D)." % cls)
+	var props: Variant = spec.get("properties", {})
+	if typeof(props) != TYPE_DICTIONARY:
+		return _fail("\"properties\" of a new resource must be an object.")
+	var res: Resource = ClassDB.instantiate(cls)
+	var info := {}
+	for p in res.get_property_list():
+		if p.usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR):
+			info[p.name] = p
+	for key in props:
+		var prop := str(key)
+		if not info.has(prop) or prop == "script" or prop == "resource_path":
+			return _fail("%s has no settable property '%s'." % [cls, prop])
+		var d := decode(props[key], info[prop].type, depth + 1)
+		if not d.ok:
+			return _fail("%s.%s: %s" % [cls, prop, d.error])
+		if not matches_resource_hint(d.value, info[prop]):
+			return _fail("%s.%s expects %s." % [cls, prop, info[prop].hint_string])
+		res.set(prop, d.value)
+	return _ok(res)
+
+
+## True unless `value` is a resource that doesn't fit the property's resource type hint.
+static func matches_resource_hint(value: Variant, prop: Dictionary) -> bool:
+	if not (value is Resource) or prop.get("hint", 0) != PROPERTY_HINT_RESOURCE_TYPE:
+		return true
+	for t in str(prop.get("hint_string", "")).split(","):
+		if t.strip_edges() == "" or value.is_class(t.strip_edges()):
+			return true
+	return false
+
+
+## Embedded resource -> {"new": class, "properties": {non-default stored values}}.
+static func _encode_embedded(res: Resource, depth: int) -> Dictionary:
+	var cls := res.get_class()
+	var out := {}
+	for p in res.get_property_list():
+		if not (p.usage & PROPERTY_USAGE_STORAGE):
+			continue
+		var prop: String = p.name
+		if prop == "script" or prop.begins_with("resource_"):
+			continue
+		var value: Variant = res.get(prop)
+		var default_value: Variant = ClassDB.class_get_property_default_value(cls, prop)
+		if typeof(value) == typeof(default_value) and value == default_value:
+			continue
+		out[prop] = encode(value, depth + 1)
+	return {"new": cls, "properties": out}
 
 
 ## Returns a copy of `base` with the value at `subpath` (e.g. ["origin", "y"])
@@ -203,7 +266,10 @@ static func encode(v: Variant, depth: int = 0) -> Variant:
 			if v == null or not is_instance_valid(v):
 				return null
 			if v is Resource:
-				return {"res": v.resource_path, "type": v.get_class()}
+				var path: String = v.resource_path
+				if path == "" or path.contains("::"):
+					return _encode_embedded(v, depth)
+				return {"res": path, "type": v.get_class()}
 			if v is Node:
 				var path: String = str(v.get_path()) if v.is_inside_tree() else str(v.name)
 				return {"node": path, "type": v.get_class()}

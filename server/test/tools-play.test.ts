@@ -48,6 +48,21 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(jsonOf(res)).toEqual({ got: { steps } });
   });
 
+  it("game_input forwards a record request", async () => {
+    addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
+    const args = {
+      steps: [{ action: "jump", hold_ms: 100 }, { wait_ms: 600 }],
+      record: { node: "Player", properties: ["position:y"], interval_ms: 0 },
+    };
+    const res = await client.callTool({ name: "game_input", arguments: args });
+    expect(jsonOf(res)).toEqual({ got: args });
+    const bad = await client.callTool({
+      name: "game_input",
+      arguments: { steps: [{ wait_ms: 1 }], record: { node: "Player", properties: [] } },
+    });
+    expect(bad.isError).toBe(true);
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

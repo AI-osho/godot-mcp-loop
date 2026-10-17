@@ -27,7 +27,7 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 {"id": 1, "method": "node.add", "params": {"type": "Sprite2D", "name": "Hero"}}
 
 // addon → client
-{"id": 0, "ok": true, "result": {"protocol": 1, "godot_version": "…", "addon_version": "0.1.0"}}
+{"id": 0, "ok": true, "result": {"protocol": 1, "godot_version": "…", "addon_version": "0.2.0"}}
 {"id": 1, "ok": false, "error": {"code": "NODE_NOT_FOUND", "message": "…", "hint": "…"}}
 
 // addon → client, unsolicited (no id)
@@ -52,6 +52,7 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 | `NOTHING_TO_UNDO` | No MCP edit left, or a human edit blocks it. |
 | `GAME_NOT_RUNNING`, `GAME_ALREADY_RUNNING`, `GAME_PAUSED` | Game state. |
 | `TIMEOUT` | A wait or call exceeded its time limit. |
+| `ASSERTION_FAILED` | A one-time check (`wait_for` with `timeout_ms: 0`, scenario `assert`) is false; the message has the actual value. |
 | `RENDERING_UNAVAILABLE` | Screenshot requested while headless. |
 | `INTERNAL` | Bug — please report. |
 

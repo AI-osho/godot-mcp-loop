@@ -17,6 +17,7 @@ const SCRIPT_PARSE_ERROR := "SCRIPT_PARSE_ERROR"
 const GAME_NOT_RUNNING := "GAME_NOT_RUNNING"
 const GAME_ALREADY_RUNNING := "GAME_ALREADY_RUNNING"
 const TIMEOUT := "TIMEOUT"
+const ASSERTION_FAILED := "ASSERTION_FAILED"
 const RENDERING_UNAVAILABLE := "RENDERING_UNAVAILABLE"
 const NOTHING_TO_UNDO := "NOTHING_TO_UNDO"
 const INTERNAL := "INTERNAL"
@@ -42,3 +43,11 @@ static func is_envelope(value: Variant) -> bool:
 	if d.get("ok") == false:
 		return typeof(d.get("error")) == TYPE_DICTIONARY and d["error"].has("code")
 	return false
+
+
+## The addon version, read from plugin.cfg (the single source of truth).
+static func addon_version() -> String:
+	var cfg := ConfigFile.new()
+	if cfg.load("res://addons/mcp_loop/plugin.cfg") != OK:
+		return "unknown"
+	return str(cfg.get_value("plugin", "version", "unknown"))

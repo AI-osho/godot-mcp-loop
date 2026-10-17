@@ -29,7 +29,7 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
 
 ## Highlights
 
-- **Closed loop**: `game_run`, `game_input` (actions, keys, mouse, with real timing), `game_wait_for`
+- **Closed loop**: `game_run`, `game_input` (actions, keys, mouse, with real timing; can record values every frame), `game_wait_for`
   (checked every frame, reports the last value on timeout), `game_query`, `screenshot`, `logs_read`.
 - **Scenario tests**: YAML/JSON play-tests → per-step pass/fail, failure screenshot, game errors. [Details](docs/scenarios.md).
 - **Safe editing**: every edit goes through Godot's undo history; `edit_undo` only ever reverts edits made via MCP;

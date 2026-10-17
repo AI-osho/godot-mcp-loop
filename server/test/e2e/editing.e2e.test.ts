@@ -215,6 +215,35 @@ describe("e2e: safe editing tools", () => {
     expect(tscn).toContain("res://scripts/hero.gd");
   });
 
+  it("embedded resources ({new}) can be created, read back and saved into the scene", async () => {
+    await ok("node_add", { parent: ".", type: "StaticBody2D", name: "Wall" });
+    await ok("node_add", {
+      parent: "Wall",
+      type: "CollisionShape2D",
+      name: "Shape",
+      properties: { shape: { new: "RectangleShape2D", properties: { size: [32, 48] } } },
+    });
+    const got = await ok("node_get", { path: "Wall/Shape", properties: ["shape"] });
+    expect(got.properties.shape).toEqual({ new: "RectangleShape2D", properties: { size: [32, 48] } });
+    expect(await fails("node_set", { path: "Wall/Shape", properties: { shape: { new: "GDScript" } } })).toContain(
+      "script_write",
+    );
+    expect(await fails("node_set", { path: "Wall/Shape", properties: { shape: { new: "StyleBoxFlat" } } })).toContain(
+      "Shape2D",
+    );
+    await ok("scene_save");
+    const tscn = readFileSync(file("levels/test_level.tscn"), "utf8");
+    expect(tscn).toContain('type="RectangleShape2D"');
+    expect(tscn).toContain("size = Vector2(32, 48)");
+  });
+
+  it("property values sent as strings are decoded to the property's type", async () => {
+    await ok("node_set", { path: "Hero", properties: { position: "[5, 6]", rotation: "0.5" } });
+    const got = await ok("node_get", { path: "Hero", properties: ["position", "rotation"] });
+    expect(got.properties.position).toEqual([5, 6]);
+    expect(got.properties.rotation).toBeCloseTo(0.5);
+  });
+
   it("scene_open switches the edited scene", async () => {
     await ok("scene_create", { path: "res://levels/other.tscn", root_type: "Node3D" });
     expect((await ok("godot_status")).edited_scene).toBe("res://levels/other.tscn");

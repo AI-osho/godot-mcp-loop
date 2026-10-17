@@ -51,6 +51,7 @@ describe("scenario_run tool", () => {
     expect(res.isError).toBeFalsy();
     const content = res.content as Array<{ type: string; text?: string; data?: string }>;
     expect(content[0]!.text).toMatch(/Scenario "move": PASSED/);
+    expect(content[0]!.text).toMatch(/1\. assert Player\.x > 0 .*→ 1/); // condition and observed value
     expect(content.some((c) => c.type === "image" && c.data === "QUJD")).toBe(true);
     const json = JSON.parse(content[1]!.text!);
     expect(json.passed).toBe(true);

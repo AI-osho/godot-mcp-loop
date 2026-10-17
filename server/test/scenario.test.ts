@@ -84,6 +84,14 @@ describe("runScenario", () => {
     expect(report.passed).toBe(true);
     expect(report.steps.map((x) => x.status)).toEqual(["pass", "pass", "pass", "pass", "pass"]);
     expect(report.steps[3]!.detail).toEqual({ properties: { position: [1, 2] } });
+    // each step says what it checked or did, so reports can't be misread
+    expect(report.steps.map((x) => x.target)).toEqual([
+      "Player.position:x > 1",
+      "move_right (hold 10 ms)",
+      "Player.position:x > 1",
+      "Player [position]",
+      undefined,
+    ]);
     expect(calls[0]).toEqual(["game.run", { scene: "res://main.tscn", restart: true }]);
     expect(calls.at(-1)![0]).toBe("game.stop");
     // assert = wait_for with timeout 0
@@ -109,6 +117,7 @@ describe("runScenario", () => {
     expect(report.steps.map((x) => x.status)).toEqual(["fail", "skipped"]);
     expect(report.steps[0]!.message).toContain("Last value: 120");
     expect(report.failure_screenshot?.png_base64).toBe("AAAA");
+    expect(report.failure_screenshot?.label).toBe("failure at step 1 (assert)"); // 1-based like the summary
     expect(report.errors).toEqual([{ level: "error", message: "boom", file: "res://p.gd", line: 3 }]);
     expect(calls.some(([m]) => m === "game.input")).toBe(false);
     expect(calls.at(-1)![0]).toBe("game.stop");

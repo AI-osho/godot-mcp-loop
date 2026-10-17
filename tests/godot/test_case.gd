@@ -40,6 +40,11 @@ func assert_eq(actual: Variant, expected: Variant, message: String = "") -> void
 			var_to_str(actual), type_string(typeof(actual)), message])
 
 
+func assert_string_contains(text: Variant, part: String, message: String = "") -> void:
+	if not str(text).contains(part):
+		fail("expected %s to contain %s %s" % [str(text), part, message])
+
+
 func assert_has(container: Variant, key: Variant, message: String = "") -> void:
 	if not container.has(key):
 		fail("expected %s to contain %s %s" % [var_to_str(container), var_to_str(key), message])

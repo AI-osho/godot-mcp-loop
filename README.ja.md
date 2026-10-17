@@ -28,7 +28,7 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 
 ## 特長
 
-- **閉じたループ**: `game_run`、`game_input`（アクション・キー・マウスを実時間で）、`game_wait_for`
+- **閉じたループ**: `game_run`、`game_input`（アクション・キー・マウスを実時間で。値の毎フレーム記録も可）、`game_wait_for`
   （毎フレーム判定、タイムアウト時は最後の値を返す）、`game_query`、`screenshot`、`logs_read`。
 - **シナリオテスト**: YAML/JSON のプレイテスト → ステップごとの成否、失敗時スクショ、ゲーム内エラー。[詳細](docs/scenarios.md)
 - **安全な編集**: すべての変更は Godot の Undo 履歴に記録。`edit_undo` は MCP 経由の変更だけを戻し、人の編集は戻しません。

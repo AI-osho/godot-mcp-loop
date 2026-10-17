@@ -91,7 +91,7 @@ func _hello(params: Dictionary) -> Dictionary:
 	return Protocol.ok({
 		"protocol": Protocol.VERSION,
 		"godot_version": Engine.get_version_info().get("string", ""),
-		"addon_version": "0.1.0",
+		"addon_version": Protocol.addon_version(),
 	})
 
 

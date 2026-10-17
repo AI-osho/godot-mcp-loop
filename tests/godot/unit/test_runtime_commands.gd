@@ -161,3 +161,59 @@ func test_input_rejects_excessive_durations_and_step_counts() -> void:
 		many.append({"wait_ms": 0})
 	r = await _cmds.handle("input", {"steps": many})
 	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- immediate checks (timeout 0) fail as assertions with the actual value ----
+
+func test_wait_for_with_zero_timeout_fails_as_assertion() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": ">", "value": 600, "timeout_ms": 0})
+	assert_error_code(r, Protocol.ASSERTION_FAILED)
+	assert_string_contains(r.error.message, "position:x > 600")
+	assert_string_contains(r.error.message, "Actual value: 10")
+
+
+# ---- game_input record ----
+
+func test_input_record_samples_values_while_steps_run() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.1).timeout.connect(func() -> void: player.position.x = 500)
+	tree.create_timer(0.2).timeout.connect(func() -> void: player.position.x = 250)
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 300}],
+		"record": {"node": "Player", "properties": ["position:x"]}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	var rec: Dictionary = r.result.record
+	var x: Dictionary = rec.summary["position:x"]
+	assert_eq(x.first, 10.0)
+	assert_eq(x.min, 10.0)
+	assert_eq(x.max, 500.0)
+	assert_eq(x.last, 250.0)
+	assert_true(x.max_at_ms >= 50 and x.max_at_ms <= 250, str(x.max_at_ms))
+	assert_true(rec.samples_total >= 3, str(rec.samples_total))
+	assert_true(rec.samples.size() <= 50)
+	assert_has(rec.samples[0], "t_ms")
+	assert_has(rec.samples[0], "position:x")
+
+
+func test_input_record_interval_limits_samples() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 300}],
+		"record": {"node": "Player", "properties": ["position"], "interval_ms": 100}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_true(r.result.record.samples_total <= 5, str(r.result.record.samples_total))
+	# Non-numeric values only report first/last.
+	assert_eq(r.result.record.summary["position"], {"first": [10.0, 20.0], "last": [10.0, 20.0]})
+
+
+func test_input_record_validates_before_running() -> void:
+	_setup()
+	var bad_prop: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
+		"record": {"node": "Player", "properties": ["nope"]}})
+	assert_error_code(bad_prop, Protocol.INVALID_PARAMS)
+	var bad_node: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
+		"record": {"node": "Nobody", "properties": ["position"]}})
+	assert_error_code(bad_node, Protocol.NODE_NOT_FOUND)
+	var no_props: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
+		"record": {"node": "Player", "properties": []}})
+	assert_error_code(no_props, Protocol.INVALID_PARAMS)

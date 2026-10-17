@@ -163,3 +163,82 @@ func test_decode_string_types_are_not_reinterpreted() -> void:
 func test_decode_garbage_string_still_fails() -> void:
 	assert_false(Codec.decode("abc", TYPE_FLOAT).ok)
 	assert_false(Codec.decode("[1, 2", TYPE_VECTOR2).ok)
+
+
+# ---- embedded resources: {"new": "Class", "properties": {...}} ----
+
+func test_decode_new_resource_with_properties() -> void:
+	var r: Dictionary = Codec.decode({"new": "RectangleShape2D", "properties": {"size": [32, 48]}}, TYPE_OBJECT)
+	assert_true(r.ok, str(r.get("error", "")))
+	assert_true(r.value is RectangleShape2D)
+	assert_eq(r.value.size, Vector2(32, 48))
+
+
+func test_decode_new_resource_without_properties() -> void:
+	var r: Dictionary = Codec.decode({"new": "CircleShape2D"}, TYPE_OBJECT)
+	assert_true(r.ok and r.value is CircleShape2D)
+
+
+func test_decode_new_resource_decodes_typed_properties() -> void:
+	var r: Dictionary = Codec.decode({"new": "StyleBoxFlat", "properties": {"bg_color": "#ff0000", "corner_radius_top_left": "4"}}, TYPE_OBJECT)
+	assert_true(r.ok, str(r.get("error", "")))
+	assert_eq(r.value.bg_color, Color(1, 0, 0))
+	assert_eq(r.value.corner_radius_top_left, 4)
+
+
+func test_decode_new_resource_nested() -> void:
+	var r: Dictionary = Codec.decode({"new": "ParticleProcessMaterial", "properties": {
+		"color_ramp": {"new": "GradientTexture1D", "properties": {"width": 64}}}}, TYPE_OBJECT)
+	assert_true(r.ok, str(r.get("error", "")))
+	assert_true(r.value.color_ramp is GradientTexture1D)
+	assert_eq(r.value.color_ramp.width, 64)
+
+
+func test_decode_new_rejects_unknown_class() -> void:
+	var r: Dictionary = Codec.decode({"new": "NoSuchShape"}, TYPE_OBJECT)
+	assert_false(r.ok)
+	assert_string_contains(r.error, "NoSuchShape")
+
+
+func test_decode_new_rejects_non_resources() -> void:
+	assert_false(Codec.decode({"new": "Node2D"}, TYPE_OBJECT).ok)
+
+
+func test_decode_new_rejects_abstract_classes() -> void:
+	assert_false(Codec.decode({"new": "Shape2D"}, TYPE_OBJECT).ok)
+
+
+func test_decode_new_rejects_scripts() -> void:
+	for cls in ["GDScript", "Script"]:
+		var r: Dictionary = Codec.decode({"new": cls, "properties": {"source_code": "extends Node"}}, TYPE_OBJECT)
+		assert_false(r.ok, cls)
+		assert_string_contains(r.error, "script_write")
+
+
+func test_decode_new_rejects_unknown_property() -> void:
+	var r: Dictionary = Codec.decode({"new": "RectangleShape2D", "properties": {"radius": 3}}, TYPE_OBJECT)
+	assert_false(r.ok)
+	assert_string_contains(r.error, "radius")
+
+
+func test_decode_new_rejects_bad_property_value() -> void:
+	assert_false(Codec.decode({"new": "RectangleShape2D", "properties": {"size": "big"}}, TYPE_OBJECT).ok)
+
+
+func test_encode_embedded_resource_as_new_with_changed_properties() -> void:
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(32, 48)
+	assert_eq(Codec.encode(shape), {"new": "RectangleShape2D", "properties": {"size": [32.0, 48.0]}})
+
+
+func test_encode_embedded_resource_round_trips() -> void:
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(10, 20)
+	var back: Dictionary = Codec.decode(Codec.encode(shape), TYPE_OBJECT)
+	assert_true(back.ok and back.value is RectangleShape2D)
+	assert_eq(back.value.size, Vector2(10, 20))
+
+
+func test_encode_file_resource_as_reference() -> void:
+	var res := load("res://examples/platformer/player.gd")
+	assert_eq(Codec.encode(res), {"res": "res://examples/platformer/player.gd", "type": res.get_class()})

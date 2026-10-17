@@ -7,7 +7,10 @@ Conventions
 - **Editor node paths** are relative to the edited scene's root; `.` is the root (`Player/Sprite2D`).
 - **Game node paths** are relative to the running scene (`Player`) or absolute (`/root/Main/Player`).
 - **Values** are JSON: `Vector2/3` as `[x, y(, z)]` or `{x, y}`; `Color` as `"#rrggbb"`, `"#rrggbbaa"`, `"red"` or `[r, g, b, a]`;
-  `Rect2` as `[x, y, w, h]`; resources as `{"res": "res://path"}` (`null` clears). Indexed sub-properties use Godot's
+  `Rect2` as `[x, y, w, h]`; resources as `{"res": "res://path"}` for a file, or `{"new": "RectangleShape2D", "properties": {"size": [32, 48]}}`
+  to create an embedded resource (shapes, materials, styles — any concrete `Resource` class except scripts; nested
+  `new` works); `null` clears. Reading an embedded resource returns the same `new` form with its non-default
+  properties, so it can be copied. Values sent as strings (`"120"`, `"[10, 20]"`) are decoded to the property's type. Indexed sub-properties use Godot's
   syntax: `"position:x"`.
 - Every editing tool accepts `dry_run: true` to validate and preview without changing anything.
 - Errors come back as `Error <CODE>: <message>` plus a `Hint:` line the agent can act on (codes in [protocol.md](protocol.md)).
@@ -53,8 +56,8 @@ Conventions
 | `game_run` | Launch `main`, `current`, or a scene path; waits until the in-game runtime connects. `restart`, `pause_on_error`. |
 | `game_stop` | Stop the game. Game logs remain readable. |
 | `game_query` | Live values from the running game (`properties`), or an overview incl. script variables and children. |
-| `game_input` | Ordered input steps with real timing: `{action, hold_ms}`, `{action, press}`/`{action, release}`, `{key}`, `{mouse_move}`, `{mouse_click}`, `{wait_ms}`. Unknown actions/keys are rejected before anything runs. |
-| `game_wait_for` | Wait until `node.property <op> value` (`== != > >= < <= contains`), checked every frame. `timeout_ms: 0` = one-shot assertion. On timeout returns the last observed value. |
+| `game_input` | Ordered input steps with real timing: `{action, hold_ms}`, `{action, press}`/`{action, release}`, `{key}`, `{mouse_move}`, `{mouse_click}`, `{wait_ms}`. Unknown actions/keys are rejected before anything runs. Optional `record: {node, properties, interval_ms?}` samples the properties every frame while the steps run and returns `summary` (`min`, `max`, `min_at_ms`, `max_at_ms`, `first`, `last`) plus up to 50 samples — use it for brief states such as the top of a jump (add a final `{wait_ms}` to keep recording after the input). |
+| `game_wait_for` | Wait until `node.property <op> value` (`== != > >= < <= contains`), checked every frame. `timeout_ms: 0` = one-shot assertion (`ASSERTION_FAILED` with the actual value). On timeout returns the last observed value. |
 | `logs_read` | `print` output, errors and warnings with file/line/stack. `source: game` (default) or `editor`; use `since: <next>` to read incrementally. |
 | `screenshot` | PNG of the running game (`target: game`) or the editor viewport (`target: editor`). Unavailable when headless. |
 

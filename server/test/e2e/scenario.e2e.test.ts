@@ -39,7 +39,9 @@ describe("e2e: scenario_run against the platformer", () => {
     const { summary, report } = await run({ path: "res://examples/platformer/scenarios/intentional_failure.yaml" });
     expect(summary).toMatch(/FAILED/);
     expect(report.steps.map((s: any) => s.status)).toEqual(["pass", "pass", "fail", "skipped"]);
-    expect(report.steps[2].message).toMatch(/Last value: \d+/);
+    expect(report.steps[2].message).toMatch(/^ASSERTION_FAILED: Condition position:x > 600(\.0)? is false\. Actual value: \d+/);
+    expect(report.steps[2].target).toBe("Player.position:x > 600");
+    expect(report.failure_screenshot?.label ?? "failure at step 3 (assert)").toBe("failure at step 3 (assert)");
   }, 60_000);
 
   it("assert_no_errors catches a runtime script error", async () => {

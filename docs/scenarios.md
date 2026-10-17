@@ -40,14 +40,15 @@ The tool returns three things:
 1. A human summary:
    ```
    Scenario "intentional failure demo": FAILED (2.1 s)
-     ✓ 1. wait_for (412 ms)
-     ✓ 2. input (215 ms)
-     ✗ 3. assert (6 ms) — TIMEOUT: Condition position:x > 600 not met within 0 ms. Last value: 144.0
-     - 4. input
+     ✓ 1. wait_for Player.position:y >= 370 (412 ms) → 375.13
+     ✓ 2. input move_right (hold 200 ms) (215 ms)
+     ✗ 3. assert Player.position:x > 600 (6 ms) — ASSERTION_FAILED: Condition position:x > 600.0 is false. Actual value: 144.0
+     - 4. input jump (hold 100 ms)
    ```
 2. The JSON report: `passed`, `duration_ms`, `steps[]` (`status`: `pass` / `fail` / `error` / `skip` / `skipped`,
-   `message`, `detail`), `errors[]` (error logs from the game), `setup_error`.
-3. Screenshots as images: every `screenshot` step plus an automatic one at the failing step (when a renderer is available).
+   `target` — what the step checked or did, `message`, `detail`), `errors[]` (error logs from the game), `setup_error`.
+3. Screenshots as images: every `screenshot` step plus an automatic one at the failing step (when a renderer is available),
+   labelled with the same 1-based step number as the summary.
 
 A failing scenario is a *successful* tool call (`isError` is false); `passed` tells you the outcome.
 

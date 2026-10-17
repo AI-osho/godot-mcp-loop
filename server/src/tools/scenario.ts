@@ -36,7 +36,12 @@ export function summarise(r: ScenarioReport): string {
   if (r.setup_error) lines.push(`  Game did not start: ${r.setup_error}`);
   for (const s of r.steps) {
     const time = s.status === "skipped" ? "" : ` (${s.duration_ms} ms)`;
-    lines.push(`  ${ICON[s.status] ?? "?"} ${s.index + 1}. ${s.kind}${time}${s.message ? ` — ${s.message}` : ""}`);
+    const target = s.target ? ` ${s.target}` : "";
+    const value = (s.detail as { value?: unknown } | undefined)?.value;
+    const observed = s.status === "pass" && value !== undefined ? ` → ${JSON.stringify(value)}` : "";
+    lines.push(
+      `  ${ICON[s.status] ?? "?"} ${s.index + 1}. ${s.kind}${target}${time}${observed}${s.message ? ` — ${s.message}` : ""}`,
+    );
   }
   if (r.errors.length > 0) lines.push(`  Errors logged by the game: ${r.errors.length} (see report.errors)`);
   return lines.join("\n");

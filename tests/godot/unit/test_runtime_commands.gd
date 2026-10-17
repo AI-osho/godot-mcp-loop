@@ -217,3 +217,53 @@ func test_input_record_validates_before_running() -> void:
 	var no_props: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
 		"record": {"node": "Player", "properties": []}})
 	assert_error_code(no_props, Protocol.INVALID_PARAMS)
+
+
+# ---- indexed paths in the running game ----
+
+func _scene_with_items() -> Node2D:
+	_setup()
+	var s := GDScript.new()
+	s.source_code = "extends Node2D\nvar items := [1, 2]\n"
+	s.reload()
+	var holder := Node2D.new()
+	holder.name = "Holder"
+	holder.set_script(s)
+	_scene.add_child(holder)
+	return holder
+
+
+func test_query_reads_array_elements() -> void:
+	_scene_with_items()
+	var r: Dictionary = await _cmds.handle("query", {"node": "Holder", "properties": ["items:1"]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.properties["items:1"], 2)
+
+
+func test_query_bad_index_is_a_clear_error() -> void:
+	_scene_with_items()
+	var r: Dictionary = await _cmds.handle("query", {"node": "Holder", "properties": ["items:5"]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_string_contains(r.error.message, "out of range")
+
+
+func test_wait_for_index_that_appears_later() -> void:
+	var holder := _scene_with_items()
+	tree.create_timer(0.1).timeout.connect(func() -> void: holder.items.append(99))
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Holder", "property": "items:2", "op": "==", "value": 99, "timeout_ms": 2000})
+	assert_eq(r.ok, true, JSON.stringify(r))
+
+
+func test_assert_on_unreadable_index_explains_the_path_problem() -> void:
+	_scene_with_items()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Holder", "property": "items:5", "op": "==", "value": 1, "timeout_ms": 0})
+	assert_error_code(r, Protocol.ASSERTION_FAILED)
+	assert_string_contains(r.error.message, "out of range")
+	assert_false(str(r.error.get("hint", "")).contains("timeout"), "hint should be about the path, not timeouts")
+
+
+func test_record_accepts_indexed_paths() -> void:
+	_scene_with_items()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 50}], "record": {"node": "Holder", "properties": ["items:0"]}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.record.summary["items:0"].first, 1)

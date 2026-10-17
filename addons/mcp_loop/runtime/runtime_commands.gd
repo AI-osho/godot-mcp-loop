@@ -5,6 +5,7 @@ extends RefCounted
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
+const PropertyPath = preload("res://addons/mcp_loop/util/property_path.gd")
 const Compare = preload("res://addons/mcp_loop/util/compare.gd")
 
 const MAX_WAIT_MS := 120_000
@@ -57,11 +58,7 @@ func _not_found(path: String) -> Dictionary:
 
 
 func _has_property(obj: Object, key: String) -> bool:
-	var base := key.split(":")[0]
-	for info in obj.get_property_list():
-		if info.name == base:
-			return true
-	return false
+	return PropertyPath.has_head(obj, key)
 
 
 func _query(p: Dictionary) -> Dictionary:
@@ -74,9 +71,10 @@ func _query(p: Dictionary) -> Dictionary:
 	if typeof(names) == TYPE_ARRAY and not names.is_empty():
 		for k in names:
 			var key := String(k)
-			if not _has_property(node, key):
-				return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), key])
-			out[key] = Codec.encode(node.get_indexed(NodePath(key)))
+			var got := PropertyPath.read(node, key)
+			if not got.ok:
+				return Protocol.err(Protocol.INVALID_PARAMS, got.error)
+			out[key] = Codec.encode(got.value)
 		return Protocol.ok({"node": str(node.get_path()), "properties": out})
 	for key in OVERVIEW_PROPS:
 		if _has_property(node, key):
@@ -104,26 +102,39 @@ func _wait_for(p: Dictionary) -> Dictionary:
 	var timeout_ms := clampi(int(p.get("timeout_ms", 5000)), 0, MAX_WAIT_MS)
 	var start := Time.get_ticks_msec()
 	var last: Variant = null
+	var read_error := ""
+	var condition := "%s %s %s" % [prop, op, JSON.stringify(expected)]
 	while true:
 		var node := _resolve(path)
 		if node != null:
 			if not _has_property(node, prop):
-				return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop])
-			last = Codec.encode(node.get_indexed(NodePath(prop)))
-			var r := Compare.evaluate(last, op, expected)
-			if not r.ok:
-				return Protocol.err(Protocol.INVALID_PARAMS, r.error)
-			if r.result:
-				return Protocol.ok({"met": true, "value": last, "elapsed_ms": Time.get_ticks_msec() - start})
+				return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop.split(":")[0]])
+			# An element may not exist yet (e.g. an array that grows), so keep waiting.
+			var got := PropertyPath.read(node, prop)
+			read_error = "" if got.ok else got.error
+			if got.ok:
+				last = Codec.encode(got.value)
+				var r := Compare.evaluate(last, op, expected)
+				if not r.ok:
+					return Protocol.err(Protocol.INVALID_PARAMS, r.error)
+				if r.result:
+					return Protocol.ok({"met": true, "value": last, "elapsed_ms": Time.get_ticks_msec() - start})
 		var elapsed := Time.get_ticks_msec() - start
 		if elapsed >= timeout_ms:
-			var shown: String = JSON.stringify(last) if node != null else "(node '%s' not found)" % path
+			var code := Protocol.ASSERTION_FAILED if timeout_ms == 0 else Protocol.TIMEOUT
+			if node == null:
+				var where := "(node '%s' not found)" % path
+				return Protocol.err(code, "Condition %s could not be checked: %s" % [condition, where],
+					"Check the node path with game_query; paths are relative to the running scene.")
+			if read_error != "":
+				return Protocol.err(code, "Condition %s could not be checked: %s" % [condition, read_error],
+					"Check the property path: arrays take numeric indexes (items:0), dictionaries take keys (stats:hp).")
 			if timeout_ms == 0:
-				return Protocol.err(Protocol.ASSERTION_FAILED,
-					"Condition %s %s %s is false. Actual value: %s" % [prop, op, JSON.stringify(expected), shown],
-					"Use a timeout to wait for the condition instead of checking it once.")
-			return Protocol.err(Protocol.TIMEOUT,
-				"Condition %s %s %s not met within %d ms. Last value: %s" % [prop, op, JSON.stringify(expected), timeout_ms, shown],
+				return Protocol.err(code,
+					"Condition %s is false. Actual value: %s" % [condition, JSON.stringify(last)],
+					"The condition was checked once. If it becomes true later, wait for it with a timeout.")
+			return Protocol.err(code,
+				"Condition %s not met within %d ms. Last value: %s" % [condition, timeout_ms, JSON.stringify(last)],
 				"Inspect the state with game_query or screenshot, or raise timeout_ms.")
 		await _tree.process_frame
 	return Protocol.err(Protocol.INTERNAL, "unreachable")
@@ -204,8 +215,9 @@ func _make_recorder(spec: Variant) -> Dictionary:
 	if node == null:
 		return _not_found(path)
 	for prop in props:
-		if not _has_property(node, String(prop)):
-			return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop])
+		var got := PropertyPath.read(node, String(prop))
+		if not got.ok:
+			return Protocol.err(Protocol.INVALID_PARAMS, got.error)
 	var rec := {
 		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
 		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000),
@@ -222,7 +234,8 @@ func _record_sample(rec: Dictionary, force: bool = false) -> void:
 		return
 	var sample := {"t_ms": t}
 	for prop in rec.properties:
-		sample[prop] = Codec.encode(rec.node.get_indexed(NodePath(prop)))
+		var got := PropertyPath.read(rec.node, prop)
+		sample[prop] = Codec.encode(got.value) if got.ok else null
 	rec.samples.append(sample)
 	rec.last_t = t
 	rec.total += 1

@@ -5,6 +5,7 @@ extends RefCounted
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
+const PropertyPath = preload("res://addons/mcp_loop/util/property_path.gd")
 const NodeFactory = preload("res://addons/mcp_loop/commands/node_factory.gd")
 
 const SKIP_USAGE := PROPERTY_USAGE_GROUP | PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_SUBGROUP
@@ -136,7 +137,10 @@ func _get_props(p: Dictionary) -> Dictionary:
 			if ctx._find_property(node, key.split(":")[0]).is_empty():
 				missing.append(key)
 				continue
-			out[key] = Codec.encode(node.get_indexed(NodePath(key)))
+			var got := PropertyPath.read(node, key)
+			if not got.ok:
+				return Protocol.err(Protocol.INVALID_PARAMS, got.error)
+			out[key] = Codec.encode(got.value)
 		if not missing.is_empty():
 			return Protocol.err(Protocol.INVALID_PARAMS, "Unknown properties on %s: %s" % [node.get_class(), ", ".join(missing)])
 	else:

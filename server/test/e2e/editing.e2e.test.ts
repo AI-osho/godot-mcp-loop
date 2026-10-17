@@ -237,6 +237,12 @@ describe("e2e: safe editing tools", () => {
     expect(tscn).toContain("size = Vector2(32, 48)");
   });
 
+  it("node_get reads indexed paths (array elements, members) and explains bad ones", async () => {
+    const got = await ok("node_get", { path: "Wall/Shape", properties: ["shape:size:y"] });
+    expect(got.properties["shape:size:y"]).toBe(48);
+    expect(await fails("node_get", { path: "Wall/Shape", properties: ["shape:size:q"] })).toContain("no member 'q'");
+  });
+
   it("property values sent as strings are decoded to the property's type", async () => {
     await ok("node_set", { path: "Hero", properties: { position: "[5, 6]", rotation: "0.5" } });
     const got = await ok("node_get", { path: "Hero", properties: ["position", "rotation"] });

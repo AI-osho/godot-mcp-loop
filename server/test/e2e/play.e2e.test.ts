@@ -1,24 +1,7 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { connectClient, textOf } from "../helpers.js";
-import { startHeadlessEditor, type GodotHarness } from "./godot-harness.js";
-
-/** Set E2E_GAME_WINDOW=1 to run the game with a real window (enables screenshot checks). */
-const WINDOWED = process.env.E2E_GAME_WINDOW === "1";
-
-export const PLATFORMER_PROJECT = {
-  copyDirs: ["examples"],
-  applicationExtra: ['run/main_scene="res://examples/platformer/main.tscn"'],
-  projectGodotExtra: [
-    "[input]",
-    "",
-    'move_left={\n"deadzone": 0.2,\n"events": []\n}',
-    'move_right={\n"deadzone": 0.2,\n"events": []\n}',
-    'jump={\n"deadzone": 0.2,\n"events": []\n}',
-    "",
-    ...(WINDOWED ? [] : ["[editor]", "", 'run/main_run_args="--headless"', ""]),
-  ].join("\n"),
-};
+import { PLATFORMER_PROJECT, startHeadlessEditor, WINDOWED, type GodotHarness } from "./godot-harness.js";
 
 describe("e2e: run / observe loop", () => {
   let h: GodotHarness;

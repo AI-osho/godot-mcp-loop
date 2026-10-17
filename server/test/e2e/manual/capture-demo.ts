@@ -4,18 +4,11 @@
  * Usage: npx tsx test/e2e/manual/capture-demo.ts <out.png>
  */
 import { writeFileSync } from "node:fs";
-import { startHeadlessEditor } from "../godot-harness.js";
 
 const out = process.argv[2] ?? "demo.png";
 process.env.E2E_GAME_WINDOW = "1";
-const { PLATFORMER_PROJECT } = await import("../play.e2e.test.js").catch(() => ({ PLATFORMER_PROJECT: undefined }));
-const h = await startHeadlessEditor(
-  PLATFORMER_PROJECT ?? {
-    copyDirs: ["examples"],
-    applicationExtra: ['run/main_scene="res://examples/platformer/main.tscn"'],
-    projectGodotExtra: ["[input]", "", 'move_right={\n"deadzone": 0.2,\n"events": []\n}', 'move_left={\n"deadzone": 0.2,\n"events": []\n}', 'jump={\n"deadzone": 0.2,\n"events": []\n}', ""].join("\n"),
-  },
-);
+const { PLATFORMER_PROJECT, startHeadlessEditor } = await import("../godot-harness.js");
+const h = await startHeadlessEditor(PLATFORMER_PROJECT);
 try {
   await h.conn.call("game.run", {}, { timeoutMs: 30000 });
   await h.conn.call("game.wait_for", { node: "Player", property: "position:y", op: ">=", value: 370, timeout_ms: 5000 }, { timeoutMs: 10000 });

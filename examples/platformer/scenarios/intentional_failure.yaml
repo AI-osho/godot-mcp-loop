@@ -1,0 +1,8 @@
+# Intentionally failing scenario: shows what a failure report looks like.
+# The player only walks for 0.2 s, so it cannot reach x > 600.
+name: intentional failure demo
+steps:
+  - wait_for: { node: Player, property: "position:y", op: ">=", value: 370, timeout_ms: 5000 }
+  - input: { action: move_right, hold_ms: 200 }
+  - assert: { node: Player, property: "position:x", op: ">", value: 600 }
+  - input: { action: jump }

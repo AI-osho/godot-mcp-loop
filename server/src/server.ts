@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { GodotConnection } from "./connection.js";
 import { registerEditingTools } from "./tools/editing.js";
 import { registerPlayTools } from "./tools/play.js";
+import { registerScenarioTools } from "./tools/scenario.js";
 import { registerStatusTools } from "./tools/status.js";
 
 export const SERVER_NAME = "godot-mcp-loop";
@@ -16,5 +17,6 @@ export function createServer(conn: GodotConnection): McpServer {
   registerStatusTools(server, conn);
   registerEditingTools(server, conn);
   registerPlayTools(server, conn);
+  registerScenarioTools(server, conn);
   return server;
 }

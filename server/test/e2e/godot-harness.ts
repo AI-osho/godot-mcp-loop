@@ -9,6 +9,24 @@ import { readSession, sessionFilePath } from "../../src/session.js";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const GODOT_BIN = process.env.GODOT_BIN ?? "godot";
 
+/** Set E2E_GAME_WINDOW=1 to run games with a real window (enables screenshot checks). */
+export const WINDOWED = process.env.E2E_GAME_WINDOW === "1";
+
+/** The examples/ folder as a project with the platformer as main scene and its input actions. */
+export const PLATFORMER_PROJECT: HarnessOptions = {
+  copyDirs: ["examples"],
+  applicationExtra: ['run/main_scene="res://examples/platformer/main.tscn"'],
+  projectGodotExtra: [
+    "[input]",
+    "",
+    'move_left={\n"deadzone": 0.2,\n"events": []\n}',
+    'move_right={\n"deadzone": 0.2,\n"events": []\n}',
+    'jump={\n"deadzone": 0.2,\n"events": []\n}',
+    "",
+    ...(WINDOWED ? [] : ["[editor]", "", 'run/main_run_args="--headless"', ""]),
+  ].join("\n"),
+};
+
 export interface GodotHarness {
   projectPath: string;
   conn: GodotConnection;

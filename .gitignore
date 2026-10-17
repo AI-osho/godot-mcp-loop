@@ -1,0 +1,14 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# Node
+node_modules/
+server/dist/
+coverage/
+
+# OS / editor
+.DS_Store
+*.tmp
+*.log

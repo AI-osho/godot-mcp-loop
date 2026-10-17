@@ -374,3 +374,26 @@ func test_call_rejects_unknown_methods_and_bad_arity() -> void:
 	assert_error_code(many, Protocol.INVALID_PARAMS)
 	var bad: Dictionary = await _cmds.handle("call", {"node": "Game", "method": "add", "args": ["x"]})
 	assert_error_code(bad, Protocol.INVALID_PARAMS)
+
+
+func test_input_record_changes_mode_keeps_only_changed_values() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.1).timeout.connect(func() -> void: player.position.x = 50)
+	tree.create_timer(0.2).timeout.connect(func() -> void: player.position.x = 90)
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 300}],
+		"record": {"node": "Player", "properties": ["position:x"], "mode": "changes"}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	var rec: Dictionary = r.result.record
+	var xs: Array = rec.samples.map(func(s: Dictionary) -> Variant: return s["position:x"])
+	assert_eq(xs, [10.0, 50.0, 90.0], "first value plus each change; the forced final sample repeats nothing")
+	assert_eq(rec.summary["position:x"].max, 90.0)
+	assert_eq(rec.summary["position:x"].last, 90.0)
+	assert_true(rec.frames_observed > rec.samples_total, "frames are still observed every frame")
+
+
+func test_input_record_rejects_unknown_mode() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
+		"record": {"node": "Player", "properties": ["position"], "mode": "sometimes"}})
+	assert_error_code(r, Protocol.INVALID_PARAMS)

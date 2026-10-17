@@ -290,10 +290,13 @@ func _make_recorder(spec: Variant) -> Dictionary:
 		var got := PropertyPath.read(node, String(prop))
 		if not got.ok:
 			return Protocol.err(Protocol.INVALID_PARAMS, got.error)
+	var mode := String(spec.get("mode", "all"))
+	if mode != "all" and mode != "changes":
+		return Protocol.err(Protocol.INVALID_PARAMS, "record.mode must be 'all' (every frame) or 'changes' (only when a value changes).")
 	var rec := {
 		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
-		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000),
-		"samples": [], "total": 0, "last_t": -1000000, "start": 0,
+		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000), "changes_only": mode == "changes",
+		"samples": [], "total": 0, "frames": 0, "last_t": -1000000, "start": 0,
 	}
 	return Protocol.ok(rec)
 
@@ -308,8 +311,18 @@ func _record_sample(rec: Dictionary, force: bool = false) -> void:
 	for prop in rec.properties:
 		var got := PropertyPath.read(rec.node, prop)
 		sample[prop] = Codec.encode(got.value) if got.ok else null
-	rec.samples.append(sample)
+	rec.frames += 1
 	rec.last_t = t
+	if rec.changes_only and not rec.samples.is_empty():
+		var prev: Dictionary = rec.samples[-1]
+		var same := true
+		for prop in rec.properties:
+			if typeof(prev[prop]) != typeof(sample[prop]) or prev[prop] != sample[prop]:
+				same = false
+				break
+		if same:
+			return
+	rec.samples.append(sample)
 	rec.total += 1
 
 
@@ -343,7 +356,7 @@ func _record_result(rec: Dictionary) -> Dictionary:
 		shown = []
 		for i in RETURNED_SAMPLES:
 			shown.append(samples[roundi(float(i) * (samples.size() - 1) / (RETURNED_SAMPLES - 1))])
-	return {"node": rec.path, "samples_total": rec.total, "samples": shown, "summary": summary,
+	return {"node": rec.path, "samples_total": rec.total, "frames_observed": rec.frames, "samples": shown, "summary": summary,
 		"note": "" if is_instance_valid(rec.node) else "The node was freed during recording."}
 
 

@@ -91,6 +91,10 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
             .max(1000)
             .optional()
             .describe("Minimum time between samples. Default 0 (every frame) — keep it for exact min/max; only raise it for very long recordings."),
+          mode: z
+            .enum(["all", "changes"])
+            .optional()
+            .describe("'all' (default) keeps every frame; 'changes' keeps a sample only when a value differs from the previous one."),
         })
         .optional()
         .describe(

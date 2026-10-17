@@ -45,6 +45,9 @@ describe("e2e: safe editing tools", () => {
     client = await connectClient(h.conn);
   });
   afterAll(async () => {
+    if (process.env.E2E_DUMP_GODOT_LOG) {
+      process.stderr.write(h.output.filter((l) => /ERROR|WARNING|at: |mcp_loop|\[[0-9]\]/.test(l)).join("\n") + "\n");
+    }
     await client?.close();
     await h?.stop();
   });

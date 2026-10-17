@@ -55,6 +55,11 @@ describe("e2e: safe editing tools", () => {
     expect(info.name).toBe("e2e");
     expect(info.files).toContain("res://addons/mcp_loop/plugin.cfg");
     expect(info.input_actions.map((a: any) => a.name)).toContain("move_right");
+    // Godot's ~90 built-in ui_* actions are hidden unless asked for.
+    expect(info.input_actions.map((a: any) => a.name)).not.toContain("ui_accept");
+    expect(info.builtin_actions_hidden).toBeGreaterThan(10);
+    const all = await ok("project_info", { include_builtin_actions: true });
+    expect(all.input_actions.map((a: any) => a.name)).toContain("ui_accept");
   });
 
   it("scene_create creates the file and opens it", async () => {

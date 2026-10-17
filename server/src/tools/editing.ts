@@ -21,8 +21,10 @@ export const EDITING_TOOLS: ForwardToolDef[] = [
     method: "project.info",
     title: "Project info",
     description:
-      "Project overview: name, main scene, autoloads, project-defined input actions and their events, and (optionally) a file list filtered by a glob.",
+      "Project overview: name, main scene, autoloads, input actions and their events (Godot's built-in ui_* actions are hidden unless include_builtin_actions), " +
+      "and (optionally) a file list filtered by a glob.",
     input: {
+      include_builtin_actions: z.boolean().optional().describe("Also list Godot's built-in ui_* actions (about 90)."),
       glob: z.string().optional().describe("If set, list res:// files matching this glob, e.g. '*.tscn' or 'scripts/**/*.gd'."),
       max_files: z.number().int().min(1).max(2000).optional().describe("Cap on listed files (default 200)."),
     },

@@ -8,7 +8,7 @@ describe("e2e: scenario_run against the platformer", () => {
   let client: Client;
 
   async function run(args: Record<string, unknown>): Promise<{ summary: string; report: any; images: number }> {
-    const res = await client.callTool({ name: "scenario_run", arguments: args });
+    const res = await client.callTool({ name: "scenario_run", arguments: { report: "full", ...args } });
     const content = res.content as Array<{ type: string; text?: string }>;
     if (res.isError) throw new Error(content[0]?.text);
     return {

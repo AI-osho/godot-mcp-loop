@@ -22,12 +22,18 @@ func register(router: RefCounted) -> void:
 func _info(p: Dictionary) -> Dictionary:
 	var autoloads: Array = []
 	var actions: Array = []
+	var hidden := 0
+	var with_builtin: bool = p.get("include_builtin_actions", false)
 	for prop in ProjectSettings.get_property_list():
 		var name: String = prop.name
 		if name.begins_with("autoload/"):
 			var path := String(ProjectSettings.get_setting(name))
 			autoloads.append({"name": name.substr("autoload/".length()), "path": path.trim_prefix("*"), "singleton": path.begins_with("*")})
 		elif name.begins_with("input/"):
+			# Godot defines ~90 ui_* actions in every project; they bury the project's own.
+			if name.begins_with("input/ui_") and not with_builtin:
+				hidden += 1
+				continue
 			var a: Variant = ProjectSettings.get_setting(name)
 			var events: Array = []
 			if typeof(a) == TYPE_DICTIONARY:
@@ -42,6 +48,8 @@ func _info(p: Dictionary) -> Dictionary:
 		"autoloads": autoloads,
 		"input_actions": actions,
 	}
+	if hidden > 0:
+		out["builtin_actions_hidden"] = hidden
 	var glob: String = p.get("glob", "")
 	if glob != "":
 		var max_files: int = int(p.get("max_files", 200))

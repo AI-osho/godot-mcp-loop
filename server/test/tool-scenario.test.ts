@@ -47,7 +47,7 @@ describe("scenario_run tool", () => {
 
   it("runs a scenario file by res:// path and summarises the result", async () => {
     write("tests/move.yaml", "name: move\nsteps:\n  - assert: { node: Player, property: x, op: '>', value: 0 }\n  - screenshot: end\n");
-    const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml" } });
+    const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml", report: "full" } });
     expect(res.isError).toBeFalsy();
     const content = res.content as Array<{ type: string; text?: string; data?: string }>;
     expect(content[0]!.text).toMatch(/Scenario "move": PASSED/);
@@ -56,6 +56,26 @@ describe("scenario_run tool", () => {
     const json = JSON.parse(content[1]!.text!);
     expect(json.passed).toBe(true);
     expect(JSON.stringify(json)).not.toContain("QUJD"); // images are not duplicated in JSON
+  });
+
+  it("returns only the summary (and images) by default; the JSON report needs report: full", async () => {
+    write("tests/move.yaml", "name: move\nsteps:\n  - assert: { node: Player, property: x, op: '>', value: 0 }\n  - screenshot: end\n");
+    const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml" } });
+    const content = res.content as Array<{ type: string; text?: string }>;
+    const texts = content.filter((c) => c.type === "text");
+    expect(texts).toHaveLength(1);
+    expect(texts[0]!.text).toMatch(/PASSED/);
+    expect(content.some((c) => c.type === "image")).toBe(true);
+  });
+
+  it("the summary lists the game's first errors", async () => {
+    addon.handlers.set("logs.read", (p) =>
+      p.min_level === "error"
+        ? { ok: true, result: { entries: [{ level: "error", message: "boom at line 3" }], next: 1 } }
+        : { ok: true, result: { entries: [], next: 1 } },
+    );
+    const res = await client.callTool({ name: "scenario_run", arguments: { scenario: { name: "e", steps: [{ wait_ms: 1 }] } } });
+    expect(textOf(res)).toContain("boom at line 3");
   });
 
   it("accepts an inline scenario object", async () => {

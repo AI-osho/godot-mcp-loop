@@ -18,6 +18,9 @@ All notable changes to this project are documented here. The format follows
   that explain the problem (index out of range with size, missing key with the available keys, unknown member).
 
 ### Changed
+- `scenario_run` returns only the summary by default (each step with what it checked and the observed value or query
+  result, the first game errors, screenshot labels); `report: "full"` adds the JSON report.
+- `project_info` hides Godot's ~90 built-in `ui_*` input actions unless `include_builtin_actions` is set.
 - `script_write` returns a one-line summary for new files instead of a diff of every line; diffs are capped at 300 lines.
 
 ### Performance

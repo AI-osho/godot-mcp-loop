@@ -60,6 +60,15 @@ own. It is active only when the game was launched from the editor with the debug
 `addons/mcp_loop/` from your export presets. Input sequences are bounded (≤ 200 steps, ≤ 60 s per step) and waits
 are capped at 120 s.
 
+## Tools added in 0.3
+
+- `game_set` / `game_call` act only on nodes of the **running game** (never the editor). `game_call` runs game code the
+  agent could already write; JSON arguments cannot create scripts (embedded `{"new": ...}` resources exclude `Script`).
+- `input_action_set` writes only `input/<name>` entries of project.godot (undoable).
+- `file_write` writes only `.yaml/.yml/.json/.md/.txt/.csv`, never under `addons/` or `.godot/`, and never `.cfg`,
+  `.tres`, `.tscn` or `.gd` (scripts go through the compile-checked `script_write`/`script_edit`).
+- `image_write` writes only `.png` files generated from palette text.
+
 ## Known limitations
 
 - A local process running as **your own user** can read the session file and connect — same-user isolation is out

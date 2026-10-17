@@ -78,9 +78,10 @@ agent to *"run `scenario_run` on `res://examples/platformer/scenarios/move_right
 | Status | `godot_status`, `project_info` |
 | Scenes | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | Nodes | `node_add`, `node_delete`, `node_get`, `node_set` |
-| Scripts | `script_read`, `script_write`, `script_attach` |
+| Scripts | `script_read`, `script_write`, `script_edit`, `script_attach` |
+| Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set` |
 | Undo | `edit_undo` |
-| Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `logs_read`, `screenshot` |
+| Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `logs_read`, `screenshot` |
 | Judge | `scenario_run` |
 
 Full reference: [docs/tools.md](docs/tools.md).

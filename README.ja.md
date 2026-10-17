@@ -77,9 +77,10 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 | 状態 | `godot_status`, `project_info` |
 | シーン | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | ノード | `node_add`, `node_delete`, `node_get`, `node_set` |
-| スクリプト | `script_read`, `script_write`, `script_attach` |
+| スクリプト | `script_read`, `script_write`, `script_edit`, `script_attach` |
+| ファイル・素材 | `file_write`（YAML/JSON/テキスト）, `image_write`（ドット絵 PNG）, `input_action_set` |
 | 取り消し | `edit_undo` |
-| 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `logs_read`, `screenshot` |
+| 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `logs_read`, `screenshot` |
 | 判定 | `scenario_run` |
 
 詳細: [docs/tools.md](docs/tools.md)（英語）

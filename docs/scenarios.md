@@ -29,13 +29,17 @@ steps:
 | `screenshot: <label>` | Attach a screenshot. | Never — skipped when headless. |
 | `wait_ms: <n>` | Sleep. | Never. |
 | `assert_no_errors: true` | No error-level game log so far. | Any script/engine error was logged. |
+| `set: {node, properties}` | Change live state (same as `game_set`), e.g. fix the piece order or skip to a level. | Path/value invalid (nothing changed). |
+| `call: {node, method, args?, timeout_ms?}` | Call a method (same as `game_call`); the result is shown in the summary. | Unknown method, bad arguments. |
+| `repeat: {times, steps}` | Run `steps` `times` times (nestable; at most 10 000 steps after expansion). Reported as one step. | An inner step fails — the message names the iteration and inner step. |
 
 Operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`. Numbers compare with a 0.0001 tolerance; vectors compare
 element-wise (`[x, y]`); `>`/`<` need numbers — compare a component such as `position:x`.
 
 ## Report
 
-The tool returns three things:
+By default the tool returns the summary and the screenshots; pass `report: "full"` to also get the JSON report.
+The three parts:
 
 1. A human summary:
    ```

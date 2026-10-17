@@ -3,7 +3,9 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-17
+
+Tool improvements from the Tetris generation trial (Claude Code built a full Tetris; these remove the friction it reported).
 
 ### Added
 - `game_set` / `game_call`: change state in the running game (members, array elements, dictionary keys; values

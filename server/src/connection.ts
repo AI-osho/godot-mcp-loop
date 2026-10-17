@@ -56,25 +56,31 @@ export class GodotConnection {
   private ensureConnected(): Promise<BridgeClient> {
     if (this.client?.isConnected()) return Promise.resolve(this.client);
     if (this.connecting) return this.connecting;
-    this.connecting = (async () => {
-      try {
-        this.client?.close();
-        const s = this.readSessionFn(this.projectPath);
-        const client = new BridgeClient({
-          port: s.port,
-          token: s.token,
-          ...(this.requestTimeoutMs !== undefined ? { requestTimeoutMs: this.requestTimeoutMs } : {}),
-        });
-        client.onEvent((e, d) => {
-          for (const l of this.listeners) l(e, d);
-        });
-        this.info = await client.connect();
-        this.client = client;
-        return client;
-      } finally {
-        this.connecting = undefined;
-      }
-    })();
-    return this.connecting;
+    const attempt = this.connectOnce();
+    this.connecting = attempt;
+    // Clear the shared attempt only once it settles. (Clearing inside the async
+    // body is wrong: a synchronous failure runs its `finally` before the
+    // assignment above, leaving a rejected promise cached forever.)
+    const clear = () => {
+      if (this.connecting === attempt) this.connecting = undefined;
+    };
+    attempt.then(clear, clear);
+    return attempt;
+  }
+
+  private async connectOnce(): Promise<BridgeClient> {
+    this.client?.close();
+    const s = this.readSessionFn(this.projectPath);
+    const client = new BridgeClient({
+      port: s.port,
+      token: s.token,
+      ...(this.requestTimeoutMs !== undefined ? { requestTimeoutMs: this.requestTimeoutMs } : {}),
+    });
+    client.onEvent((e, d) => {
+      for (const l of this.listeners) l(e, d);
+    });
+    this.info = await client.connect();
+    this.client = client;
+    return client;
   }
 }

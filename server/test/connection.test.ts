@@ -61,6 +61,31 @@ describe("GodotConnection", () => {
     await expect(conn.call("ping")).rejects.toMatchObject({ code: "GODOT_NOT_RUNNING" });
   });
 
+  it("recovers after the editor was not running (session read failed) once it starts", async () => {
+    let editorUp = false;
+    conn = new GodotConnection({
+      projectPath: "/x",
+      readSession: () => {
+        if (!editorUp) throw new BridgeError("GODOT_NOT_RUNNING", "session.json is missing");
+        return { port, token: addon.token, protocol: 1, pid: process.pid };
+      },
+    });
+    await expect(conn.call("ping")).rejects.toMatchObject({ code: "GODOT_NOT_RUNNING" });
+    editorUp = true;
+    await expect(conn.call("ping")).resolves.toEqual({ pong: true });
+  });
+
+  it("recovers after a failed connect attempt (wrong token) once the session is fixed", async () => {
+    let token = "stale";
+    conn = new GodotConnection({
+      projectPath: "/x",
+      readSession: () => ({ port, token, protocol: 1, pid: process.pid }),
+    });
+    await expect(conn.call("ping")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    token = addon.token;
+    await expect(conn.call("ping")).resolves.toEqual({ pong: true });
+  });
+
   it("forwards pushed events to listeners registered before connecting", async () => {
     const got = new Promise((resolve) => conn.onEvent((e, d) => resolve([e, d])));
     await conn.call("ping");

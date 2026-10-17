@@ -1,6 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://6mips7qcl2xo"]
 
-[ext_resource type="Script" path="res://examples/platformer/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://cj4w642ic3r5n" path="res://examples/platformer/player.gd" id="1_player"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(32, 48)
@@ -8,36 +8,36 @@ size = Vector2(32, 48)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
 size = Vector2(2000, 40)
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=711793016]
 
-[node name="Player" type="CharacterBody2D" parent="."]
+[node name="Player" type="CharacterBody2D" parent="." unique_id=370796428]
 position = Vector2(100, 300)
 script = ExtResource("1_player")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=901484431]
 shape = SubResource("RectangleShape2D_player")
 
-[node name="Body" type="ColorRect" parent="Player"]
+[node name="Body" type="ColorRect" parent="Player" unique_id=1748963023]
 offset_left = -16.0
 offset_top = -24.0
 offset_right = 16.0
 offset_bottom = 24.0
 color = Color(0.2, 0.6, 1, 1)
 
-[node name="Floor" type="StaticBody2D" parent="."]
+[node name="Floor" type="StaticBody2D" parent="." unique_id=347968649]
 position = Vector2(576, 420)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor" unique_id=210667688]
 shape = SubResource("RectangleShape2D_floor")
 
-[node name="FloorVisual" type="ColorRect" parent="Floor"]
+[node name="FloorVisual" type="ColorRect" parent="Floor" unique_id=678866622]
 offset_left = -1000.0
 offset_top = -20.0
 offset_right = 1000.0
 offset_bottom = 20.0
 color = Color(0.36, 0.68, 0.38, 1)
 
-[node name="Hint" type="Label" parent="."]
+[node name="Hint" type="Label" parent="." unique_id=2089824463]
 offset_left = 24.0
 offset_top = 24.0
 offset_right = 600.0

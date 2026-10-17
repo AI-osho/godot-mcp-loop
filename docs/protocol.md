@@ -27,7 +27,7 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 {"id": 1, "method": "node.add", "params": {"type": "Sprite2D", "name": "Hero"}}
 
 // addon → client
-{"id": 0, "ok": true, "result": {"protocol": 1, "godot_version": "…", "addon_version": "0.2.0"}}
+{"id": 0, "ok": true, "result": {"protocol": 1, "godot_version": "…", "addon_version": "0.2.1"}}
 {"id": 1, "ok": false, "error": {"code": "NODE_NOT_FOUND", "message": "…", "hint": "…"}}
 
 // addon → client, unsolicited (no id)

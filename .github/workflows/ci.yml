@@ -79,6 +79,7 @@ jobs:
         working-directory: server
         env:
           GODOT_BIN: /home/runner/godot/godot
+          E2E_DUMP_GODOT_LOG: "1"
         run: |
           npm ci
           npm run build

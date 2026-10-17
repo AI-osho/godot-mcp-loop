@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -83,6 +83,13 @@ export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<Go
     env: { ...process.env, MCP_LOOP_PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  // Games launched by the editor run in their own session and survive the editor,
+  // so find them by the "--editor-pid <pid>" argument Godot passes them.
+  const killAll = (signal: NodeJS.Signals) => {
+    if (!proc.pid) return;
+    spawnSync("pkill", [`-${signal.replace("SIG", "")}`, "-f", "--", `--editor-pid ${proc.pid}( |$)`]);
+    if (proc.exitCode === null) proc.kill(signal);
+  };
   proc.stdout?.on("data", (b: Buffer) => output.push(...b.toString().split("\n")));
   proc.stderr?.on("data", (b: Buffer) => output.push(...b.toString().split("\n")));
 
@@ -100,7 +107,7 @@ export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<Go
     await new Promise((r) => setTimeout(r, 250));
   }
   if (!existsSync(sessionFilePath(projectPath))) {
-    proc.kill("SIGKILL");
+    killAll("SIGKILL");
     throw new Error(`Godot editor did not start the bridge.\n${output.slice(-40).join("\n")}`);
   }
 
@@ -111,12 +118,17 @@ export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<Go
     output,
     async stop() {
       conn.close();
+      if (process.env.E2E_DUMP_GODOT_LOG) {
+        process.stderr.write(`\n===== Godot output (${projectPath}) =====\n${output.join("\n")}\n===== end =====\n`);
+      }
       if (proc.exitCode === null) {
         const exited = new Promise((r) => proc.once("exit", r));
-        proc.kill("SIGTERM");
+        killAll("SIGTERM");
         await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
-        if (proc.exitCode === null) proc.kill("SIGKILL");
       }
+      killAll("SIGKILL");
+      proc.stdout?.destroy();
+      proc.stderr?.destroy();
       rmSync(projectPath, { recursive: true, force: true });
     },
   };

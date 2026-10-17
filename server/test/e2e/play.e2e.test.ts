@@ -24,7 +24,6 @@ describe("e2e: run / observe loop", () => {
     client = await connectClient(h.conn);
   }, 120_000);
   afterAll(async () => {
-    if (process.env.E2E_DUMP_GODOT_LOG) process.stderr.write(h.output.join("\n") + "\n");
     await client?.close();
     await h?.stop();
   });

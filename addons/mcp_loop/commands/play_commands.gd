@@ -81,6 +81,11 @@ func _run(p: Dictionary) -> Dictionary:
 				return Protocol.err(Protocol.FILE_NOT_FOUND, "Scene not found: %s" % scene)
 			target = scene
 
+	# Launching while the editor is still scanning/importing can start a game
+	# with stale or missing resources; wait for the scan to settle first.
+	var fs := EditorInterface.get_resource_filesystem()
+	await _wait_until(func() -> bool: return not fs.is_scanning(), timeout_ms)
+
 	dbg.reset_for_run(bool(p.get("pause_on_error", false)))
 	match scene:
 		"main", "":

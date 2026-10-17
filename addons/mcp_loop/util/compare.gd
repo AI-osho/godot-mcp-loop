@@ -33,8 +33,20 @@ static func equals(a: Variant, b: Variant) -> bool:
 	return a == b
 
 
+## Some MCP clients send untyped values as strings ("2", "true", "[1, 2]").
+## When the game value is not a string, read such an expected value as JSON.
+static func _coerce_expected(actual: Variant, expected: Variant) -> Variant:
+	if typeof(expected) != TYPE_STRING or typeof(actual) == TYPE_STRING or typeof(actual) == TYPE_DICTIONARY:
+		return expected
+	var json := JSON.new()
+	if json.parse(expected) == OK:
+		return json.data
+	return expected
+
+
 ## Returns {ok, result, error}. ok=false means the comparison itself is invalid.
-static func evaluate(actual: Variant, op: String, expected: Variant) -> Dictionary:
+static func evaluate(actual: Variant, op: String, raw_expected: Variant) -> Dictionary:
+	var expected: Variant = _coerce_expected(actual, raw_expected)
 	if not OPS.has(op):
 		return {"ok": false, "result": false, "error": "Unknown operator '%s'. Use one of %s." % [op, ", ".join(OPS)]}
 	match op:

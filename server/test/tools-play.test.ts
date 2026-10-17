@@ -32,6 +32,15 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(names).toContain("screenshot");
   });
 
+  it("game_wait_for declares typed values so clients don't stringify numbers", async () => {
+    const tool = (await client.listTools()).tools.find((t) => t.name === "game_wait_for")!;
+    const value = (tool.inputSchema.properties as Record<string, any>).value;
+    const types = JSON.stringify(value);
+    expect(types).toContain('"number"');
+    expect(types).toContain('"boolean"');
+    expect(types).toContain('"array"');
+  });
+
   it("game_input forwards steps", async () => {
     addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
     const steps = [{ action: "move_right", hold_ms: 500 }, { wait_ms: 100 }, { key: "Space" }];

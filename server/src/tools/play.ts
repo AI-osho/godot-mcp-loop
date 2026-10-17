@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { dropUndefined, registerForwardTool, type ForwardToolDef } from "./forward.js";
 import { safe } from "./helpers.js";
+import { JsonValue } from "./schemas.js";
 
 const GRACE_MS = 10_000;
 
@@ -88,7 +89,7 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       node: z.string().describe(GAME_NODE),
       property: z.string().describe("Property name, e.g. 'position:x', 'visible', or a script variable."),
       op: z.enum(["==", "!=", ">", ">=", "<", "<=", "contains"]).describe("Comparison operator."),
-      value: z.any().describe("Expected value (numbers compare with a small tolerance; vectors as [x, y])."),
+      value: JsonValue.describe("Expected value: a number, boolean, string, null or array (vectors as [x, y]). Numbers compare with a small tolerance."),
       timeout_ms: z.number().int().min(0).max(120_000).optional().describe("Default 5000."),
     },
     readOnly: true,

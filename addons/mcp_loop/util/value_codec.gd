@@ -41,7 +41,22 @@ static func _components(v: Variant, keys: Array, type_name: String) -> Dictionar
 	return _ok(out)
 
 
-static func decode(v: Variant, target_type: int) -> Dictionary:
+## Targets for which a string value is taken literally.
+const STRING_TARGETS := [TYPE_NIL, TYPE_STRING, TYPE_STRING_NAME, TYPE_NODE_PATH]
+
+
+static func decode(v: Variant, target_type: int, depth: int = 0) -> Dictionary:
+	if depth > MAX_DEPTH:
+		return _fail("Value is nested too deeply.")
+	# Some MCP clients send untyped values as strings ("120", "[10, 20]").
+	if typeof(v) == TYPE_STRING and not STRING_TARGETS.has(target_type):
+		if target_type == TYPE_COLOR:
+			var direct := _decode_color(v)
+			if direct.ok:
+				return direct
+		var json := JSON.new()
+		if json.parse(v) == OK and typeof(json.data) != TYPE_STRING:
+			return decode(json.data, target_type, depth + 1)
 	match target_type:
 		TYPE_NIL:
 			return _ok(v)

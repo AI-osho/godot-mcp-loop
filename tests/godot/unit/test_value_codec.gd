@@ -45,7 +45,7 @@ func test_decode_numbers() -> void:
 	assert_eq(_dec(3.0, TYPE_INT), 3)
 	assert_eq(_dec(3, TYPE_FLOAT), 3.0)
 	assert_false(Codec.decode(3.5, TYPE_INT).ok, "non-integral to int must fail")
-	assert_false(Codec.decode("3", TYPE_FLOAT).ok, "string to float must fail")
+	assert_false(Codec.decode("three", TYPE_FLOAT).ok, "non-numeric string to float must fail")
 
 
 func test_decode_bool_string_stringname_nodepath() -> void:
@@ -139,3 +139,27 @@ func test_with_indexed_nested() -> void:
 
 func test_with_indexed_dictionary_key() -> void:
 	assert_eq(Codec.with_indexed({"a": 1}, ["b"], 2), {"a": 1, "b": 2})
+
+
+# ---- stringified input (some clients send untyped JSON values as strings) ----
+
+func test_decode_numeric_strings() -> void:
+	assert_eq(_dec("120", TYPE_FLOAT), 120.0)
+	assert_eq(_dec("3", TYPE_INT), 3)
+	assert_eq(_dec("true", TYPE_BOOL), true)
+
+
+func test_decode_json_strings_for_structured_types() -> void:
+	assert_eq(_dec("[10, 20]", TYPE_VECTOR2), Vector2(10, 20))
+	assert_eq(_dec("{\"x\": 1, \"y\": 2}", TYPE_VECTOR2), Vector2(1, 2))
+	assert_eq(_dec("[0, 0, 1, 1]", TYPE_COLOR), Color(0, 0, 1, 1))
+
+
+func test_decode_string_types_are_not_reinterpreted() -> void:
+	assert_eq(_dec("[1, 2]", TYPE_STRING), "[1, 2]")
+	assert_eq(_dec("42", TYPE_STRING_NAME), &"42")
+
+
+func test_decode_garbage_string_still_fails() -> void:
+	assert_false(Codec.decode("abc", TYPE_FLOAT).ok)
+	assert_false(Codec.decode("[1, 2", TYPE_VECTOR2).ok)

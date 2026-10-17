@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { registerForwardTool, type ForwardToolDef } from "./forward.js";
+import { PropertyMap } from "./schemas.js";
 
 const VALUE_FORMATS =
   "Value formats: Vector2/3 as [x, y(, z)] or {x, y}; Color as '#rrggbb', '#rrggbbaa', a name like 'red', or [r, g, b, a] in 0..1; " +
@@ -76,7 +77,7 @@ export const EDITING_TOOLS: ForwardToolDef[] = [
       type: z.string().optional().describe("Node class to create."),
       scene: z.string().optional().describe("res:// path of a scene to instance instead of 'type'."),
       name: z.string().optional().describe("Node name (made unique among siblings if taken)."),
-      properties: z.record(z.string(), z.any()).optional().describe("Initial property values."),
+      properties: PropertyMap.optional().describe("Initial property values."),
       dry_run: DRY_RUN,
     },
   },
@@ -109,7 +110,7 @@ export const EDITING_TOOLS: ForwardToolDef[] = [
       `Set one or more properties on a node as a single undoable action. All values are validated first; nothing changes if any is invalid. Returns before/after values. ${VALUE_FORMATS}`,
     input: {
       path: z.string().describe(NODE_PATH),
-      properties: z.record(z.string(), z.any()).describe("Property name -> new value."),
+      properties: PropertyMap.describe("Property name -> new value."),
       dry_run: DRY_RUN,
     },
   },

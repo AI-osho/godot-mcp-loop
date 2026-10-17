@@ -42,6 +42,14 @@ describe("editing tools (forwarding layer)", () => {
     expect(tools.find((t) => t.name === "node_delete")!.annotations?.destructiveHint).toBe(true);
   });
 
+  it("property values in node_add/node_set have explicit JSON types", async () => {
+    const { tools } = await client.listTools();
+    for (const name of ["node_add", "node_set"]) {
+      const props = (tools.find((t) => t.name === name)!.inputSchema.properties as Record<string, any>).properties;
+      expect(JSON.stringify(props), name).toContain('"number"');
+    }
+  });
+
   it("forwards arguments to the bridge method and returns its result as JSON", async () => {
     addon.handlers.set("node.set", (p) => ({ ok: true, result: { echoed: p } }));
     const res = await client.callTool({

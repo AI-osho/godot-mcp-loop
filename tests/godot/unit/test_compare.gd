@@ -51,3 +51,25 @@ func test_unknown_operator_is_invalid() -> void:
 
 func test_dictionaries_deep_equal() -> void:
 	assert_true(_is({"a": [1.0, 2.0]}, "==", {"a": [1, 2]}))
+
+
+# Some MCP clients send untyped values as strings ("2"). Compare must cope.
+func test_numeric_strings_compare_with_numbers() -> void:
+	assert_true(_is(2, "==", "2"))
+	assert_true(_is(375.13, ">=", "370"))
+	assert_true(_is(144.0, "<", "600"))
+	assert_false(_is(2, "==", "3"))
+
+
+func test_bool_strings_compare_with_bools() -> void:
+	assert_true(_is(true, "==", "true"))
+	assert_true(_is(false, "==", "false"))
+
+
+func test_json_array_strings_compare_with_vectors() -> void:
+	assert_true(_is([1.0, 2.0], "==", "[1, 2]"))
+
+
+func test_plain_strings_still_compare_as_strings() -> void:
+	assert_true(_is("hello", "==", "hello"))
+	assert_true(_is("hello world", "contains", "world"))

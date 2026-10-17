@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +20,18 @@ export interface GodotHarness {
  * Creates a throwaway Godot project containing the addon (plus optional extra
  * files), launches a headless editor on it and waits until the bridge is up.
  */
-export async function startHeadlessEditor(opts: { extraFiles?: Record<string, string>; copyDirs?: string[] } = {}): Promise<GodotHarness> {
+export interface HarnessOptions {
+  /** Files to create, relative to the project root. */
+  extraFiles?: Record<string, string>;
+  /** Repo-relative directories to copy into the project (e.g. "examples/platformer"). */
+  copyDirs?: string[];
+  /** Extra text appended to project.godot (e.g. an [input] section). */
+  projectGodotExtra?: string;
+  /** Extra [application] lines, e.g. 'run/main_scene="res://main.tscn"'. */
+  applicationExtra?: string[];
+}
+
+export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<GodotHarness> {
   const projectPath = mkdtempSync(join(tmpdir(), "gml-e2e-"));
   cpSync(join(REPO_ROOT, "addons"), join(projectPath, "addons"), { recursive: true });
   for (const d of opts.copyDirs ?? []) {
@@ -34,14 +45,17 @@ export async function startHeadlessEditor(opts: { extraFiles?: Record<string, st
       "[application]",
       "",
       'config/name="e2e"',
+      ...(opts.applicationExtra ?? []),
       "",
       "[editor_plugins]",
       "",
       'enabled=PackedStringArray("res://addons/mcp_loop/plugin.cfg")',
       "",
+      opts.projectGodotExtra ?? "",
     ].join("\n"),
   );
   for (const [rel, content] of Object.entries(opts.extraFiles ?? {})) {
+    mkdirSync(dirname(join(projectPath, rel)), { recursive: true });
     writeFileSync(join(projectPath, rel), content);
   }
 

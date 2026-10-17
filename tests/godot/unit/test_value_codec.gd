@@ -123,3 +123,19 @@ func test_encode_large_packed_array_is_truncated() -> void:
 	assert_eq(typeof(out), TYPE_DICTIONARY)
 	assert_eq(out["size"], 1000)
 	assert_eq(out["items"].size(), Codec.MAX_ARRAY_ITEMS)
+
+
+# ---- with_indexed ----
+
+func test_with_indexed_sets_vector_component() -> void:
+	assert_eq(Codec.with_indexed(Vector2(1, 2), ["x"], 9.0), Vector2(9, 2))
+
+
+func test_with_indexed_nested() -> void:
+	var t := Transform2D.IDENTITY
+	var out: Transform2D = Codec.with_indexed(t, ["origin", "y"], 5.0)
+	assert_eq(out.origin, Vector2(0, 5))
+
+
+func test_with_indexed_dictionary_key() -> void:
+	assert_eq(Codec.with_indexed({"a": 1}, ["b"], 2), {"a": 1, "b": 2})

@@ -5,6 +5,11 @@ extends RefCounted
 ## and never into .godot/, .git/ or this addon's own folder.
 ## Functions return "" when allowed, otherwise a human-readable reason.
 
+const PROTECTED_READ_PREFIXES := [
+	"res://.godot/",
+	"res://.git/",
+]
+
 const PROTECTED_WRITE_PREFIXES := [
 	"res://.godot/",
 	"res://.git/",
@@ -42,6 +47,10 @@ static func check_read(path: String) -> String:
 	for seg in path.substr("res://".length()).split("/"):
 		if seg == "..":
 			return "Parent directory segments ('..') are not allowed: %s" % path
+	var norm := normalize(path)
+	for prefix in PROTECTED_READ_PREFIXES:
+		if norm.begins_with(prefix):
+			return "Access under %s is not allowed." % prefix
 	return ""
 
 

@@ -48,3 +48,8 @@ func test_write_allows_other_addons() -> void:
 func test_normalize_collapses_dot_segments() -> void:
 	assert_eq(PathGuard.normalize("res://a/./b.gd"), "res://a/b.gd")
 	assert_eq(PathGuard.normalize("res://a//b.gd"), "res://a/b.gd")
+
+
+func test_read_rejects_internal_dirs() -> void:
+	assert_true(PathGuard.check_read("res://.godot/mcp_loop/session.json") != "")
+	assert_true(PathGuard.check_read("res://.git/config") != "")

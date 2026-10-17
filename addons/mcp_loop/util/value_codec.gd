@@ -148,6 +148,18 @@ static func _decode_resource(v: Variant) -> Dictionary:
 	return _ok(res)
 
 
+## Returns a copy of `base` with the value at `subpath` (e.g. ["origin", "y"])
+## replaced. Used to turn "position:x" edits into whole-property undo steps.
+static func with_indexed(base: Variant, subpath: Array, value: Variant) -> Variant:
+	if subpath.is_empty():
+		return value
+	var key: Variant = subpath[0]
+	var copy: Variant = base.duplicate() if (typeof(base) == TYPE_DICTIONARY or typeof(base) == TYPE_ARRAY) else base
+	var child: Variant = copy.get(key) if typeof(copy) == TYPE_DICTIONARY else copy[key]
+	copy[key] = with_indexed(child, subpath.slice(1), value)
+	return copy
+
+
 static func encode(v: Variant, depth: int = 0) -> Variant:
 	if depth > MAX_DEPTH:
 		return "<max depth>"

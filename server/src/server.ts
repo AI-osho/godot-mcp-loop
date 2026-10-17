@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { GodotConnection } from "./connection.js";
+import { registerEditingTools } from "./tools/editing.js";
 import { registerStatusTools } from "./tools/status.js";
 
 export const SERVER_NAME = "godot-mcp-loop";
@@ -12,5 +13,6 @@ All edits go through the editor's undo history; use dry_run=true to preview and 
 export function createServer(conn: GodotConnection): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: INSTRUCTIONS });
   registerStatusTools(server, conn);
+  registerEditingTools(server, conn);
   return server;
 }

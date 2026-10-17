@@ -4,6 +4,22 @@
   "description": "MCP server that lets AI agents safely edit, run, observe and test Godot 4 projects.",
   "license": "MIT",
   "author": "OSHO",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AI-osho/godot-mcp-loop.git",
+    "directory": "server"
+  },
+  "homepage": "https://github.com/AI-osho/godot-mcp-loop#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "godot",
+    "godot4",
+    "gamedev",
+    "ai",
+    "testing",
+    "playtest"
+  ],
   "type": "module",
   "bin": {
     "godot-mcp-loop": "dist/index.js"

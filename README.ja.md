@@ -1,0 +1,110 @@
+# godot-mcp-loop
+
+**AI エージェントが Godot 4 のゲームを編集し、_その結果を自分で確かめられる_ ようにする MCP サーバー + エディタアドオン。**
+「変更 → 実行 → 観察 → 判定」の検証ループに特化しています。
+
+[English README](README.md) · [ツール](docs/tools.md) · [シナリオ](docs/scenarios.md) · [クライアント設定](docs/clients.md) · [セキュリティ](docs/security.md) · [プロトコル](docs/protocol.md)
+
+![screenshot ツールで撮影したデモ（エージェントが右移動とジャンプを実行した直後）](docs/images/demo-screenshot.png)
+
+シーンを編集できる Godot 向け MCP はすでに多数ありますが、**その編集が本当に動いたかを確かめる** 手段はほとんどありません。
+godot-mcp-loop はエージェントにテストプレイヤーの道具一式を渡します。ゲームの起動、実際の入力送信、条件待機、
+実行中の状態取得、スクリーンショット、エラー収集、そして失敗時の値まで返す宣言的なシナリオテストです。
+編集は意図的に慎重な設計で、すべて Undo 可能・事前プレビュー可能・適用前に検証済み・プロジェクト内に限定されます。
+
+## エージェントができること
+
+```text
+godot_status                                    → 接続 OK、Godot 4.7.2、main.tscn を編集中
+script_write res://player.gd (dry_run)          → unified diff。コンパイルエラーがあれば行番号付きで返す
+script_write res://player.gd                    → 書き込み（Undo 可能）
+game_run                                        → ゲーム起動、ランタイム接続
+game_input [{action: move_right, hold_ms: 1000}]
+game_wait_for Player position:x > 250           → 0.8 秒で成立
+screenshot                                      → （画像）
+logs_read source=game min_level=error           → []
+scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
+```
+
+## 特長
+
+- **閉じたループ**: `game_run`、`game_input`（アクション・キー・マウスを実時間で）、`game_wait_for`
+  （毎フレーム判定、タイムアウト時は最後の値を返す）、`game_query`、`screenshot`、`logs_read`。
+- **シナリオテスト**: YAML/JSON のプレイテスト → ステップごとの成否、失敗時スクショ、ゲーム内エラー。[詳細](docs/scenarios.md)
+- **安全な編集**: すべての変更は Godot の Undo 履歴に記録。`edit_undo` は MCP 経由の変更だけを戻し、人の編集は戻しません。
+  全編集ツールに `dry_run`。GDScript は**書き込む前に**コンパイル検証。プロパティ値も変更前に全件検証。
+- **サンドボックス**: localhost 限定 + セッションごとのトークン認証。`res://` のみ。`.godot/`・`.git/`・アドオン自身への書き込み禁止。
+  任意コード実行ツールは持ちません。[セキュリティ](docs/security.md)
+- **エラーで止まらない**: Godot のデバッガはスクリプトエラーでゲームを一時停止しますが、アドオンがエラーを記録して自動継続するため、
+  エージェントがハングせずエラーを把握できます。
+- **ゲーム側に追加ポート不要**: ゲームとエディタは Godot 標準のデバッガ接続で通信します。
+- **厳選した 22 ツール**: 数百のツールより、モデルが迷わず使える粒度を重視。
+
+## 動作環境
+
+- Godot **4.7**（4.7.2 で検証済み）。4.5〜4.6 でも動く見込み（4.5 で追加された `Logger` API を使用）ですが未検証です。
+- Node.js **20 以上**
+- MCP クライアント: Claude Code、Cursor、Claude Desktop、Codex、Hermes Agent など
+
+## インストール
+
+1. **アドオン** — `addons/mcp_loop` を自分のプロジェクトの `addons/` にコピーし、
+   *プロジェクト › プロジェクト設定 › プラグイン › MCP Loop* を有効化。オートロード `MCPLoopRuntime` が登録されます
+   （書き出したゲームでは無効）。
+2. **サーバー** —
+   ```bash
+   git clone https://github.com/AI-osho/godot-mcp-loop.git
+   cd godot-mcp-loop/server && npm ci && npm run build
+   ```
+3. **クライアント** — 例: Claude Code
+   ```bash
+   claude mcp add godot-loop -- node /絶対パス/godot-mcp-loop/server/dist/index.js --project /絶対パス/my-game
+   ```
+   その他のクライアント: [docs/clients.md](docs/clients.md)
+4. Godot エディタでプロジェクトを開き、エージェントに `godot_status` を呼ばせて接続を確認。
+
+### デモを試す
+
+このリポジトリ自体が小さなプラットフォーマー（`examples/platformer`、矢印キー + Space）を含む Godot プロジェクトです。
+Godot で開き、サーバーの `--project` をリポジトリのルートに向けて、エージェントに
+「`res://examples/platformer/scenarios/move_right.yaml` を `scenario_run` で実行して」と頼んでください。
+`intentional_failure.yaml` を実行すると失敗レポートの見え方を確認できます。
+
+## ツール一覧
+
+| 区分 | ツール |
+|---|---|
+| 状態 | `godot_status`, `project_info` |
+| シーン | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
+| ノード | `node_add`, `node_delete`, `node_get`, `node_set` |
+| スクリプト | `script_read`, `script_write`, `script_attach` |
+| 取り消し | `edit_undo` |
+| 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `logs_read`, `screenshot` |
+| 判定 | `scenario_run` |
+
+詳細: [docs/tools.md](docs/tools.md)（英語）
+
+## ヘッドレス / CI
+
+*プロジェクト設定 › Editor › Run › Main Run Args* に `--headless` を入れると、ゲームをウィンドウなしで実行できます
+（`screenshot` 以外はすべて動作）。本リポジトリの CI も Linux 上でヘッドレスのエディタとゲームを起動して
+エンドツーエンドテストを実行しています（[.github/workflows/ci.yml](.github/workflows/ci.yml)）。
+
+## 開発
+
+```bash
+scripts/test-godot-unit.sh                   # GDScript ユニットテスト（ヘッドレス）
+cd server && npm run typecheck && npm test   # TypeScript ユニットテスト
+npm run build && npm run test:e2e            # 実際のヘッドレスエディタ + ゲームでの E2E
+E2E_GAME_WINDOW=1 npm run test:e2e           # ゲームをウィンドウ付きで（スクショ検証あり）
+```
+
+## 制限事項
+
+- 1 つのエディタに同時接続できる MCP クライアントは 1 つ（新しい接続が古い接続を置き換えます）。
+- `script_write` の事前検証は GDScript のみ。新規ファイルが**自分自身の** `class_name` を参照する場合、検証がやや緩くなります。
+- C# プロジェクトは未対応です。
+
+## ライセンス
+
+MIT © OSHO

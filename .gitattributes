@@ -1,0 +1,14 @@
+# Normalize line endings
+* text=auto eol=lf
+*.png binary
+
+# Godot Asset Library downloads only need the addon.
+/.github export-ignore
+/docs export-ignore
+/examples export-ignore
+/scripts export-ignore
+/server export-ignore
+/tests export-ignore
+/project.godot export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

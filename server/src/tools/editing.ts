@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
+import { FILE_TOOLS } from "./files.js";
 import { registerForwardTool, type ForwardToolDef } from "./forward.js";
 import { PropertyMap } from "./schemas.js";
 
@@ -186,5 +187,5 @@ export const EDITING_TOOLS: ForwardToolDef[] = [
 ];
 
 export function registerEditingTools(server: McpServer, conn: GodotConnection): void {
-  for (const def of EDITING_TOOLS) registerForwardTool(server, conn, def);
+  for (const def of [...EDITING_TOOLS, ...FILE_TOOLS]) registerForwardTool(server, conn, def);
 }

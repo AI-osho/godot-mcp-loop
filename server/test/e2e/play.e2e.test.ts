@@ -152,6 +152,19 @@ describe("e2e: run / observe loop", () => {
     await ok("game_stop");
   }, 40_000);
 
+  it("input_action_set adds an action the restarted game understands; edit_undo removes it", async () => {
+    await ok("game_run", { restart: true });
+    expect(await fails("game_input", { steps: [{ action: "mcp_fire" }] })).toContain("unknown input action");
+    const r = await ok("input_action_set", { name: "mcp_fire", keys: ["X", "Space"] });
+    expect(r.events).toHaveLength(2);
+    await ok("game_run", { restart: true });
+    await ok("game_input", { steps: [{ action: "mcp_fire", hold_ms: 30 }] });
+    await ok("edit_undo");
+    await ok("game_run", { restart: true });
+    expect(await fails("game_input", { steps: [{ action: "mcp_fire" }] })).toContain("unknown input action");
+    await ok("game_stop"); // leave the game stopped, as the next test expects
+  });
+
   it("game_run restart=true replaces a running game", async () => {
     await ok("game_run");
     const r = await ok("game_run", { restart: true });

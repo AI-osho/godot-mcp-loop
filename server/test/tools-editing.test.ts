@@ -50,6 +50,42 @@ describe("editing tools (forwarding layer)", () => {
     }
   });
 
+  it("file_write rejects invalid YAML before anything is written", async () => {
+    let called = false;
+    addon.handlers.set("file.write", () => {
+      called = true;
+      return { ok: true, result: {} };
+    });
+    const res = await client.callTool({ name: "file_write", arguments: { path: "res://s/a.yaml", content: "name: [oops" } });
+    expect(res.isError).toBe(true);
+    expect(textOf(res)).toMatch(/YAML/);
+    expect(called).toBe(false);
+  });
+
+  it("file_write warns when a YAML file with steps is not a valid scenario", async () => {
+    addon.handlers.set("file.write", (p) => ({ ok: true, result: { path: p.path } }));
+    const bad = await client.callTool({
+      name: "file_write",
+      arguments: { path: "res://s/a.yaml", content: "name: x\nsteps:\n  - jump: true\n" },
+    });
+    expect(bad.isError).toBeFalsy();
+    expect(jsonOf(bad).warnings[0]).toMatch(/scenario/i);
+    const good = await client.callTool({
+      name: "file_write",
+      arguments: { path: "res://s/b.yaml", content: "name: x\nsteps:\n  - wait_ms: 5\n" },
+    });
+    expect(jsonOf(good).warnings).toBeUndefined();
+  });
+
+  it("image_write and input_action_set forward their arguments", async () => {
+    addon.handlers.set("image.write", (p) => ({ ok: true, result: { got: p } }));
+    addon.handlers.set("input.action_set", (p) => ({ ok: true, result: { got: p } }));
+    const img = { path: "res://a.png", palette: { r: "#ff0000" }, rows: ["r."], scale: 2 };
+    expect(jsonOf(await client.callTool({ name: "image_write", arguments: img }))).toEqual({ got: img });
+    const act = { name: "fire", keys: ["X", "Space"] };
+    expect(jsonOf(await client.callTool({ name: "input_action_set", arguments: act }))).toEqual({ got: act });
+  });
+
   it("forwards arguments to the bridge method and returns its result as JSON", async () => {
     addon.handlers.set("node.set", (p) => ({ ok: true, result: { echoed: p } }));
     const res = await client.callTool({

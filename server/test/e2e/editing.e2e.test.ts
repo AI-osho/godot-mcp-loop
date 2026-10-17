@@ -287,6 +287,46 @@ describe("e2e: safe editing tools", () => {
     expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(before);
   });
 
+  it("file_write writes, validates and edits text files, undoably", async () => {
+    const r = await ok("file_write", { path: "res://tests/s.yaml", content: "name: s\nsteps:\n  - wait_ms: 5\n" });
+    expect(r.created).toBe(true);
+    expect(r.warnings).toBeUndefined();
+    expect(readFileSync(file("tests/s.yaml"), "utf8")).toContain("wait_ms: 5");
+    const edited = await ok("file_write", { path: "res://tests/s.yaml", edits: [{ old: "wait_ms: 5", new: "wait_ms: 7" }] });
+    expect(edited.diff).toContain("+  - wait_ms: 7");
+    expect(await fails("file_write", { path: "res://tests/bad.json", content: "{oops" })).toContain("Invalid JSON");
+    expect(await fails("file_write", { path: "res://tests/x.gd", content: "extends Node" })).toContain("PATH_FORBIDDEN");
+    expect(await fails("file_write", { path: "res://addons/mcp_loop/x.md", content: "hi" })).toContain("PATH_FORBIDDEN");
+    await ok("edit_undo");
+    expect(readFileSync(file("tests/s.yaml"), "utf8")).toContain("wait_ms: 5");
+  });
+
+  it("image_write creates an imported pixel-art PNG usable as a texture, undoably", async () => {
+    const r = await ok("image_write", {
+      path: "res://art/hero.png",
+      palette: { k: "#000000", r: "#d82800" },
+      frames: [
+        ["krk", "rrr"],
+        ["k.k", "rrr"],
+      ],
+      scale: 2,
+    });
+    expect(r).toMatchObject({ width: 12, height: 4, frames: 2, frame_width: 6, frame_height: 4 });
+    expect(existsSync(file("art/hero.png"))).toBe(true);
+    await ok("node_add", {
+      parent: ".",
+      type: "Sprite2D",
+      name: "HeroSprite",
+      properties: { texture: { res: "res://art/hero.png" }, hframes: 2, texture_filter: 1 },
+    });
+    const got = await ok("node_get", { path: "HeroSprite", properties: ["texture", "hframes"] });
+    expect(got.properties.texture).toMatchObject({ res: "res://art/hero.png" });
+    expect(got.properties.hframes).toBe(2);
+    await ok("edit_undo");
+    await ok("edit_undo");
+    expect(existsSync(file("art/hero.png"))).toBe(false);
+  });
+
   it("scene_open switches the edited scene", async () => {
     await ok("scene_create", { path: "res://levels/other.tscn", root_type: "Node3D" });
     expect((await ok("godot_status")).edited_scene).toBe("res://levels/other.tscn");

@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-## project.info, edit.undo
+## project.info, input.action_set, edit.undo
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
@@ -16,7 +16,62 @@ func _init(context: RefCounted) -> void:
 
 func register(router: RefCounted) -> void:
 	router.register("project.info", _info)
+	router.register("input.action_set", _action_set)
 	router.register("edit.undo", _undo)
+
+
+const MOUSE_BUTTONS := {"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE}
+var _action_name_re := RegEx.create_from_string("^[A-Za-z_][A-Za-z0-9_.]*$")
+
+
+## Adds, replaces or removes an input action in project.godot (undoable).
+func _action_set(p: Dictionary) -> Dictionary:
+	var name := String(p.get("name", ""))
+	if _action_name_re.search(name) == null:
+		return Protocol.err(Protocol.INVALID_PARAMS, "Action names use letters, digits, '_' and '.' (got '%s')." % name)
+	var key := "input/" + name
+	var existed := ProjectSettings.has_setting(key)
+	var old: Variant = ProjectSettings.get_setting(key) if existed else null
+	var value: Variant = null
+	var shown: Array = []
+	if p.get("remove", false):
+		if not existed:
+			return Protocol.err(Protocol.INVALID_PARAMS, "There is no input action '%s'." % name)
+	else:
+		var events: Array = []
+		for k in p.get("keys", []):
+			var code := OS.find_keycode_from_string(String(k))
+			if code == KEY_NONE:
+				return Protocol.err(Protocol.INVALID_PARAMS, "Unknown key '%s' (examples: 'Space', 'A', 'Left', 'Escape', 'Shift')." % k)
+			var ev := InputEventKey.new()
+			ev.physical_keycode = code
+			events.append(ev)
+		for b in p.get("mouse_buttons", []):
+			if not MOUSE_BUTTONS.has(String(b)):
+				return Protocol.err(Protocol.INVALID_PARAMS, "Mouse buttons are 'left', 'right' or 'middle' (got '%s')." % b)
+			var mb := InputEventMouseButton.new()
+			mb.button_index = MOUSE_BUTTONS[String(b)]
+			events.append(mb)
+		for j in p.get("joypad_buttons", []):
+			if int(j) < 0 or int(j) > 127:
+				return Protocol.err(Protocol.INVALID_PARAMS, "Joypad buttons are numbered 0-127 (got %s)." % str(j))
+			var jb := InputEventJoypadButton.new()
+			jb.button_index = int(j)
+			events.append(jb)
+		if events.is_empty():
+			return Protocol.err(Protocol.INVALID_PARAMS, "Give at least one of keys, mouse_buttons or joypad_buttons (or remove: true).")
+		value = {"deadzone": float(p.get("deadzone", 0.2)), "events": events}
+		shown = events.map(func(e: InputEvent) -> String: return e.as_text())
+	var result := {"action": name, "created": not existed, "removed": value == null, "events": shown,
+		"note": "Running games read input actions at start: use game_run with restart: true to apply."}
+	if p.get("dry_run", false):
+		result["dry_run"] = true
+		return Protocol.ok(result)
+	var ops: RefCounted = ctx.file_ops
+	ctx.commit("input action %s" % name, null, func(ur: EditorUndoRedoManager) -> void:
+		ur.add_do_method(ops, "set_project_setting", key, value)
+		ur.add_undo_method(ops, "set_project_setting", key, old))
+	return Protocol.ok(result)
 
 
 func _info(p: Dictionary) -> Dictionary:

@@ -14,6 +14,13 @@ All notable changes to this project are documented here. The format follows
 - `script_edit`: partial edits by exact text replacement (unique match or `replace_all`, applied in order),
   compile-checked and undoable like `script_write`. In the trial the model bypassed the editor for small fixes because
   every change needed the whole file.
+- `image_write`: pixel-art PNGs from text (palette of single characters + rows; frames become a horizontal sprite
+  sheet; nearest-neighbour scaling), imported immediately so they can be used as textures; undoable.
+- `file_write`: text files (.yaml/.yml/.json/.md/.txt/.csv) by whole content or exact edits; YAML syntax is checked
+  before writing, scenario files are validated (warnings), JSON must parse; undoable.
+- `input_action_set`: add, replace or remove input actions (keys by physical position, mouse and joypad buttons) in
+  project.godot; undoable.
+- `game_input` `record.mode: "changes"` keeps samples only when a value changes.
 - Indexed property paths everywhere values are read (`items:3`, `items:-1`, `stats:hp`, `area:size:x`) with errors
   that explain the problem (index out of range with size, missing key with the available keys, unknown member).
 

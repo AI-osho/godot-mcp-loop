@@ -31,6 +31,31 @@ class FileOps extends RefCounted:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 		EditorInterface.get_resource_filesystem().update_file(path)
 
+	## Binary assets (PNG): write, then import right away so the texture can be used immediately.
+	func write_bytes(path: String, data: PackedByteArray) -> void:
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		if f == null:
+			push_error("[mcp_loop] Could not write %s: %s" % [path, error_string(FileAccess.get_open_error())])
+			return
+		f.store_buffer(data)
+		f.close()
+		var fs := EditorInterface.get_resource_filesystem()
+		fs.update_file(path)
+		fs.reimport_files(PackedStringArray([path]))
+
+	func remove_asset(path: String) -> void:
+		for p in [path, path + ".import"]:
+			if FileAccess.file_exists(p):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+		EditorInterface.get_resource_filesystem().update_file(path)
+
+	## Project settings (input actions); null removes the setting. Saved at once
+	## because games launched from the editor read project.godot from disk.
+	func set_project_setting(key: String, value: Variant) -> void:
+		ProjectSettings.set_setting(key, value)
+		ProjectSettings.save()
+
 	func _refresh(path: String, content: String) -> void:
 		EditorInterface.get_resource_filesystem().update_file(path)
 		# Keep already-loaded scripts (and nodes using them) in sync with disk.

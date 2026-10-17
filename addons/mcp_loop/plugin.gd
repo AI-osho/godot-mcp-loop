@@ -13,6 +13,7 @@ const SceneCommands = preload("res://addons/mcp_loop/commands/scene_commands.gd"
 const NodeCommands = preload("res://addons/mcp_loop/commands/node_commands.gd")
 const ScriptCommands = preload("res://addons/mcp_loop/commands/script_commands.gd")
 const PlayCommands = preload("res://addons/mcp_loop/commands/play_commands.gd")
+const AssetCommands = preload("res://addons/mcp_loop/commands/asset_commands.gd")
 const DebuggerBridge = preload("res://addons/mcp_loop/debugger/debugger_bridge.gd")
 const ActivityBoost = preload("res://addons/mcp_loop/util/activity_boost.gd")
 
@@ -53,6 +54,7 @@ func _enter_tree() -> void:
 		SceneCommands.new(_ctx),
 		NodeCommands.new(_ctx),
 		ScriptCommands.new(_ctx),
+		AssetCommands.new(_ctx),
 		PlayCommands.new(_ctx, _debugger, get_tree()),
 	]
 	for m in _modules:

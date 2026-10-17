@@ -1,0 +1,35 @@
+{
+  "name": "godot-mcp-loop",
+  "version": "0.1.0",
+  "description": "MCP server that lets AI agents safely edit, run, observe and test Godot 4 projects.",
+  "license": "MIT",
+  "author": "OSHO",
+  "type": "module",
+  "bin": {
+    "godot-mcp-loop": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --exclude 'test/e2e/**'",
+    "test:e2e": "vitest run test/e2e"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "ws": "^8.22.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

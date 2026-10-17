@@ -6,6 +6,7 @@ extends EditorPlugin
 const Router = preload("res://addons/mcp_loop/bridge/router.gd")
 const WsServer = preload("res://addons/mcp_loop/bridge/ws_server.gd")
 const SessionFile = preload("res://addons/mcp_loop/bridge/session_file.gd")
+const EditorCommands = preload("res://addons/mcp_loop/commands/editor_commands.gd")
 
 const PORT_FROM := 6510
 const PORT_RANGE := 10
@@ -18,6 +19,7 @@ var _session: SessionFile
 func _enter_tree() -> void:
 	var token := SessionFile.generate_token()
 	_router = Router.new(token)
+	EditorCommands.register(_router)
 	_server = WsServer.new(_router)
 	var env_port := OS.get_environment("MCP_LOOP_PORT")
 	var from := int(env_port) if env_port.is_valid_int() else PORT_FROM

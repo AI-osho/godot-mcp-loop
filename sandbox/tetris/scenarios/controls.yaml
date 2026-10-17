@@ -1,0 +1,62 @@
+# Move / rotate (with wall kick) / soft drop / hard drop change the piece and board as expected.
+# Fixed order T, I, O and no gravity (test_controls.tscn), so every position is deterministic.
+name: tetris controls - move, rotate, wall kick, soft and hard drop
+scene: res://sandbox/tetris/test_controls.tscn
+steps:
+  # Initial state: T at spawn (x=3, y=0), next is I, empty board
+  - wait_for: { node: Game, property: piece_type, op: "==", value: "T", timeout_ms: 3000 }
+  - assert: { node: Game, property: piece_cells, op: "==", value: "4,0 3,1 4,1 5,1" }
+  - assert: { node: Game, property: next_type, op: "==", value: "I" }
+  - assert: { node: Game, property: filled_count, op: "==", value: 0 }
+
+  # Right x2 -> x=5, Left x1 -> x=4
+  - input:
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_x, op: "==", value: 4 }
+
+  # Rotate CW (Up) -> state 1, then CCW (Z) -> back to 0, CW twice -> 2
+  - input: { key: Up, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_rot, op: "==", value: 1 }
+  - assert: { node: Game, property: piece_cells, op: "==", value: "6,1 5,0 5,1 5,2" }
+  - input: { key: Z, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_rot, op: "==", value: 0 }
+
+  # Wall kick: in state 1, push to the left wall (x=-1: cells in columns 0-1), extra Left is blocked
+  - input:
+      - { key: Up, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_x, op: "==", value: -1 }
+  - assert: { node: Game, property: piece_cells, op: "==", value: "1,1 0,0 0,1 0,2" }
+  # State 2 would stick out at column -1 -> kicked one column right (x=0)
+  - input: { key: Up, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_rot, op: "==", value: 2 }
+  - assert: { node: Game, property: piece_x, op: "==", value: 0 }
+
+  # Soft drop x3 -> y=3
+  - input:
+      - { key: Down, hold_ms: 30, wait_ms: 30 }
+      - { key: Down, hold_ms: 30, wait_ms: 30 }
+      - { key: Down, hold_ms: 30, wait_ms: 30 }
+  - assert: { node: Game, property: piece_y, op: "==", value: 3 }
+
+  # Hard drop: T locks upside-down in the bottom-left corner, I spawns, O is next
+  - input: { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: stack_text, op: "==", value: "TTT.......|.T........" }
+  - assert: { node: Game, property: filled_count, op: "==", value: 4 }
+  - assert: { node: Game, property: piece_type, op: "==", value: "I" }
+  - assert: { node: Game, property: next_type, op: "==", value: "O" }
+
+  # Holding Right auto-repeats until the wall (I is 4 wide -> x=6)
+  - input: { key: Right, hold_ms: 450, wait_ms: 30 }
+  - assert: { node: Game, property: piece_x, op: "==", value: 6 }
+  - input: { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: stack_text, op: "==", value: "TTT.......|.T....IIII" }
+  - screenshot: after_two_drops
+  - assert_no_errors: true

@@ -1,0 +1,93 @@
+# Fixed order (test_lines.tscn): 13 x O, I, I, T; no gravity; lines_per_level = 2.
+# Part 1: five O pieces side by side clear 2 lines at level 1 -> +300, level becomes 2.
+# Part 2: eight O pieces fill columns 0-7 four rows high, two vertical I in columns 8 and 9
+#         -> a 4-line clear at level 2 -> +800 x 2 = 1600. Total 1900, 6 lines, level 4.
+name: tetris line clears and scoring
+scene: res://sandbox/tetris/test_lines.tscn
+steps:
+  - wait_for: { node: Game, property: piece_type, op: "==", value: "O", timeout_ms: 3000 }
+  - assert: { node: Game, property: score, op: "==", value: 0 }
+  # O at columns 0-1, 2-3, 4-5, 6-7 (bottom two rows almost full)
+  - input:
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: stack_text, op: "==", value: "OOOOOOOO..|OOOOOOOO.." }
+  - assert: { node: Game, property: lines, op: "==", value: 0 }
+  # Fifth O at columns 8-9 completes two rows
+  - input:
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: last_clear, op: "==", value: 2 }
+  - assert: { node: Game, property: lines, op: "==", value: 2 }
+  - assert: { node: Game, property: score, op: "==", value: 300 }
+  - assert: { node: Game, property: level, op: "==", value: 2 }
+  - assert: { node: Game, property: filled_count, op: "==", value: 0 }
+  - assert: { node: Game/ScoreLabel, property: text, op: "contains", value: "300" }
+  # Eight O pieces: columns 0-7, four rows high
+  - input:
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Left, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: filled_count, op: "==", value: 32 }
+  - assert: { node: Game, property: piece_type, op: "==", value: "I" }
+  # Vertical I into column 8 (spawn column 5 after rotating, +3)
+  - input:
+      - { key: Up, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: stack_text, op: "==", value: "OOOOOOOOI.|OOOOOOOOI.|OOOOOOOOI.|OOOOOOOOI." }
+  - screenshot: before_tetris
+  # Vertical I into column 9 -> 4 lines
+  - input:
+      - { key: Up, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Right, hold_ms: 30, wait_ms: 30 }
+      - { key: Space, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: Game, property: last_clear, op: "==", value: 4 }
+  - assert: { node: Game, property: lines, op: "==", value: 6 }
+  - assert: { node: Game, property: score, op: "==", value: 1900 }
+  - assert: { node: Game, property: level, op: "==", value: 4 }
+  - assert: { node: Game, property: filled_count, op: "==", value: 0 }
+  # Gravity speeds up with level: 0.8 * 0.8^3
+  - assert: { node: Game, property: fall_interval, op: "==", value: 0.4096 }
+  - query: { node: Game, properties: [score, lines, level, fall_interval, piece_type, next_type] }
+  - screenshot: after_tetris
+  - assert_no_errors: true

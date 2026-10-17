@@ -10,6 +10,8 @@ const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 var _token: String
 var _authenticated := false
 var _handlers: Dictionary = {}
+var _pending := 0
+var _last_request_ms := -1000000000
 
 
 func _init(token: String) -> void:
@@ -41,7 +43,21 @@ func handle_text(text: String) -> String:
 	return JSON.stringify(response)
 
 
+## True while a request is being handled, or within `hold_ms` of the last one.
+func is_busy(now_ms: int, hold_ms: int) -> bool:
+	return _pending > 0 or now_ms - _last_request_ms < hold_ms
+
+
 func handle(request: Dictionary) -> Dictionary:
+	_pending += 1
+	_last_request_ms = Time.get_ticks_msec()
+	var response: Dictionary = await _handle(request)
+	_pending -= 1
+	_last_request_ms = Time.get_ticks_msec()
+	return response
+
+
+func _handle(request: Dictionary) -> Dictionary:
 	var id: Variant = request.get("id")
 	var method: Variant = request.get("method")
 	if typeof(method) != TYPE_STRING or method == "":

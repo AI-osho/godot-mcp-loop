@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bm44yvm6hxjbn"]
+
+[ext_resource type="PackedScene" uid="uid://dd5csq3vnguiq" path="res://sandbox/tetris/tetris.tscn" id="1_xd6tu"]
+
+[node name="TestLines" type="Node2D" unique_id=2032974469]
+
+[node name="Game" parent="." unique_id=561516700 instance=ExtResource("1_xd6tu")]
+sequence = "OOOOOOOOOOOOOIIT"
+gravity_enabled = false
+lines_per_level = 2

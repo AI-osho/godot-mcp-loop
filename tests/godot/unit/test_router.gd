@@ -141,3 +141,29 @@ func test_hello_reports_the_addon_version_from_plugin_cfg() -> void:
 	var res := await _hello(router)
 	assert_eq(res.result.addon_version, expected)
 	assert_eq(Protocol.addon_version(), expected)
+
+
+# ---- busy tracking (drives the editor's responsiveness boost) ----
+
+func test_router_is_busy_while_a_request_runs_and_for_a_hold_period_after() -> void:
+	var router := Router.new(TOKEN)
+	assert_false(router.is_busy(Time.get_ticks_msec(), 1000), "idle before any request")
+	await _hello(router)
+	var gate := {"open": false}
+	router.register("slow", func(_p: Dictionary) -> Dictionary:
+		while not gate.open:
+			await tree.process_frame
+		return Protocol.ok({}))
+	var done := {"v": false}
+	var run := func() -> void:
+		await router.handle({"id": 1, "method": "slow", "params": {}})
+		done.v = true
+	run.call()
+	await tree.process_frame
+	var far_future := Time.get_ticks_msec() + 100000
+	assert_true(router.is_busy(far_future, 1000), "busy while a handler is running")
+	gate.open = true
+	while not done.v:
+		await tree.process_frame
+	assert_true(router.is_busy(Time.get_ticks_msec(), 1000), "still busy within the hold period")
+	assert_false(router.is_busy(far_future, 1000), "idle after the hold period")

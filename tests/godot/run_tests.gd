@@ -71,6 +71,8 @@ func _run_all() -> void:
 			if instance.has_method("set_tree"):
 				instance.call("set_tree", self)
 			capture.take()
+			if instance.has_method("before_each"):
+				await instance.call("before_each")
 			await instance.call(name)
 			var problems: Array[String] = []
 			problems.append_array(instance.get_failures())

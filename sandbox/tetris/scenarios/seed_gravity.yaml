@@ -1,0 +1,24 @@
+# Seeded 7-bag is reproducible (also across restart) and gravity pulls the piece down.
+# test_seed.tscn: rng_seed = 42, gravity on (level 1: 0.8 s per row).
+name: tetris seeded order and gravity
+scene: res://sandbox/tetris/test_seed.tscn
+steps:
+  - wait_for: { node: Game, property: spawn_history, op: "==", value: "T", timeout_ms: 3000 }
+  - assert: { node: Game, property: next_type, op: "==", value: "J" }
+  # Gravity: the piece falls by itself (2 rows within ~1.6 s)
+  - wait_for: { node: Game, property: piece_y, op: ">=", value: 2, timeout_ms: 2500 }
+  - input:
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+      - { key: Space, hold_ms: 30, wait_ms: 40 }
+  # First bag holds each of the 7 pieces exactly once; seed 42 always gives this order
+  - assert: { node: Game, property: spawn_history, op: "==", value: "TJOSIZLL" }
+  # Restart replays the same seeded order
+  - input: { key: R, hold_ms: 30, wait_ms: 40 }
+  - assert: { node: Game, property: spawn_history, op: "==", value: "T" }
+  - assert: { node: Game, property: next_type, op: "==", value: "J" }
+  - assert_no_errors: true

@@ -14,12 +14,15 @@ const NodeCommands = preload("res://addons/mcp_loop/commands/node_commands.gd")
 const ScriptCommands = preload("res://addons/mcp_loop/commands/script_commands.gd")
 const PlayCommands = preload("res://addons/mcp_loop/commands/play_commands.gd")
 const DebuggerBridge = preload("res://addons/mcp_loop/debugger/debugger_bridge.gd")
+const ActivityBoost = preload("res://addons/mcp_loop/util/activity_boost.gd")
 
 const AUTOLOAD_NAME := "MCPLoopRuntime"
 const AUTOLOAD_PATH := "res://addons/mcp_loop/runtime/runtime_agent.gd"
 
 const PORT_FROM := 6510
 const PORT_RANGE := 10
+## Keep the editor loop fast for this long after the last request (model think time).
+const BOOST_HOLD_MS := 30000
 
 var _router: Router
 var _server: WsServer
@@ -28,6 +31,7 @@ var _log_capture: LogCapture
 var _ctx: EditorContext
 var _modules: Array = []
 var _debugger: DebuggerBridge
+var _boost: ActivityBoost
 
 
 func _enter_tree() -> void:
@@ -54,6 +58,7 @@ func _enter_tree() -> void:
 	for m in _modules:
 		m.register(_router)
 
+	_boost = ActivityBoost.new(_editor_sleep_usec)
 	_server = WsServer.new(_router)
 	var env_port := OS.get_environment("MCP_LOOP_PORT")
 	var from := int(env_port) if env_port.is_valid_int() else PORT_FROM
@@ -69,6 +74,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _boost != null:
+		_boost.update(false)
 	if _server != null:
 		_server.stop()
 	if _session != null:
@@ -88,3 +95,13 @@ func _disable_plugin() -> void:
 func _process(_delta: float) -> void:
 	if _server != null:
 		_server.poll()
+		_boost.update(_router.is_busy(Time.get_ticks_msec(), BOOST_HOLD_MS))
+
+
+## The editor's own loop sleep for the current window focus state.
+func _editor_sleep_usec() -> int:
+	var settings := EditorInterface.get_editor_settings()
+	var focused := get_window() != null and get_window().has_focus()
+	var key := "interface/editor/timers/low_processor_mode_sleep_usec" if focused \
+		else "interface/editor/timers/unfocused_low_processor_mode_sleep_usec"
+	return int(settings.get_setting(key)) if settings.has_setting(key) else 6900

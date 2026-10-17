@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Performance
+- The editor throttles its main loop to 100 ms per iteration while its window is in the background, and every bridge
+  hop waited for an iteration: an editor call took ~100 ms and a game round trip ~300 ms. While requests are active
+  (and for 30 s after), the addon now shortens the loop sleep to 5 ms, then restores the editor's own value.
+  Measured: editor call 100 → 5 ms, game round trip 300 → 38 ms, for about +2 % CPU while active.
+
 ### Changed
 - `game_input` `record` documentation: min/max are computed over every recorded frame; only the returned sample list
   is thinned to 50. In both re-trials the model raised `interval_ms` believing recording itself was capped at 50,

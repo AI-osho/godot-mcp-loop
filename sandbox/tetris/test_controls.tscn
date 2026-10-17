@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://2prifxfor4hy"]
+
+[ext_resource type="PackedScene" uid="uid://dd5csq3vnguiq" path="res://sandbox/tetris/tetris.tscn" id="1_iql2c"]
+
+[node name="TestControls" type="Node2D" unique_id=2075401060]
+
+[node name="Game" parent="." unique_id=561516700 instance=ExtResource("1_iql2c")]
+sequence = "TIO"
+gravity_enabled = false

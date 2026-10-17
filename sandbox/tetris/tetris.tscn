@@ -1,0 +1,66 @@
+[gd_scene format=3 uid="uid://dd5csq3vnguiq"]
+
+[ext_resource type="Script" path="res://sandbox/tetris/tetris.gd" id="1_rw7d2"]
+
+[node name="Tetris" type="Node2D" unique_id=561516700]
+script = ExtResource("1_rw7d2")
+
+[node name="NextLabel" type="Label" parent="." unique_id=1924569383]
+offset_left = 360.0
+offset_top = 44.0
+offset_right = 360.0
+offset_bottom = 44.0
+theme_override_font_sizes/font_size = 20
+text = "NEXT"
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=1068514112]
+offset_left = 360.0
+offset_top = 210.0
+offset_right = 360.0
+offset_bottom = 210.0
+theme_override_font_sizes/font_size = 22
+text = "SCORE
+0"
+
+[node name="LinesLabel" type="Label" parent="." unique_id=309822634]
+offset_left = 360.0
+offset_top = 290.0
+offset_right = 360.0
+offset_bottom = 290.0
+theme_override_font_sizes/font_size = 22
+text = "LINES
+0"
+
+[node name="LevelLabel" type="Label" parent="." unique_id=666242175]
+offset_left = 360.0
+offset_top = 370.0
+offset_right = 360.0
+offset_bottom = 370.0
+theme_override_font_sizes/font_size = 22
+text = "LEVEL
+1"
+
+[node name="HelpLabel" type="Label" parent="." unique_id=1015227688]
+modulate = Color(0.6666667, 0.6666667, 0.6666667, 1)
+offset_left = 360.0
+offset_top = 470.0
+offset_right = 360.0
+offset_bottom = 470.0
+theme_override_font_sizes/font_size = 14
+text = "←/→ move   ↑/X rotate   Z rotate left
+↓ soft drop   Space hard drop   R restart"
+
+[node name="GameOverLabel" type="Label" parent="." unique_id=1450058339]
+visible = false
+offset_left = 40.0
+offset_top = 290.0
+offset_right = 320.0
+offset_bottom = 370.0
+theme_override_colors/font_color = Color(1, 0.33333334, 0.33333334, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+text = "GAME OVER
+Press R / Enter"
+horizontal_alignment = 1
+vertical_alignment = 1

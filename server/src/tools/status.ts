@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { GodotConnection } from "../connection.js";
+import { SERVER_VERSION } from "../version.js";
 import { jsonResult, safe } from "./helpers.js";
 
 export function registerStatusTools(server: McpServer, conn: GodotConnection): void {
@@ -16,10 +17,21 @@ export function registerStatusTools(server: McpServer, conn: GodotConnection): v
     safe(async () => {
       const editor = (await conn.call("editor.status")) as Record<string, unknown>;
       const info = conn.serverInfo();
+      const addon = info?.addon_version;
+      const mismatch = addon !== undefined && addon !== SERVER_VERSION;
       return jsonResult({
         connected: conn.isConnected(),
         godot_version: info?.godot_version,
-        addon_version: info?.addon_version,
+        addon_version: addon,
+        server_version: SERVER_VERSION,
+        ...(mismatch
+          ? {
+              warning:
+                `The Godot addon is ${addon} but this MCP server is ${SERVER_VERSION}. Tools may be missing or behave ` +
+                "differently. Update the older side; after updating the server, restart it in your MCP client " +
+                "(Claude Code: /mcp -> godot-loop -> Reconnect).",
+            }
+          : {}),
         project_path: conn.projectPath,
         ...editor,
       });

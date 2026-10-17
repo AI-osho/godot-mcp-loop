@@ -1,3 +1,4 @@
+import { SERVER_VERSION } from "../src/server.js";
 import { WebSocketServer, WebSocket } from "ws";
 import type { AddressInfo } from "node:net";
 
@@ -9,6 +10,8 @@ export type Handler = (params: Record<string, unknown>) => unknown | Promise<unk
  * Handlers return the full envelope ({ok:true,result} / {ok:false,error}).
  */
 export class FakeAddon {
+  /** Version reported in the hello reply; defaults to the server's own version. */
+  addonVersion: string = SERVER_VERSION;
   readonly token: string;
   readonly handlers = new Map<string, Handler>();
   readonly received: Array<Record<string, unknown>> = [];
@@ -43,7 +46,7 @@ export class FakeAddon {
             env = { ok: false, error: { code: "PROTOCOL_MISMATCH", message: "bad protocol" } };
           } else {
             authed = true;
-            env = { ok: true, result: { protocol: 1, godot_version: "4.7.2-fake", addon_version: "0.2.0" } };
+            env = { ok: true, result: { protocol: 1, godot_version: "4.7.2-fake", addon_version: this.addonVersion } };
           }
         } else if (!authed) {
           env = { ok: false, error: { code: "UNAUTHORIZED", message: "hello first" } };

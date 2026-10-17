@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `godot_status` reports `server_version` and a `warning` when the addon and the MCP server versions differ — found
+  in the re-trial, where a stale server process kept running after an update and new tools silently looked missing.
+
 ## [0.2.0] - 2026-10-17
 
 Fixes and additions from the first hands-on trial with Claude Code.

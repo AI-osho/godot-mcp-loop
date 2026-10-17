@@ -56,6 +56,23 @@ describe("godot_status tool", () => {
     });
   });
 
+  it("reports the server version and no warning when addon and server match", async () => {
+    addon.handlers.set("editor.status", () => ({ ok: true, result: {} }));
+    const data = JSON.parse(textOf(await client.callTool({ name: "godot_status", arguments: {} })));
+    expect(data.server_version).toBe(SERVER_VERSION);
+    expect(data.addon_version).toBe(SERVER_VERSION);
+    expect(data.warning).toBeUndefined();
+  });
+
+  it("warns when the addon and the server versions differ (e.g. a stale server process)", async () => {
+    addon.addonVersion = "0.0.9";
+    addon.handlers.set("editor.status", () => ({ ok: true, result: {} }));
+    const data = JSON.parse(textOf(await client.callTool({ name: "godot_status", arguments: {} })));
+    expect(data.warning).toContain("0.0.9");
+    expect(data.warning).toContain(SERVER_VERSION);
+    expect(data.warning).toMatch(/restart|Reconnect/i);
+  });
+
   it("returns an actionable error when Godot is not running", async () => {
     await addon.stop();
     conn.close();

@@ -10,6 +10,8 @@ const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
 const LogCapture = preload("res://addons/mcp_loop/util/log_capture.gd")
 
 const ACTION_PREFIX := "MCP#"
+## Older entries fall out of Godot's undo history long before this anyway.
+const MAX_TRACKED_ACTIONS := 500
 
 
 ## Undoable file writes live in the editor's global history.
@@ -172,8 +174,18 @@ func commit(label: String, context: Object, build: Callable) -> String:
 	var history_id := EditorUndoRedoManager.GLOBAL_HISTORY
 	if context != null:
 		history_id = ur.get_object_history_id(context)
-	_actions.append({"history_id": history_id, "name": name})
+	_remember(history_id, name)
 	return name
+
+
+func _remember(history_id: int, name: String) -> void:
+	_actions.append({"history_id": history_id, "name": name})
+	if _actions.size() > MAX_TRACKED_ACTIONS:
+		_actions.pop_front()
+
+
+func tracked_action_count() -> int:
+	return _actions.size()
 
 
 ## Undoes up to `steps` of our own actions. Returns {undone: [...], stopped_reason}.

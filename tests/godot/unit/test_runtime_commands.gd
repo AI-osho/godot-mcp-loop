@@ -148,3 +148,16 @@ func test_unknown_runtime_method() -> void:
 	_setup()
 	var r: Dictionary = await _cmds.handle("fly", {})
 	assert_error_code(r, Protocol.UNKNOWN_METHOD)
+
+
+func test_input_rejects_excessive_durations_and_step_counts() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": RuntimeCommands.MAX_STEP_MS + 1}]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	r = await _cmds.handle("input", {"steps": [{"key": "Space", "hold_ms": RuntimeCommands.MAX_STEP_MS + 1}]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	var many: Array = []
+	for i in RuntimeCommands.MAX_STEPS + 1:
+		many.append({"wait_ms": 0})
+	r = await _cmds.handle("input", {"steps": many})
+	assert_error_code(r, Protocol.INVALID_PARAMS)

@@ -71,6 +71,12 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(textOf(res)).toContain("RENDERING_UNAVAILABLE");
   });
 
+  it("screenshot max_width is capped to keep payloads within the bridge buffer", async () => {
+    const res = await client.callTool({ name: "screenshot", arguments: { max_width: 4096 } });
+    expect(res.isError).toBe(true);
+    expect(addon.received.some((r) => r.method === "screenshot")).toBe(false);
+  });
+
   it("logs_read defaults are left to the addon", async () => {
     addon.handlers.set("logs.read", (p) => ({ ok: true, result: { p } }));
     expect(jsonOf(await client.callTool({ name: "logs_read", arguments: {} }))).toEqual({ p: {} });

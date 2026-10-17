@@ -45,3 +45,12 @@ func test_read_missing_returns_empty() -> void:
 	var sf := SessionFile.new(DIR)
 	sf.remove()
 	assert_eq(sf.read(), {})
+
+
+func test_session_file_is_private_to_the_user() -> void:
+	if OS.get_name() == "Windows":
+		return
+	var sf := SessionFile.new(DIR)
+	sf.write(6510, "secret")
+	var perms := FileAccess.get_unix_permissions(sf.path())
+	assert_eq(perms & 0x3F, 0, "group/other must have no access (perms=%o)" % perms)

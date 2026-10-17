@@ -81,16 +81,83 @@ func test_client_hello_and_ping_round_trip() -> void:
 	assert_true(s.is_client_connected())
 
 
-func test_new_connection_replaces_old_and_requires_new_hello() -> void:
+func _hello(s: Object, c: WebSocketPeer, token: String = TOKEN) -> Dictionary:
+	return await _request(s, c, {"id": 1, "method": "hello", "params": {"token": token, "protocol": Protocol.VERSION}})
+
+
+# Polls the server and several clients until the predicate is true.
+func _pump_all(server: Object, clients: Array, until: Callable, max_frames: int = 300) -> bool:
+	for i in max_frames:
+		server.poll()
+		for c in clients:
+			c.poll()
+		if until.call():
+			return true
+		await tree.process_frame
+	return false
+
+
+func test_authenticated_new_connection_replaces_old() -> void:
 	var s := _make_server()
 	var port: int = s.start(PORT_FROM, PORT_TO)
 	var c1 := await _connect(s, port)
-	await _request(s, c1, {"id": 1, "method": "hello", "params": {"token": TOKEN, "protocol": Protocol.VERSION}})
+	await _hello(s, c1)
 	var c2 := await _connect(s, port)
-	var closed := await _pump(s, c1, func() -> bool: return c1.get_ready_state() == WebSocketPeer.STATE_CLOSED)
-	assert_true(closed, "old client should be closed")
-	var res := await _request(s, c2, {"id": 3, "method": "ping", "params": {}})
+	var hello2 := await _hello(s, c2)
+	assert_eq(hello2.get("ok"), true)
+	var closed := await _pump_all(s, [c1, c2], func() -> bool: return c1.get_ready_state() == WebSocketPeer.STATE_CLOSED)
+	assert_true(closed, "old client should be closed once the new one authenticated")
+	var pong := await _request(s, c2, {"id": 3, "method": "ping", "params": {}})
+	assert_eq(pong.get("result"), {"pong": true})
+
+
+func test_unauthenticated_connection_cannot_kick_active_client() -> void:
+	var s := _make_server()
+	var port: int = s.start(PORT_FROM, PORT_TO)
+	var c1 := await _connect(s, port)
+	await _hello(s, c1)
+	var intruder := await _connect(s, port)
+	var res := await _request(s, intruder, {"id": 9, "method": "ping", "params": {}})
 	assert_error_code(res, Protocol.UNAUTHORIZED)
+	await _pump_all(s, [c1, intruder], func() -> bool: return false, 10)
+	assert_eq(c1.get_ready_state(), WebSocketPeer.STATE_OPEN, "active client must survive")
+	var pong := await _request(s, c1, {"id": 4, "method": "ping", "params": {}})
+	assert_eq(pong.get("result"), {"pong": true})
+
+
+func test_wrong_token_closes_candidate_and_keeps_active() -> void:
+	var s := _make_server()
+	var port: int = s.start(PORT_FROM, PORT_TO)
+	var c1 := await _connect(s, port)
+	await _hello(s, c1)
+	var intruder := await _connect(s, port)
+	var res := await _hello(s, intruder, "guess")
+	assert_error_code(res, Protocol.UNAUTHORIZED)
+	var closed := await _pump_all(s, [c1, intruder], func() -> bool: return intruder.get_ready_state() == WebSocketPeer.STATE_CLOSED)
+	assert_true(closed, "a candidate with a wrong token is disconnected")
+	var pong := await _request(s, c1, {"id": 5, "method": "ping", "params": {}})
+	assert_eq(pong.get("result"), {"pong": true})
+
+
+func test_candidate_without_hello_times_out() -> void:
+	var s := _make_server()
+	s.hello_timeout_ms = 200
+	var port: int = s.start(PORT_FROM, PORT_TO)
+	var c := await _connect(s, port)
+	var closed := await _pump_all(s, [c], func() -> bool: return c.get_ready_state() == WebSocketPeer.STATE_CLOSED)
+	assert_true(closed, "silent connections are dropped")
+
+
+func test_connection_flood_is_capped() -> void:
+	var s := _make_server()
+	var port: int = s.start(PORT_FROM, PORT_TO)
+	var clients: Array = []
+	for i in WsServer.MAX_WAITING + 3:
+		var c := WebSocketPeer.new()
+		c.connect_to_url("ws://127.0.0.1:%d" % port)
+		clients.append(c)
+	await _pump_all(s, clients, func() -> bool: return false, 60)
+	assert_true(s.waiting_count() <= WsServer.MAX_WAITING, "waiting=%d" % s.waiting_count())
 
 
 func test_large_message_round_trip() -> void:

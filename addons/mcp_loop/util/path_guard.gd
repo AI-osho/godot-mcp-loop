@@ -51,6 +51,25 @@ static func check_read(path: String) -> String:
 	for prefix in PROTECTED_READ_PREFIXES:
 		if norm.begins_with(prefix):
 			return "Access under %s is not allowed." % prefix
+	return _symlink_reason(norm)
+
+
+## Godot follows symbolic links, so a link inside the project could point
+## anywhere on disk. Refuse any path whose existing segments include a link.
+static func _symlink_reason(norm: String) -> String:
+	var rest := norm.substr("res://".length())
+	if rest == "":
+		return ""
+	var parts := rest.split("/")
+	var dir := DirAccess.open("res://")
+	if dir == null:
+		return ""
+	for i in parts.size():
+		var seg := parts[i]
+		if dir.is_link(seg):
+			return "Symbolic links are not followed: res://%s" % "/".join(parts.slice(0, i + 1))
+		if i == parts.size() - 1 or not dir.dir_exists(seg) or dir.change_dir(seg) != OK:
+			return ""
 	return ""
 
 

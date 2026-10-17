@@ -1,5 +1,5 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -80,6 +80,16 @@ describe("scenario_run tool", () => {
     const res = await client.callTool({ name: "scenario_run", arguments: { path: "../../etc/passwd" } });
     expect(res.isError).toBe(true);
     expect(textOf(res)).toContain("PATH_FORBIDDEN");
+  });
+
+  it("refuses a symlink inside the project that points outside", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "gml-outside-"));
+    writeFileSync(join(outside, "s.yaml"), "name: x\nsteps:\n  - wait_ms: 1\n");
+    symlinkSync(outside, join(project, "linked"));
+    const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://linked/s.yaml" } });
+    expect(res.isError).toBe(true);
+    expect(textOf(res)).toContain("PATH_FORBIDDEN");
+    rmSync(outside, { recursive: true, force: true });
   });
 
   it("requires exactly one of path or scenario", async () => {

@@ -123,7 +123,7 @@ export function registerPlayTools(server: McpServer, conn: GodotConnection): voi
         "Not available when running headless.",
       inputSchema: {
         target: z.enum(["game", "editor"]).optional(),
-        max_width: z.number().int().min(64).max(4096).optional().describe("Downscale to at most this width (default 1280)."),
+        max_width: z.number().int().min(64).max(2560).optional().describe("Downscale to at most this width (default 1280)."),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

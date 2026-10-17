@@ -10,6 +10,10 @@ const MAX_BYTES := 1024 * 1024
 
 var ctx: RefCounted
 var _class_name_re := RegEx.create_from_string("(?m)^(\\s*)class_name\\s+([A-Za-z_][A-Za-z0-9_]*)")
+# "@tool" as an annotation (not inside a comment or string on the same line).
+var _tool_re := RegEx.create_from_string("(?m)^[ \\t]*(@tool)\\b")
+
+const TOOL_WARNING := "This is a @tool script: once it is used in an open scene, attached, or instantiated by the editor, its code runs inside the Godot editor with your user's permissions. It was compiled with @tool disabled for validation."
 
 
 func _init(context: RefCounted) -> void:
@@ -59,6 +63,8 @@ func _write(p: Dictionary) -> Dictionary:
 	var old := FileAccess.get_file_as_string(path) if exists else ""
 	var diff := TextDiff.unified(old, content, path)
 	var result := {"path": path, "created": not exists, "diff": diff, "stats": TextDiff.stats(old, content)}
+	if _tool_re.search(content) != null:
+		result["warnings"] = [TOOL_WARNING]
 	if p.get("dry_run", false):
 		result["dry_run"] = true
 		return Protocol.ok(result)
@@ -91,6 +97,11 @@ func _validate(path: String, content: String) -> Array:
 		src = content.substr(0, m.get_start(2) - "class_name ".length()) \
 			+ " ".repeat("class_name ".length() + own_class.length()) \
 			+ content.substr(m.get_end(2))
+
+	# Compiling a @tool script runs its static initializers in the editor.
+	# Validate a copy with the annotation blanked (same length keeps columns).
+	for tm in _tool_re.search_all(src):
+		src = src.substr(0, tm.get_start(1)) + "     " + src.substr(tm.get_end(1))
 
 	var cursor: int = ctx.log_capture.cursor()
 	var script := GDScript.new()

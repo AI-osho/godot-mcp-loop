@@ -8,6 +8,9 @@ const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
 const Compare = preload("res://addons/mcp_loop/util/compare.gd")
 
 const MAX_WAIT_MS := 120_000
+## Input sequences: per-step hold/wait limit and maximum number of steps.
+const MAX_STEP_MS := 60_000
+const MAX_STEPS := 200
 const OVERVIEW_PROPS := ["position", "global_position", "rotation", "scale", "visible", "velocity", "text", "size"]
 
 var _tree: SceneTree
@@ -125,10 +128,15 @@ func _wait_for(p: Dictionary) -> Dictionary:
 # ------------------------------------------------------------------ input
 
 func _validate_steps(steps: Array) -> String:
+	if steps.size() > MAX_STEPS:
+		return "At most %d steps per call (got %d)." % [MAX_STEPS, steps.size()]
 	for i in steps.size():
 		var s: Variant = steps[i]
 		if typeof(s) != TYPE_DICTIONARY:
 			return "Step %d must be an object." % i
+		for k in ["hold_ms", "wait_ms"]:
+			if s.has(k) and (int(s[k]) < 0 or int(s[k]) > MAX_STEP_MS):
+				return "Step %d: %s must be between 0 and %d." % [i, k, MAX_STEP_MS]
 		if s.has("action"):
 			if not InputMap.has_action(StringName(s.action)):
 				return "Step %d: unknown input action '%s'. Use project_info to list actions." % [i, s.action]
@@ -233,7 +241,7 @@ func _screenshot(p: Dictionary) -> Dictionary:
 	var img: Image = tex.get_image() if tex != null else null
 	if img == null or img.is_empty():
 		return _no_rendering()
-	var max_width := clampi(int(p.get("max_width", 1280)), 64, 4096)
+	var max_width := clampi(int(p.get("max_width", 1280)), 64, 2560)
 	if img.get_width() > max_width:
 		var h := int(round(img.get_height() * float(max_width) / img.get_width()))
 		img.resize(max_width, max(1, h), Image.INTERPOLATE_BILINEAR)

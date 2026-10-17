@@ -157,7 +157,7 @@ func _editor_screenshot(p: Dictionary) -> Dictionary:
 	var img: Image = vp.get_texture().get_image() if vp != null else null
 	if img == null or img.is_empty():
 		return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "Could not read the editor viewport.")
-	var max_width := clampi(int(p.get("max_width", 1280)), 64, 4096)
+	var max_width := clampi(int(p.get("max_width", 1280)), 64, 2560)
 	if img.get_width() > max_width:
 		img.resize(max_width, max(1, int(round(img.get_height() * float(max_width) / img.get_width()))), Image.INTERPOLATE_BILINEAR)
 	return Protocol.ok({"png": img.save_png_to_buffer(), "width": img.get_width(), "height": img.get_height()})

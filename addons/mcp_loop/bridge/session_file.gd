@@ -21,11 +21,27 @@ func path() -> String:
 	return _dir.path_join("session.json")
 
 
+const OWNER_ONLY_FILE := FileAccess.UNIX_READ_OWNER | FileAccess.UNIX_WRITE_OWNER
+const OWNER_ONLY_DIR := OWNER_ONLY_FILE | FileAccess.UNIX_EXECUTE_OWNER
+
+
 func write(port: int, token: String) -> Error:
 	var abs_dir := ProjectSettings.globalize_path(_dir)
 	var mk := DirAccess.make_dir_recursive_absolute(abs_dir)
 	if mk != OK:
 		return mk
+	# The token must never sit in a file other users can read. Create the file
+	# empty, restrict it, then write: Godot's save path keeps the existing mode.
+	if OS.get_name() != "Windows":
+		FileAccess.set_unix_permissions(abs_dir, OWNER_ONLY_DIR)
+		if not FileAccess.file_exists(path()):
+			var empty := FileAccess.open(path(), FileAccess.WRITE)
+			if empty == null:
+				return FileAccess.get_open_error()
+			empty.close()
+		var perm_err := FileAccess.set_unix_permissions(path(), OWNER_ONLY_FILE)
+		if perm_err != OK:
+			return perm_err
 	var f := FileAccess.open(path(), FileAccess.WRITE)
 	if f == null:
 		return FileAccess.get_open_error()

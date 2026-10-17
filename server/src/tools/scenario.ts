@@ -20,7 +20,13 @@ export function resolveProjectFile(projectPath: string, path: string): string {
     throw new BridgeError("PATH_FORBIDDEN", `${path} is outside the project.`);
   }
   if (!existsSync(full)) throw new BridgeError("FILE_NOT_FOUND", `Scenario file not found: ${path}`);
-  return full;
+  // Re-check after resolving symlinks: a link inside the project may point outside it.
+  const real = realpathSync(full);
+  const rr = relative(root, real);
+  if (rr.startsWith("..") || isAbsolute(rr)) {
+    throw new BridgeError("PATH_FORBIDDEN", `${path} resolves outside the project (symbolic link).`);
+  }
+  return real;
 }
 
 const ICON: Record<string, string> = { pass: "✓", fail: "✗", error: "✗", skip: "○", skipped: "-" };

@@ -69,17 +69,24 @@ func handle(request: Dictionary) -> Dictionary:
 	return _with_id(id, result)
 
 
-func _hello(params: Dictionary) -> Dictionary:
+## Checks a hello's token and protocol without changing session state.
+func verify_hello(params: Dictionary) -> Dictionary:
 	var token: Variant = params.get("token", "")
 	if typeof(token) != TYPE_STRING or not _constant_time_equals(token, _token):
-		_authenticated = false
 		return Protocol.err(Protocol.UNAUTHORIZED, "Invalid token.", "Read the token from .godot/mcp_loop/session.json of the running editor.")
 	var protocol: Variant = params.get("protocol", -1)
-	if int(protocol) != Protocol.VERSION:
-		_authenticated = false
+	if (typeof(protocol) != TYPE_INT and typeof(protocol) != TYPE_FLOAT) or int(protocol) != Protocol.VERSION:
 		return Protocol.err(Protocol.PROTOCOL_MISMATCH,
 			"Addon speaks protocol %d, client sent %s." % [Protocol.VERSION, str(protocol)],
 			"Update the MCP server and the Godot addon to matching versions.")
+	return Protocol.ok({})
+
+
+func _hello(params: Dictionary) -> Dictionary:
+	var check := verify_hello(params)
+	if not check.ok:
+		_authenticated = false
+		return check
 	_authenticated = true
 	return Protocol.ok({
 		"protocol": Protocol.VERSION,

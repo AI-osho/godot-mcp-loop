@@ -1,5 +1,6 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { connectClient, textOf } from "../helpers.js";
@@ -170,6 +171,28 @@ describe("e2e: safe editing tools", () => {
     expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(VALID_SCRIPT_V2);
     await ok("edit_undo");
     expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(VALID_SCRIPT);
+  });
+
+  it("compile-checking a @tool script does not execute it in the editor, and the result warns", async () => {
+    const marker = join(tmpdir(), `gml-marker-${process.pid}-${Date.now()}`);
+    const toolScript = [
+      "@tool",
+      "extends Node",
+      "",
+      "static var _boom := _touch()",
+      "",
+      "static func _touch() -> int:",
+      `\tvar f := FileAccess.open("${marker}", FileAccess.WRITE)`,
+      '\tf.store_string("ran")',
+      "\treturn 1",
+      "",
+    ].join("\n");
+    const preview = await ok("script_write", { path: "res://scripts/tool_probe.gd", content: toolScript, dry_run: true });
+    expect(existsSync(marker), "dry_run must not run the script").toBe(false);
+    expect(JSON.stringify(preview.warnings ?? [])).toContain("@tool");
+    const written = await ok("script_write", { path: "res://scripts/tool_probe.gd", content: toolScript });
+    expect(existsSync(marker), "validation must not run the script").toBe(false);
+    expect(JSON.stringify(written.warnings ?? [])).toContain("@tool");
   });
 
   it("script paths are sandboxed", async () => {

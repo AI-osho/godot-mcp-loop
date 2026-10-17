@@ -76,17 +76,27 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       "Play a sequence of input steps in the running game (actions, keys, mouse), in order and with real timing. " +
       "Returns when the whole sequence has finished. To observe something brief (e.g. the top of a jump), pass " +
       "'record': the properties are sampled every frame while the steps run, and min/max (with times) are returned. " +
-      "Add a final {wait_ms} step to keep recording after the input ends.",
+      "min/max are computed from every recorded frame (up to 3000 frames); only the returned sample list is thinned " +
+      "to 50 entries, so interval_ms is not needed for accuracy. Add a final {wait_ms} step to keep recording after the input ends.",
     input: {
       steps: z.array(Step).min(1).max(200),
       record: z
         .object({
           node: z.string().describe(GAME_NODE),
           properties: z.array(z.string()).min(1).max(8).describe("Properties to sample, e.g. ['position:y']."),
-          interval_ms: z.number().int().min(0).max(1000).optional().describe("Minimum time between samples. Default 0 (every frame)."),
+          interval_ms: z
+            .number()
+            .int()
+            .min(0)
+            .max(1000)
+            .optional()
+            .describe("Minimum time between samples. Default 0 (every frame) — keep it for exact min/max; only raise it for very long recordings."),
         })
         .optional()
-        .describe("Sample node properties during the sequence. Returns summary {min, max, min_at_ms, max_at_ms, first, last} and up to 50 samples."),
+        .describe(
+          "Sample node properties during the sequence. Returns summary {min, max, min_at_ms, max_at_ms, first, last} over every recorded frame, " +
+            "samples_total, and an evenly thinned list of at most 50 samples.",
+        ),
     },
     timeoutFor: inputTimeoutMs,
   },

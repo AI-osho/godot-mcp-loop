@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- `game_input` `record` documentation: min/max are computed over every recorded frame; only the returned sample list
+  is thinned to 50. In both re-trials the model raised `interval_ms` believing recording itself was capped at 50,
+  which made the apex measurement slightly less precise.
+
 ## [0.2.1] - 2026-10-17
 
 ### Added

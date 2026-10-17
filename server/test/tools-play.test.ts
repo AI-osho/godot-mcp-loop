@@ -63,6 +63,14 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(bad.isError).toBe(true);
   });
 
+  it("game_input's record description makes clear min/max use every frame, not just the 50 returned samples", async () => {
+    const tool = (await client.listTools()).tools.find((t) => t.name === "game_input")!;
+    const text = tool.description + JSON.stringify(tool.inputSchema);
+    expect(text).toMatch(/every recorded frame/);
+    expect(text).toMatch(/only the returned sample list/i);
+    expect(text).toMatch(/interval_ms is not needed for accuracy/i);
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

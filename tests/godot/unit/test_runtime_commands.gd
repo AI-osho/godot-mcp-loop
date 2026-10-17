@@ -1,0 +1,150 @@
+extends "res://tests/godot/test_case.gd"
+
+const RuntimeCommands = preload("res://addons/mcp_loop/runtime/runtime_commands.gd")
+const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
+
+var _scene: Node2D
+var _cmds: RuntimeCommands
+
+
+func _setup() -> void:
+	_scene = Node2D.new()
+	_scene.name = "Main"
+	var player := Node2D.new()
+	player.name = "Player"
+	player.position = Vector2(10, 20)
+	_scene.add_child(player)
+	tree.root.add_child(_scene)
+	tree.current_scene = _scene
+	_cmds = RuntimeCommands.new(tree)
+
+
+func after_each() -> void:
+	if is_instance_valid(_scene):
+		_scene.queue_free()
+		await tree.process_frame
+	for a in ["mcp_test_move", "mcp_test_jump"]:
+		if InputMap.has_action(a):
+			InputMap.erase_action(a)
+
+
+func test_query_relative_to_current_scene() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("query", {"node": "Player", "properties": ["position", "position:x"]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.properties, {"position": [10.0, 20.0], "position:x": 10.0})
+
+
+func test_query_absolute_path() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("query", {"node": "/root/Main/Player", "properties": ["name"]})
+	assert_eq(r.result.properties, {"name": "Player"})
+
+
+func test_query_without_properties_gives_overview() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("query", {"node": "."})
+	assert_eq(r.result.type, "Node2D")
+	assert_eq(r.result.children, ["Player"])
+	assert_has(r.result.properties, "position")
+
+
+func test_query_missing_node() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("query", {"node": "Nobody"})
+	assert_error_code(r, Protocol.NODE_NOT_FOUND)
+
+
+func test_query_unknown_property() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("query", {"node": "Player", "properties": ["nope"]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+func test_wait_for_already_true_returns_immediately() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 10, "timeout_ms": 0})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.met, true)
+	assert_eq(r.result.value, 10.0)
+
+
+func test_wait_for_becomes_true_later() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.1).timeout.connect(func() -> void: player.position.x = 500)
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": ">", "value": 100, "timeout_ms": 2000})
+	assert_eq(r.result.met, true)
+	assert_true(r.result.elapsed_ms >= 50)
+
+
+func test_wait_for_times_out_with_last_value() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": ">", "value": 100, "timeout_ms": 100})
+	assert_error_code(r, Protocol.TIMEOUT)
+	assert_true(r.error.message.contains("10"), r.error.message)
+
+
+func test_wait_for_invalid_operator() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position", "op": ">", "value": 1, "timeout_ms": 0})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+func test_input_action_hold_presses_then_releases() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_move")
+	var seen := []
+	var poll := func() -> void: seen.append(Input.is_action_pressed("mcp_test_move"))
+	tree.process_frame.connect(poll)
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"action": "mcp_test_move", "hold_ms": 100}]})
+	tree.process_frame.disconnect(poll)
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_true(seen.has(true), "action should be pressed during the hold")
+	await tree.process_frame
+	assert_false(Input.is_action_pressed("mcp_test_move"), "action released afterwards")
+
+
+func test_input_press_and_release_steps() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "press": true}]})
+	await tree.process_frame
+	assert_true(Input.is_action_pressed("mcp_test_jump"))
+	await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "release": true}]})
+	await tree.process_frame
+	assert_false(Input.is_action_pressed("mcp_test_jump"))
+
+
+func test_input_unknown_action_is_rejected_before_running() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}, {"action": "does_not_exist"}]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_true(r.error.message.contains("does_not_exist"))
+
+
+func test_input_key_and_wait() -> void:
+	_setup()
+	var t0 := Time.get_ticks_msec()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"key": "Space", "hold_ms": 30}, {"wait_ms": 50}]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_true(Time.get_ticks_msec() - t0 >= 70)
+
+
+func test_input_invalid_key() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"key": "NotAKey"}]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+func test_screenshot_headless_reports_rendering_unavailable() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("screenshot", {})
+	if DisplayServer.get_name() == "headless":
+		assert_error_code(r, Protocol.RENDERING_UNAVAILABLE)
+
+
+func test_unknown_runtime_method() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("fly", {})
+	assert_error_code(r, Protocol.UNKNOWN_METHOD)

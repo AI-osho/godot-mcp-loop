@@ -14,9 +14,11 @@ export interface ForwardToolDef {
   readOnly?: boolean;
   destructive?: boolean;
   timeoutMs?: number;
+  /** Per-call timeout derived from the arguments (wins over timeoutMs). */
+  timeoutFor?: (args: Record<string, unknown>) => number;
 }
 
-function dropUndefined(args: Record<string, unknown>): Record<string, unknown> {
+export function dropUndefined(args: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
 }
 
@@ -35,8 +37,9 @@ export function registerForwardTool(server: McpServer, conn: GodotConnection, de
       },
     },
     safe(async (args: Record<string, unknown>) => {
-      const opt = def.timeoutMs !== undefined ? { timeoutMs: def.timeoutMs } : {};
-      return jsonResult(await conn.call(def.method, dropUndefined(args ?? {}), opt));
+      const clean = dropUndefined(args ?? {});
+      const timeoutMs = def.timeoutFor ? def.timeoutFor(clean) : def.timeoutMs;
+      return jsonResult(await conn.call(def.method, clean, timeoutMs !== undefined ? { timeoutMs } : {}));
     }),
   );
 }

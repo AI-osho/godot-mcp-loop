@@ -8,11 +8,15 @@ const WsServer = preload("res://addons/mcp_loop/bridge/ws_server.gd")
 const SessionFile = preload("res://addons/mcp_loop/bridge/session_file.gd")
 const LogCapture = preload("res://addons/mcp_loop/util/log_capture.gd")
 const EditorContext = preload("res://addons/mcp_loop/commands/context.gd")
-const EditorCommands = preload("res://addons/mcp_loop/commands/editor_commands.gd")
 const ProjectCommands = preload("res://addons/mcp_loop/commands/project_commands.gd")
 const SceneCommands = preload("res://addons/mcp_loop/commands/scene_commands.gd")
 const NodeCommands = preload("res://addons/mcp_loop/commands/node_commands.gd")
 const ScriptCommands = preload("res://addons/mcp_loop/commands/script_commands.gd")
+const PlayCommands = preload("res://addons/mcp_loop/commands/play_commands.gd")
+const DebuggerBridge = preload("res://addons/mcp_loop/debugger/debugger_bridge.gd")
+
+const AUTOLOAD_NAME := "MCPLoopRuntime"
+const AUTOLOAD_PATH := "res://addons/mcp_loop/runtime/runtime_agent.gd"
 
 const PORT_FROM := 6510
 const PORT_RANGE := 10
@@ -23,21 +27,29 @@ var _session: SessionFile
 var _log_capture: LogCapture
 var _ctx: EditorContext
 var _modules: Array = []
+var _debugger: DebuggerBridge
 
 
 func _enter_tree() -> void:
 	_log_capture = LogCapture.new()
 	OS.add_logger(_log_capture)
 	_ctx = EditorContext.new(_log_capture)
+	_debugger = DebuggerBridge.new()
+	add_debugger_plugin(_debugger)
+	# The runtime agent must be an autoload for games launched from the editor.
+	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
+		add_autoload_singleton(AUTOLOAD_NAME, AUTOLOAD_PATH)
+		# Persist now: games launched from the editor read project.godot from disk.
+		ProjectSettings.save()
 
 	var token := SessionFile.generate_token()
 	_router = Router.new(token)
-	EditorCommands.register(_router)
 	_modules = [
 		ProjectCommands.new(_ctx),
 		SceneCommands.new(_ctx),
 		NodeCommands.new(_ctx),
 		ScriptCommands.new(_ctx),
+		PlayCommands.new(_ctx, _debugger, get_tree()),
 	]
 	for m in _modules:
 		m.register(_router)
@@ -63,7 +75,14 @@ func _exit_tree() -> void:
 		_session.remove()
 	if _log_capture != null:
 		OS.remove_logger(_log_capture)
+	if _debugger != null:
+		remove_debugger_plugin(_debugger)
 	_modules.clear()
+
+
+func _disable_plugin() -> void:
+	if ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
+		remove_autoload_singleton(AUTOLOAD_NAME)
 
 
 func _process(_delta: float) -> void:

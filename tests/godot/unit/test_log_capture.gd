@@ -73,3 +73,32 @@ func test_ignores_own_prefix_to_avoid_feedback() -> void:
 	var c := LogCapture.new(10)
 	c._log_message("[mcp_loop] internal\n", false)
 	assert_eq(c.read(0).entries.size(), 0)
+
+
+func test_append_keeps_fields_and_assigns_local_seq() -> void:
+	var c := LogCapture.new(10)
+	c.append({"level": "error", "message": "boom", "line": 3, "seq": 999})
+	var e: Dictionary = c.read(0).entries[0]
+	assert_eq(e.message, "boom")
+	assert_eq(e.line, 3)
+	assert_eq(e.seq, 1)
+
+
+func test_clear_empties_but_keeps_seq_monotonic() -> void:
+	var c := LogCapture.new(10)
+	c._log_message("a\n", false)
+	var before := c.cursor()
+	c.clear()
+	assert_eq(c.read(0).entries.size(), 0)
+	c._log_message("b\n", false)
+	assert_true(c.read(0).entries[0].seq >= before)
+	assert_eq(c.read(0).dropped, false)
+
+
+func test_count_at_least_level() -> void:
+	var c := LogCapture.new(10)
+	c._log_message("a\n", false)
+	c._log_message("b\n", true)
+	c._log_error("f", "x.gd", 1, "", "w", false, Logger.ERROR_TYPE_WARNING, [])
+	assert_eq(c.count("error"), 1)
+	assert_eq(c.count("warning"), 2)

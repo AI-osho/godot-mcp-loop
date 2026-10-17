@@ -28,13 +28,40 @@ func cursor() -> int:
 func _push(entry: Dictionary) -> void:
 	_mutex.lock()
 	entry["seq"] = _next_seq
-	entry["time_ms"] = Time.get_ticks_msec()
+	if not entry.has("time_ms"):
+		entry["time_ms"] = Time.get_ticks_msec()
 	_next_seq += 1
 	_entries.append(entry)
 	if _entries.size() > _capacity:
 		_entries.pop_front()
 		_dropped = true
 	_mutex.unlock()
+
+
+## Adds an entry recorded elsewhere (e.g. forwarded from the running game).
+## Keeps its fields but assigns a local sequence number.
+func append(entry: Dictionary) -> void:
+	var e := entry.duplicate()
+	e.erase("seq")
+	_push(e)
+
+
+func clear() -> void:
+	_mutex.lock()
+	_entries.clear()
+	_dropped = false
+	_mutex.unlock()
+
+
+func count(min_level: String) -> int:
+	var min_rank: int = LEVELS.get(min_level, 0)
+	_mutex.lock()
+	var n := 0
+	for e in _entries:
+		if LEVELS.get(e.level, 0) >= min_rank:
+			n += 1
+	_mutex.unlock()
+	return n
 
 
 func _log_message(message: String, error: bool) -> void:

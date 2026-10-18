@@ -1,5 +1,5 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -202,6 +202,37 @@ describe("scenario_run tool", () => {
       expect(textOf(empty)).toContain("No scenario files");
       const both = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s", paths: ["res://tests/s/1_a.yaml"] } });
       expect(both.isError).toBe(true);
+    });
+  });
+
+  describe("save_to: evidence on disk (#13)", () => {
+    it("saves the screenshots and a report for one scenario and says where", async () => {
+      write("tests/move.yaml", "name: move\nsteps:\n  - screenshot: start\n  - screenshot: end\n");
+      const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml", save_to: "res://qa/move" } });
+      expect(res.isError).toBeFalsy();
+      expect(textOf(res)).toMatch(/Evidence saved: res:\/\/qa\/move \(2 screenshots, report\.md\)/);
+      expect(readFileSync(join(project, "qa/move/01-start.png"), "utf8")).toBe("ABC"); // "QUJD" decoded
+      expect(readFileSync(join(project, "qa/move/report.md"), "utf8")).toContain('Scenario "move": PASSED');
+    });
+
+    it("saves a folder run as one folder per scenario plus a summary", async () => {
+      write("tests/s/1_a.yaml", "name: a\nsteps:\n  - screenshot: a\n");
+      write("tests/s/2_b.yaml", "name: b\nsteps:\n  - screenshot: b\n");
+      const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s", save_to: "res://qa/all" } });
+      expect(textOf(res)).toMatch(/Evidence saved: res:\/\/qa\/all \(2 screenshots, summary\.md\)/);
+      expect(existsSync(join(project, "qa/all/1_a/01-a.png"))).toBe(true);
+      expect(readFileSync(join(project, "qa/all/summary.md"), "utf8")).toContain("[report](2_b/report.md)");
+    });
+
+    it("checks the folder before starting the game", async () => {
+      write("tests/move.yaml", "name: move\nsteps:\n  - screenshot: start\n");
+      for (const save_to of ["res://.godot/ev", "res://../ev", "res://"]) {
+        const before = addon.received.length;
+        const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml", save_to } });
+        expect(res.isError).toBe(true);
+        expect(textOf(res)).toContain("PATH_FORBIDDEN");
+        expect(addon.received.length).toBe(before); // nothing sent to the editor
+      }
     });
   });
 

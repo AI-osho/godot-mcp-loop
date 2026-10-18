@@ -12,6 +12,9 @@ All notable changes to this project are documented here. The format follows
 - `scripts/new-game.sh`: creates a new Godot project with the addon enabled, the agent skill, `AGENTS.md` /
   `CLAUDE.md`, a `scenarios/` folder and an initial commit; optionally registers the MCP server with Claude Code.
 - `AGENTS.md` / `CLAUDE.md` for agents working on this repository.
+- `scenario_run` `save_to`: keeps the evidence as files in a project folder — every screenshot as `NN-label.png`,
+  `report.md` (summary and images) and `report.json`; a folder run gets one subfolder per scenario and `summary.md`.
+  The folder gets a `.gdignore`; a re-run replaces only its own files; checked before the game starts (#13).
 
 ## [0.5.0] - 2026-10-18
 

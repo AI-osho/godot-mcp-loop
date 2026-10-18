@@ -78,7 +78,7 @@ Conventions
 
 | Tool | Purpose |
 |---|---|
-| `scenario_run` | Run a YAML/JSON play-test file or inline scenario; returns a pass/fail report with per-step timing, the failing value, game errors, and screenshots. `path` may be a folder (every `.yaml`/`.yml`/`.json` in it, name order) and `paths` a list; both return one summary (`Scenarios: 5/6 passed`) with details of failures, and attach only failure screenshots by default. `stop_on_failure` stops the batch early. See [scenarios.md](scenarios.md). |
+| `scenario_run` | Run a YAML/JSON play-test file or inline scenario; returns a pass/fail report with per-step timing, the failing value, game errors, and screenshots. `path` may be a folder (every `.yaml`/`.yml`/`.json` in it, name order) and `paths` a list; both return one summary (`Scenarios: 5/6 passed`) with details of failures, and attach only failure screenshots by default. `stop_on_failure` stops the batch early. `save_to` keeps the screenshots, `report.md` and `report.json` as files in a project folder ([evidence](scenarios.md#keeping-evidence)). See [scenarios.md](scenarios.md). |
 
 ## Script errors in the running game
 

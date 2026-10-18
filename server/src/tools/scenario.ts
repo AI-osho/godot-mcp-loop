@@ -6,6 +6,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { BridgeError } from "../errors.js";
+import { resolveEvidenceFolder, saveBatchEvidence, saveScenarioEvidence, type SavedEvidence, withoutImages } from "../scenario/evidence.js";
 import { runScenario, type ScenarioReport } from "../scenario/runner.js";
 import { parseScenario } from "../scenario/schema.js";
 import { safe } from "./helpers.js";
@@ -97,12 +98,14 @@ export function summariseBatch(entries: BatchEntry[], ms: number): string {
   return lines.join("\n");
 }
 
-function withoutImages(r: ScenarioReport): unknown {
-  return {
-    ...r,
-    screenshots: r.screenshots.map(({ label, width, height }) => ({ label, width, height })),
-    failure_screenshot: r.failure_screenshot ? { label: r.failure_screenshot.label } : undefined,
-  };
+/** One line for the summary; a failed save is reported there and does not hide the test result. */
+function evidenceLine(save: () => SavedEvidence): string {
+  try {
+    const s = save();
+    return `Evidence saved: ${s.dir} (${s.screenshots} screenshot${s.screenshots === 1 ? "" : "s"}, ${s.index})`;
+  } catch (e) {
+    return `Evidence not saved: ${e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e)}`;
+  }
 }
 
 export function registerScenarioTools(server: McpServer, conn: GodotConnection): void {
@@ -115,7 +118,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         "screenshot, wait_ms, assert_no_errors, set, call, repeat — stopping at the first failure. Returns a summary with " +
         "per-step result, what was checked and the observed value, game errors, and screenshots; report='full' adds the JSON report. " +
         "Pass a YAML/JSON file in the project (path), a folder or a list of files (paths) to run several and get one summary, " +
-        "or an inline scenario.",
+        "or an inline scenario. save_to keeps the screenshots and a report as files in the project.",
       inputSchema: {
         path: z
           .string()
@@ -132,6 +135,14 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
           .optional()
           .describe("Attach screenshots as images (default true; for a folder or paths, default is failure screenshots only)."),
         report: z.enum(["summary", "full"]).optional().describe("'summary' (default) or 'full' to also return the JSON report."),
+        save_to: z
+          .string()
+          .optional()
+          .describe(
+            "Folder in the project for evidence, e.g. 'res://qa/evidence/move': every screenshot as NN-label.png, report.md and " +
+              "report.json (a folder run: one subfolder per scenario plus summary.md). Re-runs replace their own files; the editor " +
+              "does not import the folder (.gdignore). Not undoable.",
+          ),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
@@ -142,11 +153,14 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
       scenario?: unknown;
       include_screenshots?: boolean;
       report?: "summary" | "full";
+      save_to?: string;
     }, extra: Extra): Promise<CallToolResult> => {
       const given = [args.path, args.paths, args.scenario].filter((x) => x !== undefined).length;
       if (given !== 1) {
         throw new BridgeError("INVALID_PARAMS", "Provide exactly one of 'path', 'paths' or 'scenario'.");
       }
+      // Check the evidence folder before starting the game, so a bad save_to costs nothing.
+      if (args.save_to !== undefined) resolveEvidenceFolder(conn.projectPath, args.save_to, false);
       let batch: string[] | undefined = args.paths;
       if (args.path !== undefined && statSync(resolveProjectFile(conn.projectPath, args.path)).isDirectory()) {
         batch = listScenarioFolder(conn.projectPath, args.path);
@@ -161,6 +175,10 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         : [];
       let summary = summarise(report);
       if (!full && shots.length > 0) summary += `\n  Screenshots (in order): ${shots.map((x) => x.label).join(", ")}`;
+      if (args.save_to !== undefined) {
+        const to = args.save_to;
+        summary += `\n  ${evidenceLine(() => saveScenarioEvidence(conn.projectPath, to, report, summarise(report), args.path))}`;
+      }
       const content: CallToolResult["content"] = [{ type: "text", text: summary }];
       if (full) content.push({ type: "text", text: JSON.stringify(withoutImages(report), null, 2) });
       for (const shot of shots) {
@@ -173,7 +191,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
 
   async function runBatch(
     paths: string[],
-    args: { stop_on_failure?: boolean; include_screenshots?: boolean; report?: "summary" | "full" },
+    args: { stop_on_failure?: boolean; include_screenshots?: boolean; report?: "summary" | "full"; save_to?: string },
     extra: Extra | undefined,
   ): Promise<CallToolResult> {
     const start = Date.now();
@@ -204,7 +222,12 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
       await progress(entries.length, `${path}: ${last.report?.passed ? "passed" : "failed"}`);
       if (args.stop_on_failure && !last.report?.passed) stop = true;
     }
-    const content: CallToolResult["content"] = [{ type: "text", text: summariseBatch(entries, Date.now() - start) }];
+    let text = summariseBatch(entries, Date.now() - start);
+    if (args.save_to !== undefined) {
+      const to = args.save_to;
+      text += `\n${evidenceLine(() => saveBatchEvidence(conn.projectPath, to, entries, text, summarise))}`;
+    }
+    const content: CallToolResult["content"] = [{ type: "text", text }];
     if (args.report === "full") {
       const json = entries.map((e) => ({ ...e, report: e.report ? withoutImages(e.report) : undefined }));
       content.push({ type: "text", text: JSON.stringify(json, null, 2) });

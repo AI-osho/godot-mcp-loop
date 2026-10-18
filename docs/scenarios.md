@@ -69,6 +69,26 @@ The three parts:
 
 A failing scenario is a *successful* tool call (`isError` is false); `passed` tells you the outcome.
 
+## Keeping evidence
+
+`save_to: "res://qa/evidence/move"` also writes the run to a folder in the project, so a person can check it later or
+attach it to a pull request (a screenshot that was looked at once and discarded is not evidence):
+
+```
+qa/evidence/move/            one scenario                 qa/evidence/all/             a folder or paths
+  01-start.png                                              1_title/  (same files as one scenario)
+  02-after-jump.png                                         2_movement/
+  failure.png    (if a step failed)                         summary.md   table with links to each report.md
+  report.md      summary + every screenshot                 summary.json
+  report.json    JSON report and the list of files
+```
+
+The folder gets a `.gdignore`, so the editor does not import the images. A re-run into the same folder deletes only the
+files its previous run listed in `report.json` / `summary.json` and leaves anything else; a non-empty folder that
+scenario_run did not write is refused. Same path rules as other writes (inside the project, not `.godot/` or `.git/`,
+not the project root); the folder is checked before the game starts. Writing evidence is not undoable — add the folder
+to `.gitignore` or commit it on purpose.
+
 ## Examples
 
 - [`examples/platformer/scenarios/move_right.yaml`](../examples/platformer/scenarios/move_right.yaml) — passes.

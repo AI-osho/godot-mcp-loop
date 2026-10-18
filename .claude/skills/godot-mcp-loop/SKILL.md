@@ -81,11 +81,13 @@ earlier state. Patterns: [references/scenario-cookbook.md](references/scenario-c
 - End each scenario with `assert_no_errors: true`.
 - Use `set`/`call` steps to jump to the situation under test instead of playing up to it.
 - Run the folder twice before reporting; a scenario that passes only sometimes is a bug in the game or the test.
+- For the final run add `save_to: "res://qa/evidence/<name>"`: screenshots, `report.md` and `report.json` stay as files
+  that a person can check later. Name the folder in your report.
 
 ## Before you report done
 
 - [ ] The game starts from the intended scene and `logs_read` shows no errors or warnings you introduced.
 - [ ] Every requested behaviour is covered by a passing scenario (or a `game_wait_for` / `record` check).
 - [ ] Screenshots of each screen were looked at, not just taken.
-- [ ] The scenario folder passes twice in a row.
+- [ ] The scenario folder passes twice in a row; the last run saved its evidence with `save_to`.
 - [ ] The report lists what was checked, with measured values, and anything not verified.

@@ -16,30 +16,28 @@ const MAX_STEPS := 200
 const OVERVIEW_PROPS := ["position", "global_position", "rotation", "scale", "visible", "velocity", "text", "size"]
 
 var _tree: SceneTree
-## Frame rate of a Movie Maker recording (0 when not recording); see _now_ms().
-var _movie_fps := 0
+## True when the game records a movie (Movie Maker); waits then count game time, see movie_frame_ms().
+var _movie := false
 
 
 func _init(tree: SceneTree) -> void:
 	_tree = tree
-	_movie_fps = movie_fps(OS.get_cmdline_args())
+	_movie = Engine.get_write_movie_path() != ""
 
 
-## The fixed frame rate when the game was started with --write-movie (Movie Maker), else 0.
-static func movie_fps(args: PackedStringArray) -> int:
-	if not args.has("--write-movie"):
-		return 0
-	var i := args.find("--fixed-fps")
-	if i >= 0 and i + 1 < args.size() and args[i + 1].is_valid_int() and int(args[i + 1]) > 0:
-		return int(args[i + 1])
-	return 60
+## Length of one frame in game milliseconds while recording a movie. Movie Maker runs the game at a fixed step
+## (1/fps per frame) as fast as it can render — faster or slower than real time — so a timeout in real time would
+## cover a different stretch of the game. 0 when not recording (or not known): waits then use real time.
+static func movie_frame_ms(recording: bool, delta: float, time_scale: float) -> float:
+	if not recording or delta <= 0.0 or time_scale <= 0.0:
+		return 0.0
+	return delta / time_scale * 1000.0
 
 
-## Clock for wait timeouts: real time, or game time while recording a movie — the game then runs at a fixed step,
-## as fast as it can render, so a timeout in real time would cover a different stretch of the game.
-func _now_ms() -> int:
-	if _movie_fps > 0:
-		return int(Engine.get_process_frames() * 1000 / _movie_fps)
+## Clock for a wait: game time from the frame count while recording (frame_ms > 0), else real time.
+func _clock_ms(frame_ms: float) -> int:
+	if frame_ms > 0.0:
+		return int(Engine.get_process_frames() * frame_ms)
 	return Time.get_ticks_msec()
 
 
@@ -235,7 +233,8 @@ func _wait_for_condition(p: Dictionary) -> Dictionary:
 	if relative and timeout_ms == 0:
 		return Protocol.err(Protocol.INVALID_PARAMS,
 			"'%s' compares with the value when waiting starts, so it needs timeout_ms > 0." % op)
-	var start := _now_ms()
+	var frame_ms := movie_frame_ms(_movie, _tree.root.get_process_delta_time(), Engine.time_scale)
+	var start := _clock_ms(frame_ms)
 	var last: Variant = null
 	var baseline: Variant = null
 	var has_baseline := false
@@ -288,14 +287,14 @@ func _wait_for_condition(p: Dictionary) -> Dictionary:
 								return Protocol.err(Protocol.INVALID_PARAMS, c.error)
 							met = c.result
 						if met:
-							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": _now_ms() - start})
+							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": _clock_ms(frame_ms) - start})
 				else:
 					var r := Compare.evaluate(last, op, expected, tolerance)
 					if not r.ok:
 						return Protocol.err(Protocol.INVALID_PARAMS, r.error)
 					if r.result:
-						return Protocol.ok({"met": true, "value": last, "elapsed_ms": _now_ms() - start})
-		var elapsed := _now_ms() - start
+						return Protocol.ok({"met": true, "value": last, "elapsed_ms": _clock_ms(frame_ms) - start})
+		var elapsed := _clock_ms(frame_ms) - start
 		if elapsed >= timeout_ms:
 			var code := Protocol.ASSERTION_FAILED if timeout_ms == 0 else Protocol.TIMEOUT
 			if node == null:

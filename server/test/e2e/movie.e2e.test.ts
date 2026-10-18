@@ -7,6 +7,9 @@ import { PLATFORMER_PROJECT, startHeadlessEditor, windowedGameSettings, type God
 
 /** Movie Maker needs a game window: runs on macOS, or elsewhere with E2E_GAME_WINDOW=1 (e.g. under xvfb). */
 const CAN_RECORD = process.platform === "darwin" || process.env.E2E_GAME_WINDOW === "1";
+/** Upper bound for the game-time timeout test: 73 frames with the game clock on an M-series Mac, 137 with a
+ * real-time clock (the game renders ~60 fps there). On a slow machine a real-time clock gives fewer than 60. */
+const MAX_FRAMES_FOR_2S = 100;
 
 describe.skipIf(!CAN_RECORD)("e2e: scenario_run movie (Movie Maker → GIF + contact sheet)", () => {
   let h: GodotHarness;
@@ -62,6 +65,28 @@ describe.skipIf(!CAN_RECORD)("e2e: scenario_run movie (Movie Maker → GIF + con
     expect(existsSync(join(h.projectPath, "qa/movie/report.md"))).toBe(true);
     // E2E_MOVIE_OUT=<folder> keeps the evidence for a look (CI uploads it as an artifact).
     if (process.env.E2E_MOVIE_OUT) cpSync(join(h.projectPath, "qa/movie"), process.env.E2E_MOVIE_OUT, { recursive: true });
+    await client.close();
+  }, 150_000);
+
+  it("while recording, a wait_for timeout counts game time (frames of the movie), not real time", async () => {
+    const client = await connectClient(h.conn);
+    const scenario = {
+      name: "timeout in game time",
+      steps: [{ wait_for: { node: "Player", property: "position:y", op: "<", value: -100_000, timeout_ms: 2000 } }],
+    };
+    const res = await client.callTool(
+      { name: "scenario_run", arguments: { scenario, save_to: "res://qa/movie-timeout", movie: { fps: 30, gif: false, contact_sheet: 0 } } },
+      undefined,
+      { timeout: 120_000 },
+    );
+    const text = textOf(res);
+    expect(text, text).toMatch(/FAILED/);
+    expect(text, text).toMatch(/TIMEOUT/);
+    const frames = Number(/Movie: (\d+) frames/.exec(text)![1]);
+    // 2000 ms of game time at 30 fps = 60 frames, plus a few before the wait and while stopping. A real-time clock gives
+    // as many frames as the machine renders in 2 s: far more on a fast machine, fewer on a slow one.
+    expect(frames, text).toBeGreaterThanOrEqual(60);
+    expect(frames, text).toBeLessThan(MAX_FRAMES_FOR_2S);
     await client.close();
   }, 150_000);
 });

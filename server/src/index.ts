@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { runCli, USAGE } from "./cli.js";
 import { GodotConnection } from "./connection.js";
 import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
@@ -16,10 +17,7 @@ function parseArgs(argv: string[]): { project: string } {
       process.stdout.write(`${SERVER_NAME} ${SERVER_VERSION}\n`);
       process.exit(0);
     } else if (a === "--help" || a === "-h") {
-      process.stdout.write(
-        `Usage: ${SERVER_NAME} [--project <path to Godot project>]\n` +
-          `Defaults to $GODOT_PROJECT_PATH or the current directory.\n`,
-      );
+      process.stdout.write(`${USAGE}\nThe server's project defaults to $GODOT_PROJECT_PATH or the current directory.\n`);
       process.exit(0);
     }
   }
@@ -27,7 +25,9 @@ function parseArgs(argv: string[]): { project: string } {
 }
 
 async function main(): Promise<void> {
-  const { project } = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  if (argv[0] === "install-addon") process.exit(runCli(argv));
+  const { project } = parseArgs(argv);
   const conn = new GodotConnection({ projectPath: project });
   const server = createServer(conn);
   await server.connect(new StdioServerTransport());

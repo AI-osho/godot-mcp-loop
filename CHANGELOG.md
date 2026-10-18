@@ -23,6 +23,10 @@ All notable changes to this project are documented here. The format follows
   (its own executable, no shell, only the framework's runner script), with a timeout, and returns pass/fail counts,
   each failing test with its message and the log's error lines, parsed from the JUnit report. `path` (folder or test
   script), `test` (GUT), `framework` when both are installed. Error codes `TEST_FRAMEWORK_NOT_FOUND` and `BUSY` (#15).
+- npm package with the addon and the agent skill bundled: `npx -y godot-mcp-loop@<version> --project <dir>` starts the
+  server, and `npx godot-mcp-loop install-addon <dir> [--skill] [--force] [--no-enable]` copies the addon of the same
+  version into a project and enables it in `project.godot` (keeps other plugins; refuses symbolic links; another
+  version needs `--force`). `server/README.md` for the npm page (#16).
 
 ## [0.5.0] - 2026-10-18
 

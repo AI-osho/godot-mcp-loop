@@ -33,6 +33,13 @@ export interface ScenarioReport {
   screenshots: Shot[];
   setup_error?: string;
   failure_screenshot?: Shot;
+  /** Movie Maker recording (scenario_run movie): the frame folder (dropped from saved evidence) and the rate. */
+  movie?: { dir?: string; fps: number; frames?: number; seconds?: number; files?: string[] };
+}
+
+export interface RunOptions {
+  /** Record every frame with Movie Maker at this fixed rate; the game is ended gracefully afterwards. */
+  movie?: { fps: number };
 }
 
 const GRACE_MS = 10_000;
@@ -160,7 +167,7 @@ async function tryShot(call: BridgeCall, label: string): Promise<Shot | undefine
  * steps in order, stops at the first failure, always stops the game at the
  * end (unless keep_running). Never throws for test failures — they are in the report.
  */
-export async function runScenario(s: Scenario, call: BridgeCall): Promise<ScenarioReport> {
+export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOptions = {}): Promise<ScenarioReport> {
   const started = Date.now();
   const report: ScenarioReport = { name: s.name, passed: false, duration_ms: 0, steps: [], errors: [], screenshots: [] };
   const skipAll = (from: number) => {
@@ -177,7 +184,12 @@ export async function runScenario(s: Scenario, call: BridgeCall): Promise<Scenar
   };
 
   try {
-    await call("game.run", { scene: s.scene ?? "main", restart: true }, { timeoutMs: 30_000 });
+    const run = (await call(
+      "game.run",
+      { scene: s.scene ?? "main", restart: true, ...(opts.movie ? { movie: { fps: opts.movie.fps } } : {}) },
+      { timeoutMs: 30_000 },
+    )) as { movie?: { dir: string; fps: number } } | undefined;
+    if (opts.movie && run?.movie) report.movie = { dir: run.movie.dir, fps: run.movie.fps };
   } catch (e) {
     report.setup_error = describeError(e);
     skipAll(0);
@@ -211,7 +223,10 @@ export async function runScenario(s: Scenario, call: BridgeCall): Promise<Scenar
     }
     report.errors = await readErrors(call);
   } finally {
-    if (!s.keep_running) {
+    if (opts.movie) {
+      // Let the game quit by itself so the recording is complete (killing it can cut the last frame).
+      await call("game.stop", { graceful: true }, { timeoutMs: 30_000 }).catch(() => undefined);
+    } else if (!s.keep_running) {
       await call("game.stop", {}).catch(() => undefined);
     }
   }

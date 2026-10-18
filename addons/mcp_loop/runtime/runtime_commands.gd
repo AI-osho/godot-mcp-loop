@@ -40,7 +40,15 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return _pause(p)
 		"step":
 			return await _step(p)
+		"quit":
+			return _quit()
 	return Protocol.err(Protocol.UNKNOWN_METHOD, "Unknown runtime method '%s'." % method)
+
+
+## Ends the game the normal way (so a Movie Maker recording is finished); answers first.
+func _quit() -> Dictionary:
+	_tree.create_timer(0.1, true, false, true).timeout.connect(func() -> void: _tree.quit())
+	return Protocol.ok({"quitting": true})
 
 
 # ------------------------------------------------------------------ nodes

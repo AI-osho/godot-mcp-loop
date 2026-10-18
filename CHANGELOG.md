@@ -20,6 +20,13 @@ All notable changes to this project are documented here. The format follows
   returns the `godot_status` fields. It refuses projects without the addon installed and enabled, and reports an
   editor that exits early with the end of its log. `editor_quit` closes only editors this server opened: stops the
   game, saves the open scenes (new bridge method `editor.quit`), waits for the process, SIGTERM after `timeout_ms`.
+- `scenario_run` `movie`: records the run with Godot's Movie Maker (fixed frame rate) and saves `movie.gif` and
+  `contact.png` — evenly spaced, labelled frames in one image, also returned to the agent so it can see the motion —
+  with the evidence (`save_to`); `frames: true` keeps every frame. Options `fps`, `gif`, `gif_fps`, `max_width`,
+  `contact_sheet`. The addon sets the Movie Maker settings only for that launch, the frames go to
+  `res://.godot/mcp_loop/movie/`, and the game is asked to quit by itself at the end (`game.stop {graceful: true}`, new
+  runtime command `quit`). GIF and PNG encoding are built in (no new dependencies). Needs a game window
+  (`RENDERING_UNAVAILABLE` when the game runs headless).
 - Test: every tool is listed in `docs/tools.md` and the three READMEs.
 
 ### Fixed

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GodotConnection } from "../src/connection.js";
+import { encodePng } from "../src/media/png.js";
 import { FakeAddon } from "./fake-addon.js";
 import { connectClient, textOf } from "./helpers.js";
 
@@ -233,6 +234,84 @@ describe("scenario_run tool", () => {
         expect(textOf(res)).toContain("PATH_FORBIDDEN");
         expect(addon.received.length).toBe(before); // nothing sent to the editor
       }
+    });
+  });
+
+  describe("movie: Movie Maker recording → GIF and contact sheet", () => {
+    /** The fake game.run writes n frames (a square moving right) where the addon would. */
+    function recordFrames(n: number): void {
+      addon.handlers.set("game.run", (p) => {
+        const dir = join(project, ".godot", "mcp_loop", "movie");
+        mkdirSync(dir, { recursive: true });
+        for (let i = 0; i < n; i++) {
+          const data = new Uint8Array(64 * 32 * 4);
+          for (let k = 0; k < 64 * 32; k++) data.set([10, 10, 30, 255], k * 4);
+          for (let y = 10; y < 20; y++) for (let x = 3 * i; x < 3 * i + 10 && x < 64; x++) data.set([250, 200, 0, 255], (y * 64 + x) * 4);
+          writeFileSync(join(dir, `frame${String(i).padStart(8, "0")}.png`), encodePng({ width: 64, height: 32, data }));
+        }
+        const movie = p.movie as { fps: number } | undefined;
+        return { ok: true, result: { running: true, ...(movie ? { movie: { dir, fps: movie.fps } } : {}) } };
+      });
+    }
+    const inline = { name: "walk", steps: [{ wait_ms: 1 }] };
+
+    it("records, saves movie.gif and contact.png with the evidence and shows the contact sheet", async () => {
+      recordFrames(16);
+      const res = await client.callTool({
+        name: "scenario_run",
+        arguments: { scenario: inline, save_to: "res://qa/walk", movie: { fps: 30, gif_fps: 15, max_width: 64, contact_sheet: 4 } },
+      });
+      expect(res.isError, textOf(res)).toBeFalsy();
+      const text = textOf(res);
+      expect(text).toMatch(/Movie: 16 frames at 30 fps \(0\.53 s of game time\) → movie\.gif 64×32, 8 frames at 15 fps/);
+      expect(text).toMatch(/contact\.png \(4 frames\)/);
+      expect(addon.received.find((r) => r.method === "game.run")?.params).toMatchObject({ movie: { fps: 30 } });
+      expect(addon.received.find((r) => r.method === "game.stop")?.params).toEqual({ graceful: true });
+      const gif = readFileSync(join(project, "qa/walk/movie.gif"));
+      expect(gif.subarray(0, 6).toString("latin1")).toBe("GIF89a");
+      expect(existsSync(join(project, "qa/walk/contact.png"))).toBe(true);
+      const md = readFileSync(join(project, "qa/walk/report.md"), "utf8");
+      expect(md).toContain("![movie](movie.gif)");
+      expect(md).toContain("![contact sheet](contact.png)");
+      const manifest = JSON.parse(readFileSync(join(project, "qa/walk/report.json"), "utf8"));
+      expect(manifest.files).toEqual(expect.arrayContaining(["movie.gif", "contact.png"]));
+      expect(JSON.stringify(manifest)).not.toContain(".godot"); // no local recording path in the evidence
+      const content = res.content as Array<{ type: string; text?: string }>;
+      expect(content.some((c) => c.type === "image")).toBe(true);
+    });
+
+    it("frames: true keeps every frame; a re-run replaces them", async () => {
+      recordFrames(6);
+      await client.callTool({ name: "scenario_run", arguments: { scenario: inline, save_to: "res://qa/f", movie: { frames: true, contact_sheet: 0 } } });
+      expect(existsSync(join(project, "qa/f/frames/frame00000005.png"))).toBe(true);
+      rmSync(join(project, ".godot", "mcp_loop", "movie"), { recursive: true });
+      recordFrames(3);
+      await client.callTool({ name: "scenario_run", arguments: { scenario: inline, save_to: "res://qa/f", movie: { frames: true, gif: false } } });
+      expect(existsSync(join(project, "qa/f/frames/frame00000002.png"))).toBe(true);
+      expect(existsSync(join(project, "qa/f/frames/frame00000005.png"))).toBe(false);
+      expect(existsSync(join(project, "qa/f/movie.gif"))).toBe(false);
+    });
+
+    it("needs save_to and a single scenario, checked before the game starts", async () => {
+      write("tests/s/a.yaml", "name: a\nsteps:\n  - wait_ms: 1\n");
+      for (const args of [
+        { scenario: inline, movie: {} },
+        { path: "res://tests/s", save_to: "res://qa/x", movie: {} },
+        { paths: ["res://tests/s/a.yaml"], save_to: "res://qa/x", movie: {} },
+      ]) {
+        const before = addon.received.length;
+        const res = await client.callTool({ name: "scenario_run", arguments: args });
+        expect(res.isError).toBe(true);
+        expect(textOf(res)).toMatch(/INVALID_PARAMS.*movie/);
+        expect(addon.received.length).toBe(before);
+      }
+    });
+
+    it("reports a recording that failed to start in the summary (the game did not start)", async () => {
+      addon.handlers.set("game.run", () => ({ ok: false, error: { code: "RENDERING_UNAVAILABLE", message: "The game runs headless, so there are no frames to record." } }));
+      const res = await client.callTool({ name: "scenario_run", arguments: { scenario: inline, save_to: "res://qa/h", movie: {} } });
+      expect(res.isError).toBeFalsy();
+      expect(textOf(res)).toMatch(/Game did not start: RENDERING_UNAVAILABLE/);
     });
   });
 

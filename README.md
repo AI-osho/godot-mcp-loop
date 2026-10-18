@@ -137,7 +137,7 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set` |
 | Undo | `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
-| Judge | `scenario_run`, `test_run` (GUT / GdUnit4 unit tests) |
+| Judge | `scenario_run` (evidence folder, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4 unit tests) |
 
 Full reference: [docs/tools.md](docs/tools.md).
 

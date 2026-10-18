@@ -5,6 +5,7 @@ extends RefCounted
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
+const Movie = preload("res://addons/mcp_loop/commands/movie.gd")
 
 const RUNTIME_GRACE_MS := 5000
 
@@ -59,6 +60,11 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
 func _run(p: Dictionary) -> Dictionary:
 	var scene := String(p.get("scene", "main"))
 	var timeout_ms := clampi(int(p.get("timeout_ms", 20000)), 1000, 120000)
+	var movie: Variant = p.get("movie", null)
+	if movie != null and not (movie is Dictionary):
+		return Protocol.err(Protocol.INVALID_PARAMS, "movie must be an object like {\"fps\": 30}.")
+	if movie != null and not Movie.supported():
+		return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "This Godot version cannot record from the editor (Movie Maker).")
 	if EditorInterface.is_playing_scene():
 		if not p.get("restart", false):
 			return Protocol.err(Protocol.GAME_ALREADY_RUNNING, "The game is already running.",
@@ -92,6 +98,13 @@ func _run(p: Dictionary) -> Dictionary:
 	await _wait_until(func() -> bool: return not fs.is_scanning(), timeout_ms)
 
 	dbg.reset_for_run(bool(p.get("pause_on_error", false)))
+	var movie_info := {}
+	var saved_movie := {}
+	if movie != null:
+		var fps := clampi(int(movie.get("fps", 30)), 1, 120)
+		var dir := Movie.prepare()
+		movie_info = {"dir": dir, "fps": fps}
+		saved_movie = Movie.begin(fps, dir.path_join("frame.png"))
 	match scene:
 		"main", "":
 			EditorInterface.play_main_scene()
@@ -99,13 +112,22 @@ func _run(p: Dictionary) -> Dictionary:
 			EditorInterface.play_current_scene()
 		_:
 			EditorInterface.play_custom_scene(target)
+	if movie != null:
+		Movie.end(saved_movie)
 
 	var started_at := Time.get_ticks_msec()
 	await _wait_until(func() -> bool:
 		# Give the process a moment to appear before treating "not playing" as an exit.
 		return dbg.ready or (Time.get_ticks_msec() - started_at > 2000 and not EditorInterface.is_playing_scene()), timeout_ms)
 	if dbg.ready:
-		return Protocol.ok({"running": true, "scene": dbg.runtime_info.get("scene", target), "pid": dbg.runtime_info.get("pid"), "display": dbg.runtime_info.get("display")})
+		var out := {"running": true, "scene": dbg.runtime_info.get("scene", target), "pid": dbg.runtime_info.get("pid"), "display": dbg.runtime_info.get("display")}
+		if movie != null:
+			if String(out.display) == "headless":
+				EditorInterface.stop_playing_scene()
+				return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "The game runs headless, so there are no frames to record.",
+					"Remove --headless from Project Settings > Editor > Run > Main Run Args for this run (recording needs a window).")
+			out["movie"] = movie_info
+		return Protocol.ok(out)
 	if not EditorInterface.is_playing_scene():
 		return Protocol.err(Protocol.GAME_NOT_RUNNING, "The game exited before the MCP runtime connected.",
 			"Check logs_read(source='editor') and the editor Output panel for errors.")
@@ -113,12 +135,19 @@ func _run(p: Dictionary) -> Dictionary:
 		"Make sure the MCPLoopRuntime autoload is enabled (Project Settings > Globals > Autoload), or re-enable the plugin.")
 
 
-func _stop(_p: Dictionary) -> Dictionary:
+func _stop(p: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return Protocol.ok({"stopped": false, "was_running": false})
-	EditorInterface.stop_playing_scene()
+	# graceful: let the game quit by itself (a Movie Maker recording is finished properly); kill it if it doesn't.
+	var graceful := false
+	if bool(p.get("graceful", false)) and dbg.ready:
+		var r: Dictionary = await dbg.call_runtime(tree, "quit", {}, 3000)
+		if r.get("ok", false):
+			graceful = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 10000)
+	if EditorInterface.is_playing_scene():
+		EditorInterface.stop_playing_scene()
 	var stopped: bool = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
-	return Protocol.ok({"stopped": stopped, "was_running": true, "game": dbg.status()})
+	return Protocol.ok({"stopped": stopped, "was_running": true, "graceful": graceful, "game": dbg.status()})
 
 
 ## editor_quit: stops the game, saves the open scenes unless save=false, answers, then quits the editor.

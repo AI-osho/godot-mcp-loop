@@ -3,7 +3,7 @@
 # First earn some score (5 O side by side -> 2 lines, 300) so the restart has something to reset.
 # Then 10 O dropped in the middle fill columns 4-5 all 20 rows -> the 16th spawn collides.
 name: tetris game over and restart
-scene: res://sandbox/tetris/test_gameover.tscn
+scene: res://examples/tetris/test_gameover.tscn
 steps:
   - wait_for: { node: Game, property: piece_type, op: "==", value: "O", timeout_ms: 3000 }
   - input:

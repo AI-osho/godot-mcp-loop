@@ -3,7 +3,7 @@
 # Part 2: eight O pieces fill columns 0-7 four rows high, two vertical I in columns 8 and 9
 #         -> a 4-line clear at level 2 -> +800 x 2 = 1600. Total 1900, 6 lines, level 4.
 name: tetris line clears and scoring
-scene: res://sandbox/tetris/test_lines.tscn
+scene: res://examples/tetris/test_lines.tscn
 steps:
   - wait_for: { node: Game, property: piece_type, op: "==", value: "O", timeout_ms: 3000 }
   - assert: { node: Game, property: score, op: "==", value: 0 }

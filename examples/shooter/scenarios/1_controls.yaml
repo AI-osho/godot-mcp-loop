@@ -1,0 +1,60 @@
+# 1. Ship movement is clamped to the screen, 8-way movement, shots: auto-fire interval and on-screen cap.
+#    Also checks the title -> play transition and that the background scrolls.
+name: shooter controls (move bounds, diagonal, fire rate, shot cap)
+scene: res://examples/shooter/shooter.tscn
+steps:
+  - wait_for: { node: ., property: state, op: "==", value: title, timeout_ms: 3000 }
+  - screenshot: title
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 100 }
+  - wait_for: { node: ., property: state, op: "==", value: play, timeout_ms: 1000 }
+  # isolate the ship: no waves, no enemies
+  - set: { node: ., properties: { waves_enabled: false, invincible: true } }
+  - call: { node: ., method: clear_enemies }
+  - assert: { node: Player, property: position, op: "==", value: [128, 200] }
+  # background scrolls (cloud 0.35 px/frame)
+  - set: { node: Cloud0, properties: { "position:y": 0 } }
+  - wait_ms: 1000
+  - assert: { node: Cloud0, property: "position:y", op: ">", value: 15 }
+  # bounds: hold each direction long past the edge
+  - input: { action: shooter_left, hold_ms: 1800 }
+  - assert: { node: Player, property: "position:x", op: "==", value: 8 }
+  - input: { action: shooter_up, hold_ms: 2500 }
+  - assert: { node: Player, property: "position:y", op: "==", value: 24 }
+  - input: { action: shooter_right, hold_ms: 3000 }
+  - assert: { node: Player, property: "position:x", op: "==", value: 248 }
+  - input: { action: shooter_down, hold_ms: 2500 }
+  - assert: { node: Player, property: position, op: "==", value: [248, 230] }
+  # diagonal (up+left held together) moves both axes
+  - input:
+      - { action: shooter_up, press: true }
+      - { action: shooter_left, hold_ms: 500 }
+      - { action: shooter_up, release: true }
+  - assert: { node: Player, property: "position:x", op: "<", value: 230 }
+  - assert: { node: Player, property: "position:y", op: "<", value: 212 }
+  # single tap = exactly one shot
+  - call: { node: ., method: start_game, args: [0] }
+  - input: { action: shooter_fire, hold_ms: 30, wait_ms: 50 }
+  - assert: { node: ., property: shots_fired, op: "==", value: 1 }
+  - wait_for: { node: ., property: shot_count, op: "==", value: 0, timeout_ms: 1500 }
+  # hold exactly 1 s: one shot every 7 frames -> 9 shots (frames 0,7,...,56)
+  - call: { node: ., method: start_game, args: [0] }
+  - input: { action: shooter_fire, hold_ms: 1000 }
+  - assert: { node: ., property: shots_fired, op: ">=", value: 8 }
+  - assert: { node: ., property: shots_fired, op: "<=", value: 10 }
+  # keep holding: never more than 5 shots on screen (sampled 10 times), and the cap is actually reached
+  - input: { action: shooter_fire, press: true }
+  - repeat:
+      times: 10
+      steps:
+        - wait_ms: 100
+        - assert: { node: ., property: shot_count, op: "<=", value: 5 }
+  - assert: { node: ., property: max_shot_count, op: "==", value: 5 }
+  - screenshot: shots
+  - input: { action: shooter_fire, release: true }
+  # slower fire interval (20 frames) -> about 3 shots per second
+  - set: { node: ., properties: { fire_interval: 20 } }
+  - call: { node: ., method: start_game, args: [0] }
+  - input: { action: shooter_fire, hold_ms: 1000 }
+  - assert: { node: ., property: shots_fired, op: ">=", value: 3 }
+  - assert: { node: ., property: shots_fired, op: "<=", value: 4 }
+  - assert_no_errors: true

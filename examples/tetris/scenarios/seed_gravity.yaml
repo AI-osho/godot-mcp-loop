@@ -1,7 +1,7 @@
 # Seeded 7-bag is reproducible (also across restart) and gravity pulls the piece down.
 # test_seed.tscn: rng_seed = 42, gravity on (level 1: 0.8 s per row).
 name: tetris seeded order and gravity
-scene: res://sandbox/tetris/test_seed.tscn
+scene: res://examples/tetris/test_seed.tscn
 steps:
   - wait_for: { node: Game, property: spawn_history, op: "==", value: "T", timeout_ms: 3000 }
   - assert: { node: Game, property: next_type, op: "==", value: "J" }

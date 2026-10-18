@@ -11,3 +11,6 @@ coverage/
 .DS_Store
 *.tmp
 *.log
+
+# Scratch area for AI-generated trial games (promote to examples/ to keep them)
+sandbox/

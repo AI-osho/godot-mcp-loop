@@ -1,0 +1,42 @@
+# 2. Shooting enemies adds their score, shows an animated explosion and updates the hi-score / HUD text.
+name: shooter kill -> score + explosion
+scene: res://examples/shooter/shooter.tscn
+steps:
+  - wait_for: { node: ., property: state, op: "==", value: title, timeout_ms: 3000 }
+  - set: { node: ., properties: { waves_enabled: false, rng_seed: 1 } }
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
+  - wait_for: { node: ., property: state, op: "==", value: play, timeout_ms: 1000 }
+  - assert: { node: ., property: score, op: "==", value: 0 }
+  # straight-flying enemy (100 pts) right above the ship
+  - call: { node: ., method: spawn_enemy, args: [a, 128, 110] }
+  - assert: { node: ., property: enemy_count, op: "==", value: 1 }
+  - input: { action: shooter_fire, hold_ms: 60 }
+  - wait_for: { node: ., property: kills, op: "==", value: 1, timeout_ms: 1000 }
+  - assert: { node: ., property: score, op: "==", value: 100 }
+  - assert: { node: ., property: enemy_count, op: "==", value: 0 }
+  - assert: { node: ., property: explosions_spawned, op: "==", value: 1 }
+  # the explosion animates through its 5 frames, then disappears
+  - wait_for: { node: Effects/fx_1, property: frame, op: ">=", value: 2, timeout_ms: 500 }
+  - screenshot: explosion
+  - wait_for: { node: ., property: explosion_count, op: "==", value: 0, timeout_ms: 1000 }
+  # armoured gunner: 3 hits, 300 pts (invincible so its aimed shot cannot interfere)
+  - set: { node: ., properties: { invincible: true } }
+  - call: { node: ., method: spawn_enemy, args: [d, 128, 60] }
+  - input: { action: shooter_fire, hold_ms: 400 }
+  - assert: { node: ., property: score, op: "==", value: 100 }
+  - wait_for: { node: ., property: kills, op: "==", value: 2, timeout_ms: 1500 }
+  - assert: { node: ., property: score, op: "==", value: 400 }
+  - assert: { node: ., property: hi_score, op: "==", value: 400 }
+  - assert: { node: ., property: score_text, op: "==", value: "000400" }
+  # zigzag (150) and diver (200) kinds also score
+  - set: { node: Player, properties: { position: [72, 200] } }
+  - call: { node: ., method: spawn_enemy, args: [b, 72, 40] }
+  - input: { action: shooter_fire, hold_ms: 1500 }
+  - wait_for: { node: ., property: kills, op: "==", value: 3, timeout_ms: 2000 }
+  - assert: { node: ., property: score, op: "==", value: 550 }
+  - call: { node: ., method: spawn_enemy, args: [c, 72, 20] }
+  - input: { action: shooter_fire, hold_ms: 1200 }
+  - wait_for: { node: ., property: kills, op: "==", value: 4, timeout_ms: 2000 }
+  - assert: { node: ., property: score, op: "==", value: 750 }
+  - assert: { node: ., property: explosions_spawned, op: "==", value: 4 }
+  - assert_no_errors: true

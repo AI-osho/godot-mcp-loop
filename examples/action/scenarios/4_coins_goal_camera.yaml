@@ -1,0 +1,168 @@
+name: "4_coins_goal_camera"
+description: "Coin pickup score, camera follow and right-edge clamp, parallax offsets, goal clear and restart."
+scene: "res://examples/action/action_game.tscn"
+steps:
+  - set:
+      node: "."
+      properties:
+        timer_frozen: true
+  - call:
+      node: "."
+      method: "start_at"
+      args: [24, 189]
+  - call:
+      node: "."
+      method: "clear_enemies"
+  - assert:
+      node: "."
+      property: "coins"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 0
+  # --- Coin: teleport onto the coin at (64, 176).
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [64, 176]
+  - wait_for:
+      node: "."
+      property: "coins"
+      op: "=="
+      value: 1
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 200
+  - assert:
+      node: "."
+      property: "coins_remaining"
+      op: "=="
+      value: 41
+  - screenshot: "coin"
+  # --- Camera mid-stage: follows exactly; parallax = distance * 0.25 / 0.5 / 0.35.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [500, 189]
+  - assert:
+      node: "."
+      property: "camera_x"
+      op: "=="
+      value: 500
+  - assert:
+      node: "."
+      property: "bg_far_offset"
+      op: "=="
+      value: 93
+  - assert:
+      node: "."
+      property: "bg_near_offset"
+      op: "=="
+      value: 186
+  - assert:
+      node: "."
+      property: "cloud_offset"
+      op: "=="
+      value: 130.2
+  - screenshot: "parallax_mid"
+  # --- Right edge: camera clamps at 2048 - 128 = 1920.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [1950, 189]
+  - assert:
+      node: "."
+      property: "camera_x"
+      op: "=="
+      value: 1920
+  - assert:
+      node: "."
+      property: "bg_far_offset"
+      op: "=="
+      value: 448
+  - assert:
+      node: "."
+      property: "bg_near_offset"
+      op: "=="
+      value: 896
+  - assert:
+      node: "."
+      property: "cloud_offset"
+      op: "=="
+      value: 627.2
+  - screenshot: "parallax_right"
+  # --- Goal: trigger x=1984, clear adds 1000 + time_left*10.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [1990, 189]
+  - wait_for:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "clear"
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "clears"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "time_left"
+      op: "=="
+      value: 300
+  - assert:
+      node: "."
+      property: "time_bonus"
+      op: "=="
+      value: 3000
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 4200
+  - screenshot: "clear"
+  # --- Restart from the clear screen.
+  - wait_ms: 700
+  - input:
+      action: action_start
+      hold_ms: 100
+  - wait_for:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "play"
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "coins"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 3
+  - assert:
+      node: "."
+      property: "restarts"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "player_x"
+      op: "=="
+      value: 24
+  - assert_no_errors: true

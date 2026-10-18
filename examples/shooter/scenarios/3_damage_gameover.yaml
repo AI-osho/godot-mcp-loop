@@ -1,0 +1,60 @@
+# 3. A hit costs a life and starts a blinking invulnerability: a second bullet resting on the ship does nothing
+#    until it ends. Losing the last life -> GAME OVER -> Enter -> title -> Enter -> fresh game (hi-score kept).
+name: shooter damage, invulnerability, game over and restart
+scene: res://examples/shooter/shooter.tscn
+steps:
+  - wait_for: { node: ., property: state, op: "==", value: title, timeout_ms: 3000 }
+  - set: { node: ., properties: { waves_enabled: false } }
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
+  - wait_for: { node: ., property: state, op: "==", value: play, timeout_ms: 1000 }
+  - assert: { node: ., property: lives, op: "==", value: 3 }
+  # earn a little score first so the hi-score survives the restart
+  - call: { node: ., method: spawn_enemy, args: [a, 128, 110] }
+  - input: { action: shooter_fire, hold_ms: 60 }
+  - wait_for: { node: ., property: score, op: "==", value: 100, timeout_ms: 1000 }
+  # two motionless enemy bullets right on the ship
+  - set: { node: Player, properties: { position: [60, 120] } }
+  - call: { node: ., method: spawn_enemy_bullet, args: [60, 120, 0, 0] }
+  - call: { node: ., method: spawn_enemy_bullet, args: [60, 120, 0, 0] }
+  - wait_for: { node: ., property: lives, op: "==", value: 2, timeout_ms: 500 }
+  - assert: { node: ., property: hits_taken, op: "==", value: 1 }
+  - assert: { node: ., property: invuln, op: ">", value: 60 }
+  # the ship blinks while invulnerable
+  - wait_for: { node: Player, property: visible, op: "==", value: false, timeout_ms: 300 }
+  - wait_for: { node: Player, property: visible, op: "==", value: true, timeout_ms: 300 }
+  - screenshot: invulnerable_blink
+  # the second bullet stays on the ship for the whole invulnerability without hitting
+  - repeat:
+      times: 4
+      steps:
+        - wait_ms: 200
+        - assert: { node: ., property: lives, op: "==", value: 2 }
+        - assert: { node: ., property: enemy_bullet_count, op: "==", value: 1 }
+  # ... and hits once it is over
+  - wait_for: { node: ., property: lives, op: "==", value: 1, timeout_ms: 2500 }
+  - assert: { node: ., property: hits_taken, op: "==", value: 2 }
+  - assert: { node: ., property: enemy_bullet_count, op: "==", value: 0 }
+  # ramming an enemy also costs a life (and destroys it)
+  - wait_for: { node: ., property: invuln, op: "==", value: 0, timeout_ms: 2500 }
+  - assert: { node: Player, property: visible, op: "==", value: true }
+  - call: { node: ., method: spawn_enemy, args: [a, 60, 120] }
+  - wait_for: { node: ., property: lives, op: "==", value: 0, timeout_ms: 500 }
+  - assert: { node: ., property: enemy_count, op: "==", value: 0 }
+  - assert: { node: ., property: player_alive, op: "==", value: false }
+  - wait_for: { node: ., property: state, op: "==", value: gameover, timeout_ms: 3000 }
+  - screenshot: game_over
+  # Enter is ignored for the first 0.5 s, then goes back to the title
+  - wait_ms: 600
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
+  - assert: { node: ., property: state, op: "==", value: title }
+  - assert: { node: ., property: hi_score, op: "==", value: 100 }
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
+  - assert: { node: ., property: state, op: "==", value: play }
+  - assert: { node: ., property: lives, op: "==", value: 3 }
+  - assert: { node: ., property: score, op: "==", value: 0 }
+  - assert: { node: ., property: hits_taken, op: "==", value: 0 }
+  - assert: { node: ., property: hi_score, op: "==", value: 100 }
+  - assert: { node: ., property: games_started, op: "==", value: 2 }
+  - assert: { node: Player, property: visible, op: "==", value: true }
+  - assert: { node: Player, property: position, op: "==", value: [128, 200] }
+  - assert_no_errors: true

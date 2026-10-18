@@ -3,11 +3,13 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-18
 
-Improvements from the vertical-shooter generation trial.
+Improvements from the vertical-shooter and side-scroller generation trials, and three advanced samples.
 
 ### Added
+- Advanced samples in `examples/`: Tetris, a vertical shooter and a side-scroller, each generated end to end by an AI
+  agent through godot-mcp-loop (Claude Opus 5.5 and DeepSeek V4.1 Flash) and verified independently.
 - Frame-based input timing: `hold_frames` / `wait_frames` count physics frames, so tests of logic in
   `_physics_process` don't depend on wall-clock time (a momentary stall made a "hold 2.5 s" test fail once).
 - Inline `set` / `call` / `assert` / `wait_for` steps inside `game_input` (and scenario `input`): they run inside the

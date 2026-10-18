@@ -1,0 +1,36 @@
+# 4. Start at the boss (hook), check its HP gauge and all 3 attack patterns, defeat it -> STAGE CLEAR -> title.
+#    invincible + autopilot (the ship follows the boss); firing is real input.
+name: shooter boss fight -> stage clear
+scene: res://examples/shooter/shooter.tscn
+steps:
+  - wait_for: { node: ., property: state, op: "==", value: title, timeout_ms: 3000 }
+  - set: { node: ., properties: { invincible: true, autopilot: true, rng_seed: 42 } }
+  - call: { node: ., method: start_boss }
+  - assert: { node: ., property: wave, op: "==", value: 5 }
+  - wait_for: { node: ., property: boss_active, op: "==", value: true, timeout_ms: 3000 }
+  - assert: { node: ., property: boss_hp, op: "==", value: 80 }
+  - wait_for: { node: Enemies/boss_1, property: phase, op: "==", value: 1, timeout_ms: 5000 }
+  - wait_for: { node: ., property: enemy_bullet_count, op: ">", value: 0, timeout_ms: 2000 }
+  - screenshot: boss_spread
+  - input: { action: shooter_fire, press: true }
+  - wait_for: { node: ., property: boss_hp, op: "<", value: 80, timeout_ms: 3000 }
+  - wait_for: { node: ., property: boss_patterns_used, op: "contains", value: 1, timeout_ms: 5000 }
+  - wait_for: { node: ., property: boss_patterns_used, op: "contains", value: 2, timeout_ms: 5000 }
+  - screenshot: boss_ring
+  - wait_for: { node: ., property: boss_hp, op: "<=", value: 40, timeout_ms: 15000 }
+  - assert: { node: ., property: state, op: "==", value: play }
+  - wait_for: { node: ., property: boss_defeated, op: "==", value: true, timeout_ms: 25000 }
+  - input: { action: shooter_fire, release: true }
+  - assert: { node: ., property: score, op: "==", value: 5000 }
+  - assert: { node: ., property: enemy_bullet_count, op: "==", value: 0 }
+  - wait_for: { node: ., property: explosion_count, op: ">=", value: 3, timeout_ms: 1000 }
+  - screenshot: boss_exploding
+  - wait_for: { node: ., property: boss_active, op: "==", value: false, timeout_ms: 2000 }
+  - wait_for: { node: ., property: state, op: "==", value: clear, timeout_ms: 4000 }
+  - assert: { node: ., property: hi_score, op: "==", value: 5000 }
+  - screenshot: stage_clear
+  - wait_ms: 600
+  - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
+  - assert: { node: ., property: state, op: "==", value: title }
+  - assert: { node: ., property: enemy_count, op: "==", value: 0 }
+  - assert_no_errors: true

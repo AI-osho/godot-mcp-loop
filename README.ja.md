@@ -70,6 +70,22 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 「`res://examples/platformer/scenarios/move_right.yaml` を `scenario_run` で実行して」と頼んでください。
 `intentional_failure.yaml` を実行すると失敗レポートの見え方を確認できます。
 
+## 上級サンプル
+
+[`examples/`](examples/) に完成したゲームが 3 本あります。どれも AI エージェントが godot-mcp-loop を使い、1 つの依頼文から
+コード、NES 風のドット絵（`image_write`）、入力アクション、テスト用フック、回帰シナリオまで作りました。そのうえで
+独立に検証しています（全シナリオ合格、ランダム入力でもエラー 0）。
+
+| | ゲーム | 作成したモデル | 規模 | シナリオ |
+|---|---|---|---|---|
+| <img src="docs/images/sample-tetris.png" width="200" alt="テトリス"> | [テトリス](examples/tetris/) — SRS 回転と壁キック、ゴースト表示、レベルと得点、シード固定の出現順 | Claude Opus 5.5（Claude Code） | 381 行 | 4 |
+| <img src="docs/images/sample-shooter.png" width="200" alt="縦シューティング"> | [縦シューティング](examples/shooter/) — 5 ウェーブに 4 種類の敵、3 つの攻撃パターンを持つボス、爆発、星空スクロール、ドット絵 11 枚 | Claude Opus 5.5（Claude Code） | 805 行 | 4 |
+| <img src="docs/images/sample-action.png" width="200" alt="横スクロールアクション"> | [横スクロールアクション](examples/action/) — 加減速と可変ジャンプ、穴と動く足場のある 8 画面のステージ、踏んで倒せる敵、コイン、ゴール、3 層の多重スクロール、ドット絵 12 枚 | DeepSeek V4.1 Flash（Claude Code） | 967 行 | 4 |
+
+`game_run {"scene": "res://examples/shooter/shooter.tscn"}` で起動でき（シーンを開いて F6 でも可）、
+`scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` で検証を再実行できます。
+操作方法などの詳細: [examples/README.md](examples/README.md)（英語）
+
 ## ツール一覧
 
 | 区分 | ツール |
@@ -80,7 +96,7 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 | スクリプト | `script_read`, `script_write`, `script_edit`, `script_attach` |
 | ファイル・素材 | `file_write`（YAML/JSON/テキスト）, `image_write`（ドット絵 PNG）, `input_action_set` |
 | 取り消し | `edit_undo` |
-| 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `logs_read`, `screenshot` |
+| 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | 判定 | `scenario_run` |
 
 詳細: [docs/tools.md](docs/tools.md)（英語）

@@ -16,10 +16,31 @@ const MAX_STEPS := 200
 const OVERVIEW_PROPS := ["position", "global_position", "rotation", "scale", "visible", "velocity", "text", "size"]
 
 var _tree: SceneTree
+## Frame rate of a Movie Maker recording (0 when not recording); see _now_ms().
+var _movie_fps := 0
 
 
 func _init(tree: SceneTree) -> void:
 	_tree = tree
+	_movie_fps = movie_fps(OS.get_cmdline_args())
+
+
+## The fixed frame rate when the game was started with --write-movie (Movie Maker), else 0.
+static func movie_fps(args: PackedStringArray) -> int:
+	if not args.has("--write-movie"):
+		return 0
+	var i := args.find("--fixed-fps")
+	if i >= 0 and i + 1 < args.size() and args[i + 1].is_valid_int() and int(args[i + 1]) > 0:
+		return int(args[i + 1])
+	return 60
+
+
+## Clock for wait timeouts: real time, or game time while recording a movie — the game then runs at a fixed step,
+## as fast as it can render, so a timeout in real time would cover a different stretch of the game.
+func _now_ms() -> int:
+	if _movie_fps > 0:
+		return int(Engine.get_process_frames() * 1000 / _movie_fps)
+	return Time.get_ticks_msec()
 
 
 func handle(method: String, p: Dictionary) -> Dictionary:
@@ -214,7 +235,7 @@ func _wait_for_condition(p: Dictionary) -> Dictionary:
 	if relative and timeout_ms == 0:
 		return Protocol.err(Protocol.INVALID_PARAMS,
 			"'%s' compares with the value when waiting starts, so it needs timeout_ms > 0." % op)
-	var start := Time.get_ticks_msec()
+	var start := _now_ms()
 	var last: Variant = null
 	var baseline: Variant = null
 	var has_baseline := false
@@ -267,14 +288,14 @@ func _wait_for_condition(p: Dictionary) -> Dictionary:
 								return Protocol.err(Protocol.INVALID_PARAMS, c.error)
 							met = c.result
 						if met:
-							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": Time.get_ticks_msec() - start})
+							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": _now_ms() - start})
 				else:
 					var r := Compare.evaluate(last, op, expected, tolerance)
 					if not r.ok:
 						return Protocol.err(Protocol.INVALID_PARAMS, r.error)
 					if r.result:
-						return Protocol.ok({"met": true, "value": last, "elapsed_ms": Time.get_ticks_msec() - start})
-		var elapsed := Time.get_ticks_msec() - start
+						return Protocol.ok({"met": true, "value": last, "elapsed_ms": _now_ms() - start})
+		var elapsed := _now_ms() - start
 		if elapsed >= timeout_ms:
 			var code := Protocol.ASSERTION_FAILED if timeout_ms == 0 else Protocol.TIMEOUT
 			if node == null:

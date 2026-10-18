@@ -6,21 +6,27 @@ import { parseScenario } from "../src/scenario/schema.js";
 type Handler = (params: Record<string, unknown>) => unknown;
 
 /** Scripted fake of the bridge: records calls, answers from handlers. */
-function fakeBridge(handlers: Record<string, Handler>): { call: BridgeCall; calls: Array<[string, Record<string, unknown>]> } {
+function fakeBridge(handlers: Record<string, Handler>): {
+  call: BridgeCall;
+  calls: Array<[string, Record<string, unknown>]>;
+  timeouts: Array<[string, number | undefined]>;
+} {
   const calls: Array<[string, Record<string, unknown>]> = [];
+  const timeouts: Array<[string, number | undefined]> = [];
   const defaults: Record<string, Handler> = {
     "game.run": () => ({ running: true, scene: "res://main.tscn" }),
     "game.stop": () => ({ stopped: true }),
     "logs.read": () => ({ entries: [], next: 1 }),
     "screenshot": () => ({ png_base64: "AAAA", width: 10, height: 10, target: "game" }),
   };
-  const call: BridgeCall = async (method, params = {}) => {
+  const call: BridgeCall = async (method, params = {}, opt = {}) => {
     calls.push([method, params]);
+    timeouts.push([method, opt.timeoutMs]);
     const h = handlers[method] ?? defaults[method];
     if (!h) throw new Error(`unexpected call ${method}`);
     return h(params);
   };
-  return { call, calls };
+  return { call, calls, timeouts };
 }
 
 describe("parseScenario", () => {
@@ -72,6 +78,28 @@ describe("runScenario", () => {
     expect(calls[0]).toEqual(["game.run", { scene: "main", restart: true, movie: { fps: 24 } }]);
     expect(report.movie).toEqual({ dir: "/proj/.godot/mcp_loop/movie", fps: 24 });
     expect(calls.find(([m]) => m === "game.stop")?.[1]).toEqual({ graceful: true });
+  });
+
+  it("while recording, wait_ms runs in the game (game time) and timeouts get room for a slower game", async () => {
+    const { call, calls, timeouts } = fakeBridge({
+      "game.run": () => ({ running: true, movie: { dir: "/m", fps: 30 } }),
+      "game.input": () => ({ steps: 1 }),
+      "game.wait_for": () => ({ met: true, value: 1 }),
+    });
+    const s = parseScenario({ name: "m", steps: [{ wait_ms: 500 }, { wait_for: { node: "P", property: "x", op: ">", value: 0, timeout_ms: 2000 } }] });
+    const report = await runScenario(s, call, { movie: { fps: 30 } });
+    expect(report.passed).toBe(true);
+    expect(calls[1]).toEqual(["game.input", { steps: [{ wait_ms: 500 }] }]);
+    expect(timeouts[1]![1]).toBeGreaterThanOrEqual(5000);
+    expect(timeouts.find(([m]) => m === "game.wait_for")![1]).toBeGreaterThanOrEqual(20_000);
+  });
+
+  it("without a movie, wait_ms waits in the server and timeouts are unchanged", async () => {
+    const { call, calls, timeouts } = fakeBridge({ "game.wait_for": () => ({ met: true, value: 1 }) });
+    const s = parseScenario({ name: "p", steps: [{ wait_ms: 1 }, { wait_for: { node: "P", property: "x", op: ">", value: 0, timeout_ms: 2000 } }] });
+    await runScenario(s, call);
+    expect(calls.map(([m]) => m)).not.toContain("game.input");
+    expect(timeouts.find(([m]) => m === "game.wait_for")![1]).toBe(12_000);
   });
 
   it("without a movie, game.run and game.stop are called as before", async () => {

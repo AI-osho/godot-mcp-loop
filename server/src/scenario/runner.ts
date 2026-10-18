@@ -43,6 +43,9 @@ export interface RunOptions {
 }
 
 const GRACE_MS = 10_000;
+/** While recording a movie the game counts waits in game time and can run much slower than real time (software
+ * rendering, PNG encoding per frame), so the server's own safety timeouts get this much more room. */
+const MOVIE_SLOWDOWN = 10;
 
 function kindOf(step: ScenarioStep): string {
   return Object.keys(step)[0] ?? "unknown";
@@ -198,6 +201,7 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
   }
 
   let failed = false;
+  const slow = opts.movie ? MOVIE_SLOWDOWN : 1;
   try {
     for (let i = 0; i < s.steps.length; i++) {
       const step = s.steps[i]!;
@@ -206,7 +210,7 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
       const target = describeTarget(step);
       if (target !== undefined) res.target = target;
       try {
-        await runStep(step, call, res, report);
+        await runStep(step, call, res, report, slow);
       } catch (e) {
         const timeoutLike = e instanceof BridgeError && (e.code === "TIMEOUT" || e.code === "ASSERTION_FAILED");
         res.status = timeoutLike ? "fail" : "error";
@@ -244,15 +248,16 @@ async function readErrors(call: BridgeCall): Promise<unknown[]> {
   }
 }
 
-async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, report: ScenarioReport): Promise<void> {
+/** `slow` > 1 while recording a movie: waits then happen in the game (game time) and timeouts get more room. */
+async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, report: ScenarioReport, slow: number): Promise<void> {
   if ("wait_for" in step) {
     const t = step.wait_for.timeout_ms ?? 5000;
-    res.detail = await call("game.wait_for", { ...step.wait_for, timeout_ms: t }, { timeoutMs: t + GRACE_MS });
+    res.detail = await call("game.wait_for", { ...step.wait_for, timeout_ms: t }, { timeoutMs: t * slow + GRACE_MS });
   } else if ("assert" in step) {
     res.detail = await call("game.wait_for", { ...step.assert, timeout_ms: 0 }, { timeoutMs: GRACE_MS });
   } else if ("input" in step) {
     const spec = normalizeInput(step.input);
-    res.detail = await call("game.input", spec, { timeoutMs: stepsDurationMs(spec.steps) + GRACE_MS });
+    res.detail = await call("game.input", spec, { timeoutMs: stepsDurationMs(spec.steps) * slow + GRACE_MS });
   } else if ("query" in step) {
     res.detail = await call("game.query", step.query);
   } else if ("screenshot" in step) {
@@ -268,17 +273,22 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
       throw e;
     }
   } else if ("wait_ms" in step) {
-    await new Promise((r) => setTimeout(r, step.wait_ms));
+    if (slow > 1) {
+      // Game time, like the movie: the game may render slower or faster than real time.
+      await call("game.input", { steps: [{ wait_ms: step.wait_ms }] }, { timeoutMs: step.wait_ms * slow + GRACE_MS });
+    } else {
+      await new Promise((r) => setTimeout(r, step.wait_ms));
+    }
   } else if ("pause" in step) {
     res.detail = await call("game.pause", { paused: step.pause });
   } else if ("step" in step) {
     const p = stepParams(step.step);
-    res.detail = await call("game.step", p, { timeoutMs: Math.ceil((Number(p.frames) * 2000) / 60) + GRACE_MS });
+    res.detail = await call("game.step", p, { timeoutMs: Math.ceil((Number(p.frames) * 2000 * slow) / 60) + GRACE_MS });
   } else if ("set" in step) {
     res.detail = await call("game.set", step.set);
   } else if ("call" in step) {
     const t = step.call.timeout_ms ?? 10_000;
-    res.detail = await call("game.call", step.call, { timeoutMs: t + GRACE_MS });
+    res.detail = await call("game.call", step.call, { timeoutMs: t * slow + GRACE_MS });
   } else if ("repeat" in step) {
     const { times, steps } = step.repeat;
     for (let it = 1; it <= times; it++) {
@@ -286,7 +296,7 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
         const inner = steps[j]!;
         const innerRes: StepResult = { index: j, kind: kindOf(inner), status: "pass", duration_ms: 0 };
         try {
-          await runStep(inner, call, innerRes, report);
+          await runStep(inner, call, innerRes, report, slow);
         } catch (e) {
           const target = describeTarget(inner);
           const where = `iteration ${it}/${times}, step ${j + 1} (${kindOf(inner)}${target ? ` ${target}` : ""})`;

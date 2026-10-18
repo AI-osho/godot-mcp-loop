@@ -39,6 +39,13 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 - `screenshot` with `target: "editor"` no longer hangs (30 s `TIMEOUT`) when the editor is idle in the background: in
   low-processor mode it draws only on changes, so the addon now requests a redraw (and forces one after 2 s).
+- Commands sent to a running game no longer run in the middle of the game's own code. GDScript polls the debugger
+  every few thousand executed lines, and the runtime agent handled requests right there, so e.g. a `game_call` that
+  freed enemies could run inside the game's loop over those enemies ("previously freed" errors, found by the new CI
+  job). Requests are now queued and handled at the next deferred-call flush, between callbacks.
+- Recording a movie on a slow machine: `wait_for` timeouts count game time while recording (like waits and holds), a
+  scenario's `wait_ms` waits in the game instead of in the server, and the editor's and server's safety timeouts get
+  ten times more room — before, a game rendering slower than real time hit timeouts early.
 
 ## [0.6.0] - 2026-10-18
 

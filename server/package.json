@@ -43,7 +43,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.19.2",
+    "@types/node": "^20.19.43",
     "@types/ws": "^8.18.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"

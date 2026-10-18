@@ -44,5 +44,5 @@ that environment in the repository settings if you want a second approval before
    `sha512-$(openssl dgst -sha512 -binary godot-mcp-loop-X.Y.Z.tgz | base64)` for the tarball on the GitHub release.
 
 If the npm job fails (for example before trusted publishing is set up), the GitHub release is already there; publish
-the attached tarball by hand (`npm publish godot-mcp-loop-X.Y.Z.tgz --access public`) or re-run the job after fixing
+the attached tarball by hand (`npm publish ./godot-mcp-loop-X.Y.Z.tgz --access public` — keep the `./`, or npm reads the path as a GitHub repository) or re-run the job after fixing
 the setup.

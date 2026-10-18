@@ -2,6 +2,8 @@
 # Create a new Godot 4 game project wired for godot-mcp-loop:
 #   - the MCP Loop addon (enabled) and its runtime autoload
 #   - the agent skill in .claude/skills/godot-mcp-loop and short AGENTS.md / CLAUDE.md files
+#   - PROGRESS.md plus Claude Code project settings: a session-start hook that shows it to the agent (also after
+#     context compaction), the godot-loop tools allowed, destructive shell commands denied
 #   - .gitignore, an empty scenarios/ folder, an initial git commit
 #   - optionally the godot-loop MCP server registered with Claude Code for that folder
 #
@@ -9,7 +11,7 @@
 set -euo pipefail
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
   exit "${1:-1}"
 }
 
@@ -50,19 +52,23 @@ if [ ! -f "$SERVER" ]; then
   exit 1
 fi
 
-# Copy only tracked files when this is a git checkout (no editor caches or .DS_Store).
+# Copy a folder of the repository into the new project, keeping relative paths below <base>. Only tracked files when
+# this is a git checkout (no editor caches or .DS_Store).
 copy_tree() {
-  local rel="$1"
+  local base="$1" rel="$2"
   if git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
-    [ -n "$(cd "$REPO" && git ls-files -- "$rel" | head -n 1)" ]; then
-    (cd "$REPO" && git ls-files -z -- "$rel" | xargs -0 tar cf -) | (cd "$TARGET" && tar xf -)
+    [ -n "$(cd "$REPO/$base" && git ls-files -- "$rel" | head -n 1)" ]; then
+    (cd "$REPO/$base" && git ls-files -z -- "$rel" | xargs -0 tar cf -) | (cd "$TARGET" && tar xf -)
   else
     mkdir -p "$TARGET/$(dirname "$rel")"
-    cp -R "$REPO/$rel" "$TARGET/$rel"
+    cp -R "$REPO/$base/$rel" "$TARGET/$rel"
   fi
 }
-copy_tree addons/mcp_loop
-copy_tree .claude/skills/godot-mcp-loop
+copy_tree . addons/mcp_loop
+copy_tree . .claude/skills/godot-mcp-loop
+# Project settings and the session-start hook (templates/new-game/.claude/).
+copy_tree templates/new-game .claude/settings.json
+copy_tree templates/new-game .claude/hooks
 
 FEATURES=""
 if command -v godot >/dev/null 2>&1; then
@@ -98,6 +104,32 @@ cat > "$TARGET/.gitignore" <<'EOF'
 .godot/
 *.tmp
 .DS_Store
+# Screenshots and reports from scenario_run save_to; commit a folder on purpose if you need it.
+qa/evidence/
+EOF
+
+cat > "$TARGET/PROGRESS.md" <<EOF
+# Progress — $NAME
+
+Kept up to date by the coding agent. Claude Code shows this file to the agent at the start of every session and after
+context compaction, so keep it short (under about 150 lines) and current.
+
+## Goal
+
+(What the game is, in a few lines: genre, core loop, controls, screen size. Link the brief if there is one.)
+
+## Status
+
+- Last updated: (date) — (one line on where things stand)
+- Scenarios: (e.g. 5/5 passed twice; evidence in res://qa/evidence/latest)
+
+## Done
+
+## Next
+
+## Decisions
+
+## Known issues
 EOF
 
 cat > "$TARGET/AGENTS.md" <<EOF
@@ -108,7 +140,10 @@ A Godot 4 game developed with the godot-loop MCP tools (godot-mcp-loop).
 - Follow the \`godot-mcp-loop\` skill in \`.claude/skills/godot-mcp-loop/\`: edit, run the game, observe, and judge
   every change with a scenario before calling it done.
 - Game code and assets live in this project; scenarios live in \`scenarios/\` and must all pass
-  (\`scenario_run {path: "res://scenarios"}\`) before a change is finished.
+  (\`scenario_run {path: "res://scenarios"}\`) before a change is finished. For the final run add
+  \`save_to: "res://qa/evidence/latest"\` so the screenshots and report stay on disk for review.
+- Keep \`PROGRESS.md\` current: update it after each milestone and before you stop (status, scenario result, what is
+  done and next, decisions, known issues). It is shown to you at session start and after context compaction.
 - Don't edit \`addons/mcp_loop/\`; update it by copying a newer release.
 - Stage files by explicit path when committing; never commit \`.godot/\`.
 EOF
@@ -125,7 +160,8 @@ fi
 
 if [ "$DO_GIT" = 1 ] && command -v git >/dev/null 2>&1; then
   git -C "$TARGET" init -q
-  git -C "$TARGET" add .gitignore project.godot AGENTS.md CLAUDE.md scenarios/README.md addons/mcp_loop .claude/skills/godot-mcp-loop
+  git -C "$TARGET" add .gitignore project.godot AGENTS.md CLAUDE.md PROGRESS.md scenarios/README.md addons/mcp_loop \
+    .claude/skills/godot-mcp-loop .claude/settings.json .claude/hooks
   git -C "$TARGET" commit -q -m "New Godot project wired for godot-mcp-loop" && echo "Created git repository with an initial commit."
 fi
 
@@ -150,5 +186,7 @@ Next:
   1. Open the project in Godot 4:  godot -e --path "$TARGET"
   2. Connect your MCP client (if not registered above), e.g. Claude Code:
        cd $(printf '%q' "$TARGET") && $(printf '%q ' "${REGISTER_CMD[@]}")
-  3. Ask the agent to call godot_status, then describe the game you want.
+  3. Start Claude Code in the folder and accept the trust prompt: the project settings then allow the godot-loop
+     tools without asking, deny destructive shell commands, and show PROGRESS.md at every session start.
+  4. Ask the agent to call godot_status, then describe the game you want.
 EOF

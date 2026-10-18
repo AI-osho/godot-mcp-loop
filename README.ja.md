@@ -78,9 +78,16 @@ scripts/new-game.sh ~/games/my-game --name "My Game" --register-claude
 - エージェント用スキル
 - 短い `AGENTS.md` / `CLAUDE.md`
 - `scenarios/` フォルダ
+- `PROGRESS.md`(目標・状況・済み・次・決定事項・既知の問題。エージェントが更新します)
+- Claude Code のプロジェクト設定 `.claude/settings.json`
 - 最初の git コミット
 
 あわせて、そのフォルダ用に MCP サーバーを Claude Code へ登録します。別の Claude Code 設定に登録したいときは `--claude-config DIR` を指定してください。作成後は `godot -e --path ~/games/my-game` で開きます。
+
+プロジェクト設定は、長い制作でも作業が途切れないようにするためのものです。
+- セッション開始時のフックで、`PROGRESS.md`、最近のコミット、未コミットの変更をエージェントに渡します。起動時、再開時、`/clear` の後、コンテキスト圧縮の後に働きます。
+- godot-loop のツールは、確認なしで使えます。この許可は、そのフォルダで Claude Code の信頼確認(trust)に同意すると有効になります。
+- 破壊的なシェルコマンド(`rm -rf`、force push、`git reset --hard`、`git clean`)は禁止します。
 
 ### デモを試す
 

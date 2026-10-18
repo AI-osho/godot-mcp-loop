@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 - `scenario_run` `save_to`: keeps the evidence as files in a project folder — every screenshot as `NN-label.png`,
   `report.md` (summary and images) and `report.json`; a folder run gets one subfolder per scenario and `summary.md`.
   The folder gets a `.gdignore`; a re-run replaces only its own files; checked before the game starts (#13).
+- `scripts/new-game.sh` adds `PROGRESS.md` and Claude Code project settings: a `SessionStart` hook prints
+  `PROGRESS.md`, the last commits and uncommitted changes into the agent's context (startup, resume, `/clear`, after
+  compaction; under Claude Code's 10,000 character limit), the godot-loop tools are allowed, destructive shell commands
+  and reading the session token are denied. `qa/evidence/` is ignored by git (#14).
 
 ## [0.5.0] - 2026-10-18
 

@@ -78,6 +78,13 @@ creates a Godot project with the addon enabled, the agent skill, short `AGENTS.m
 `scenarios/` folder and an initial git commit, and registers the MCP server with Claude Code for that folder
 (`--claude-config DIR` for a separate Claude Code configuration). Then open it with `godot -e --path ~/games/my-game`.
 
+For long builds the project also gets `PROGRESS.md` (goal, status, done, next, decisions, known issues), which the
+agent keeps current, and Claude Code project settings (`.claude/settings.json`): a session-start hook prints
+`PROGRESS.md`, the last commits and uncommitted changes into the agent's context — at startup, on resume, after
+`/clear` and after context compaction — the godot-loop tools run without permission prompts, and destructive shell
+commands (`rm -rf`, force push, `git reset --hard`, `git clean`) are denied. Claude Code applies the allow rule once you
+accept its trust prompt for the folder.
+
 ### Try the demo
 
 This repository is itself a Godot project with a tiny platformer

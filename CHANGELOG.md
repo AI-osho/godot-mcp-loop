@@ -28,6 +28,13 @@ All notable changes to this project are documented here. The format follows
   runtime command `quit`). GIF and PNG encoding are built in (no new dependencies). Needs a game window
   (`RENDERING_UNAVAILABLE` when the game runs headless).
 - Test: every tool is listed in `docs/tools.md` and the three READMEs.
+- CI job "samples": the 19 regression scenarios of the sample games (platformer, Falling Blocks, shooter, side-scroller,
+  RPG) and two Movie Maker recordings run against a real editor with the games in a window (xvfb, software OpenGL);
+  the screenshots, reports and GIFs are kept as the `sample-evidence` artifact for a visual check.
+- Release automation: pushing tag `vX.Y.Z` runs `.github/workflows/release.yml` — checks that the tag, the package,
+  the addon and the CHANGELOG agree, builds the addon zip, the npm tarball and `SHA256SUMS.txt`
+  (`scripts/release-artifacts.sh`), creates the GitHub release with notes from the CHANGELOG, and stages exactly that
+  tarball on npm with trusted publishing (no token); a maintainer approves it with 2FA. `docs/releasing.md`.
 
 ### Fixed
 - `screenshot` with `target: "editor"` no longer hangs (30 s `TIMEOUT`) when the editor is idle in the background: in

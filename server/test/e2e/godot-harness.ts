@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,15 @@ export const GODOT_BIN = process.env.GODOT_BIN ?? "godot";
 
 /** Set E2E_GAME_WINDOW=1 to run games with a real window (enables screenshot checks). */
 export const WINDOWED = process.env.E2E_GAME_WINDOW === "1";
+
+/**
+ * project.godot text that runs the games in a window, with E2E_GAME_ARGS as their extra arguments (CI under xvfb:
+ * "--rendering-driver opengl3"). Empty when there are no extra arguments.
+ */
+export function windowedGameSettings(): string {
+  const args = process.env.E2E_GAME_ARGS?.trim();
+  return args ? `[editor]\n\nrun/main_run_args="${args.replace(/["\\]/g, "")}"\n` : "";
+}
 
 /** The examples/ folder as a project with the platformer as main scene and its input actions. */
 export const PLATFORMER_PROJECT: HarnessOptions = {
@@ -49,6 +58,8 @@ export interface HarnessOptions {
   projectGodotExtra?: string;
   /** Extra [application] lines, e.g. 'run/main_scene="res://main.tscn"'. */
   applicationExtra?: string[];
+  /** Use the repository's own project.godot (sample input actions, main scene) instead of a generated one. */
+  repoProjectGodot?: boolean;
 }
 
 /** Creates a throwaway Godot project containing the addon (plus optional extra files); returns its folder. */
@@ -61,9 +72,10 @@ export function createTestProject(opts: HarnessOptions = {}): string {
   for (const c of opts.copyFrom ?? []) {
     cpSync(c.from, join(projectPath, c.to), { recursive: true });
   }
+  const repoGodot = opts.repoProjectGodot ? readFileSync(join(REPO_ROOT, "project.godot"), "utf8") : undefined;
   writeFileSync(
     join(projectPath, "project.godot"),
-    [
+    repoGodot !== undefined ? `${repoGodot}\n${opts.projectGodotExtra ?? ""}` : [
       "config_version=5",
       "",
       "[application]",

@@ -22,6 +22,10 @@ All notable changes to this project are documented here. The format follows
   game, saves the open scenes (new bridge method `editor.quit`), waits for the process, SIGTERM after `timeout_ms`.
 - Test: every tool is listed in `docs/tools.md` and the three READMEs.
 
+### Fixed
+- `screenshot` with `target: "editor"` no longer hangs (30 s `TIMEOUT`) when the editor is idle in the background: in
+  low-processor mode it draws only on changes, so the addon now requests a redraw (and forces one after 2 s).
+
 ## [0.6.0] - 2026-10-18
 
 Agent workflow and distribution, from reviewing Claude-Code-Game-Studios and Coding-Solo/godot-mcp (#13–#16).

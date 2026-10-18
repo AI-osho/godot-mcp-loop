@@ -29,6 +29,8 @@ export class FakeAddon {
   private sockets = new Set<WebSocket>();
   /** When true, requests are accepted but never answered. */
   silent = false;
+  /** Delay before answering hello (e.g. to switch projects while a connect is in flight). */
+  helloDelayMs = 0;
 
   constructor(token = "fake-token") {
     this.token = token;
@@ -50,6 +52,7 @@ export class FakeAddon {
         const params = (req.params ?? {}) as Record<string, unknown>;
         let env: unknown;
         if (req.method === "hello") {
+          if (this.helloDelayMs > 0) await new Promise((r) => setTimeout(r, this.helloDelayMs));
           if (params.token !== this.token) {
             env = { ok: false, error: { code: "UNAUTHORIZED", message: "Invalid token." } };
           } else if (params.protocol !== 1) {

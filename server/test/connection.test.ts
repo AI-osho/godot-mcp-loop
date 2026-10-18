@@ -86,6 +86,74 @@ describe("GodotConnection", () => {
     await expect(conn.call("ping")).resolves.toEqual({ pong: true });
   });
 
+  it("switchProject drops the connection and the next call reads the new project's session (#12)", async () => {
+    const other = new FakeAddon("other-token");
+    const otherPort = await other.start();
+    const asked: string[] = [];
+    conn = new GodotConnection({
+      projectPath: "/a",
+      readSession: (p) => {
+        asked.push(p);
+        return p === "/b"
+          ? { port: otherPort, token: other.token, protocol: 1, pid: process.pid }
+          : { port, token: addon.token, protocol: 1, pid: process.pid };
+      },
+    });
+    try {
+      await conn.call("ping");
+      conn.switchProject("/b");
+      expect(conn.projectPath).toBe("/b");
+      expect(conn.isConnected()).toBe(false);
+      await conn.call("ping");
+      expect(asked).toEqual(["/a", "/b"]);
+      expect(other.received.filter((r) => r.method === "ping")).toHaveLength(1);
+    } finally {
+      conn.close();
+      await other.stop();
+    }
+  });
+
+  it("a connect still in flight for the old project does not become the connection after a switch (#12)", async () => {
+    const other = new FakeAddon("other-token");
+    const otherPort = await other.start();
+    addon.helloDelayMs = 300; // the old editor answers hello only after the switch
+    conn = new GodotConnection({
+      projectPath: "/a",
+      readSession: (p) =>
+        p === "/b"
+          ? { port: otherPort, token: other.token, protocol: 1, pid: process.pid }
+          : { port, token: addon.token, protocol: 1, pid: process.pid },
+    });
+    try {
+      const old = conn.call("ping");
+      await vi.waitFor(() => expect(addon.received.some((r) => r.method === "hello")).toBe(true));
+      conn.switchProject("/b");
+      const next = conn.call("ping");
+      await expect(old).rejects.toMatchObject({ code: "DISCONNECTED" });
+      await expect(next).resolves.toEqual({ pong: true });
+      await expect(conn.call("ping")).resolves.toEqual({ pong: true });
+      expect(other.received.filter((r) => r.method === "ping")).toHaveLength(2);
+      expect(addon.received.filter((r) => r.method === "ping")).toHaveLength(0);
+    } finally {
+      conn.close();
+      await other.stop();
+    }
+  });
+
+  it("adds project_list / project_connect to the not-running hint when switching is enabled (#12)", async () => {
+    conn = new GodotConnection({
+      projectPath: "/x",
+      projectsRoots: ["/games"],
+      readSession: () => {
+        throw new BridgeError("GODOT_NOT_RUNNING", "no session", "Open the project.");
+      },
+    });
+    await expect(conn.call("ping")).rejects.toMatchObject({
+      code: "GODOT_NOT_RUNNING",
+      hint: expect.stringMatching(/Open the project\..*project_connect/),
+    });
+  });
+
   it("forwards pushed events to listeners registered before connecting", async () => {
     const got = new Promise((resolve) => conn.onEvent((e, d) => resolve([e, d])));
     await conn.call("ping");

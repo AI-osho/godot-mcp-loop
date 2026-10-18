@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { GodotConnection } from "../src/connection.js";
 import { parseScenario } from "../src/scenario/schema.js";
 import { FILE_TOOLS } from "../src/tools/files.js";
+import { connectClient } from "./helpers.js";
 
 /**
  * The agent skill in .claude/skills teaches other agents how to use the tools, so its examples must stay valid:
@@ -71,13 +73,12 @@ describe("agent skill (.claude/skills/godot-mcp-loop)", () => {
   });
 
   it("mentions only tools the server provides", async () => {
-    const { PLAY_TOOLS } = await import("../src/tools/play.js");
-    const known = new Set([...FILE_TOOLS, ...PLAY_TOOLS].map((t) => t.name));
-    for (const extra of ["godot_status", "project_info", "scene_open", "scene_create", "scene_save", "scene_tree",
-      "node_add", "node_delete", "node_get", "node_set", "script_read", "script_write", "script_edit", "script_attach",
-      "edit_undo", "scenario_run"]) known.add(extra);
+    const conn = new GodotConnection({ projectPath: "/unused" });
+    const client = await connectClient(conn);
+    const known = new Set((await client.listTools()).tools.map((t) => t.name));
+    await client.close();
     const text = files.map((f) => readFileSync(f, "utf8")).join("\n");
-    const mentioned = new Set([...text.matchAll(/`((?:game|scene|node|script|file|image|input|project|godot|edit|logs|scenario)_[a-z_]+)/g)].map((m) => m[1]!));
+    const mentioned = new Set([...text.matchAll(/`((?:game|scene|node|script|file|image|input|project|godot|edit|logs|scenario|test|editor)_[a-z_]+)/g)].map((m) => m[1]!));
     for (const name of mentioned) expect(known.has(name), `unknown tool ${name}`).toBe(true);
   });
 });

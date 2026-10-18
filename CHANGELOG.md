@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `project_connect` / `project_list`: one server registration for many projects (#12). Start the server with
+  `--projects-root <folder>` (repeatable, or `GODOT_PROJECTS_ROOT`) and the agent can list the Godot projects below it
+  (name, addon installed, editor running) and point the running server at another one; the following tool calls work
+  on it. Targets must contain `project.godot` and resolve inside a root (symbolic links included, not `.godot/` or
+  `.git/`). Without `--projects-root` nothing changes (`PROJECT_SWITCH_DISABLED`). `godot_status` shows
+  `projects_roots`; the `GODOT_NOT_RUNNING` hint mentions switching when it is enabled. A connect still in flight for
+  the previous project is discarded.
+- Test: every tool is listed in `docs/tools.md` and the three READMEs.
+
 ## [0.6.0] - 2026-10-18
 
 Agent workflow and distribution, from reviewing Claude-Code-Game-Studios and Coding-Solo/godot-mcp (#13–#16).

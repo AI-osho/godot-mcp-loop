@@ -242,3 +242,26 @@ func test_encode_embedded_resource_round_trips() -> void:
 func test_encode_file_resource_as_reference() -> void:
 	var res := load("res://examples/platformer/player.gd")
 	assert_eq(Codec.encode(res), {"res": "res://examples/platformer/player.gd", "type": res.get_class()})
+
+
+# ---- str_to_var builds objects (Object(...)) while parsing: only plain literals may reach it ----
+
+func test_object_literals_are_never_parsed() -> void:
+	var before := Performance.get_monitor(Performance.OBJECT_COUNT)
+	for s in ['Object(Node,"name":"x")', 'Transform2D(Object(Node), 0, 0, 0, 0, 0)', 'Object(RefCounted)']:
+		var r := Codec.decode(s, TYPE_TRANSFORM2D)
+		assert_false(r.ok, "must be rejected: " + s)
+	var leaked := Performance.get_monitor(Performance.OBJECT_COUNT) - before
+	assert_eq(leaked, 0.0, "no objects may be constructed while decoding")
+	assert_false(Codec.decode('Object(Node,"name":"x")', TYPE_CALLABLE).ok)
+
+
+func test_plain_godot_literals_still_decode() -> void:
+	var t := Codec.decode("Transform2D(1, 0, 0, 1, 5, 6)", TYPE_TRANSFORM2D)
+	assert_true(t.ok, str(t.get("error", "")))
+	assert_eq(t.value.origin, Vector2(5, 6))
+	var pv := Codec.decode("PackedVector2Array(0, 0, 1, 1)", TYPE_PACKED_VECTOR2_ARRAY)
+	assert_true(pv.ok, str(pv.get("error", "")))
+	assert_eq(pv.value.size(), 2)
+	var ps := Codec.decode('PackedStringArray("a", "b")', TYPE_PACKED_STRING_ARRAY)
+	assert_true(ps.ok, str(ps.get("error", "")))

@@ -119,14 +119,27 @@ static func decode(v: Variant, target_type: int, depth: int = 0) -> Dictionary:
 			return _ok(v) if typeof(v) == TYPE_ARRAY else _fail("Expected an array.")
 		TYPE_DICTIONARY:
 			return _ok(v) if typeof(v) == TYPE_DICTIONARY else _fail("Expected an object.")
-	# Other types: accept if JSON already maps to them, else try str_to_var.
+	# Other types: accept if JSON already maps to them, else parse a Godot literal.
 	if typeof(v) == target_type:
 		return _ok(v)
-	if typeof(v) == TYPE_STRING:
-		var parsed: Variant = str_to_var(v)
+	if typeof(v) == TYPE_STRING and _is_plain_literal(String(v).strip_edges(), target_type):
+		var parsed: Variant = str_to_var(String(v).strip_edges())
 		if typeof(parsed) == target_type:
 			return _ok(parsed)
 	return _fail("Cannot convert to %s. Pass a Godot literal string like \"%s(...)\"." % [type_string(target_type), type_string(target_type)])
+
+
+## str_to_var also constructs objects ("Object(Node, ...)") and loads resources
+## while parsing, so only a flat literal of the expected type may reach it:
+## "Transform2D(1, 0, 0, 1, 5, 6)", "PackedStringArray(\"a\", \"b\")".
+static func _is_plain_literal(s: String, target_type: int) -> bool:
+	if target_type in [TYPE_OBJECT, TYPE_CALLABLE, TYPE_SIGNAL, TYPE_RID]:
+		return false
+	var name := type_string(target_type)
+	if not s.begins_with(name + "(") or not s.ends_with(")"):
+		return false
+	var inner := s.substr(name.length() + 1, s.length() - name.length() - 2)
+	return not inner.contains("(") and not inner.contains(")")
 
 
 static func _decode_color(v: Variant) -> Dictionary:

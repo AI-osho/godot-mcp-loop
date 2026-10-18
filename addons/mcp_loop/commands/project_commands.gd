@@ -130,7 +130,9 @@ func _walk(dir_path: String, glob: String, out: Array, max_files: int) -> bool:
 				return true
 			out.append(full)
 	for d in dir.get_directories():
-		if d.begins_with(".") or SKIP_DIRS.has(d):
+		# Like PathGuard, never follow symbolic links: they can point outside the
+		# project or back to a parent (endless recursion).
+		if d.begins_with(".") or SKIP_DIRS.has(d) or dir.is_link(d):
 			continue
 		if _walk(dir_path.path_join(d), glob, out, max_files):
 			return true

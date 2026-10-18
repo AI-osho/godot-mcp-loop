@@ -10,6 +10,17 @@ All notable changes to this project are documented here. The format follows
   original story, cast and monsters — title, prologue, grid movement, NPC dialogue, random encounters, front-view
   battles, a boss and an ending; six scenarios. Four small fixes after review (hold to keep walking, three cosmetic
   overlaps).
+- `SECURITY.md` and Dependabot configuration (npm, GitHub Actions).
+
+### Security
+- Godot literals given as strings are parsed only when they are a flat literal of the expected type. Godot's
+  `str_to_var` constructs objects (`Object(...)`) while parsing, so such strings could create (and leak) objects and
+  bypass the "no inline scripts" rule.
+- The MCP server now refuses `.godot/` and `.git/` when reading project files (`scenario_run`, `file_write`
+  validation), matching the addon; previously `res://.godot/mcp_loop/session.json` was readable through it.
+- The `project_info` file listing no longer follows symbolic links (paths outside the project; endless recursion on
+  a link loop).
+- CI: actions pinned to commit SHAs, checkout without persisted credentials, job timeouts.
 
 ## [0.4.0] - 2026-10-18
 

@@ -113,6 +113,19 @@ describe("scenario_run tool", () => {
     rmSync(outside, { recursive: true, force: true });
   });
 
+  it("refuses .godot/ and .git/ like the addon does (the session token lives in .godot/)", async () => {
+    mkdirSync(join(project, ".godot", "mcp_loop"), { recursive: true });
+    writeFileSync(join(project, ".godot", "mcp_loop", "session.json"), '{"port": 1, "token": "secret-token-value", "pid": 1}');
+    mkdirSync(join(project, ".git"), { recursive: true });
+    writeFileSync(join(project, ".git", "config"), "[core]\n");
+    for (const path of ["res://.godot/mcp_loop/session.json", ".godot/mcp_loop/session.json", "res://./.godot/mcp_loop/session.json", "res://.git/config"]) {
+      const res = await client.callTool({ name: "scenario_run", arguments: { path } });
+      expect(res.isError).toBe(true);
+      expect(textOf(res)).toContain("PATH_FORBIDDEN");
+      expect(textOf(res)).not.toContain("secret-token-value");
+    }
+  });
+
   it("requires exactly one of path or scenario", async () => {
     const res = await client.callTool({ name: "scenario_run", arguments: {} });
     expect(res.isError).toBe(true);

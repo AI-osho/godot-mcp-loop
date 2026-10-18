@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { BridgeError } from "../errors.js";
@@ -19,12 +19,15 @@ export function resolveProjectFile(projectPath: string, path: string): string {
   if (r.startsWith("..") || isAbsolute(r)) {
     throw new BridgeError("PATH_FORBIDDEN", `${path} is outside the project.`);
   }
+  // Same rule as the addon's PathGuard: .godot/ holds the session token, .git/ the history.
+  const protectedDir = (p: string) => [".godot", ".git"].includes(p.split(sep)[0] ?? "");
+  if (protectedDir(r)) throw new BridgeError("PATH_FORBIDDEN", `Access under ${r.split(sep)[0]}/ is not allowed.`);
   if (!existsSync(full)) throw new BridgeError("FILE_NOT_FOUND", `Scenario file not found: ${path}`);
   // Re-check after resolving symlinks: a link inside the project may point outside it.
   const real = realpathSync(full);
   const rr = relative(root, real);
-  if (rr.startsWith("..") || isAbsolute(rr)) {
-    throw new BridgeError("PATH_FORBIDDEN", `${path} resolves outside the project (symbolic link).`);
+  if (rr.startsWith("..") || isAbsolute(rr) || protectedDir(rr)) {
+    throw new BridgeError("PATH_FORBIDDEN", `${path} resolves outside the project or into a protected folder (symbolic link).`);
   }
   return real;
 }

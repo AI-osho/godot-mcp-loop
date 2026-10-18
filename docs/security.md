@@ -31,7 +31,10 @@ Every path from the agent goes through `addons/mcp_loop/util/path_guard.gd` (and
 - only `res://` paths; no `..`, no backslashes, no control characters;
 - no reading or writing under `res://.godot/` or `res://.git/`; no writing into `res://addons/mcp_loop/`;
 - writes are limited by extension (`.gd` for `script_write`, `.tscn` for `scene_create`);
-- **symbolic links are refused** anywhere along the path, because Godot would follow them outside the project;
+- **symbolic links are refused** anywhere along the path, because Godot would follow them outside the project, and the
+  `project_info` file listing does not descend into linked folders;
+- the MCP server applies the same rules to files it reads itself (`scenario_run` / `file_write` validation): no
+  `.godot/` or `.git/`, nothing outside the project, no links that resolve outside it;
 - there is no tool to delete files, change project or editor settings, or run shell commands.
 
 ## Scene sandbox
@@ -43,7 +46,9 @@ root or one of its descendants, so the agent cannot reach editor UI nodes.
 
 - Scene/node/property/script edits go through Godot's undo history. `edit_undo` only undoes actions this server
   made, and stops if a human edited the same history afterwards.
-- Property values are type-checked before anything changes; invalid input changes nothing.
+- Property values are type-checked before anything changes; invalid input changes nothing. Godot literals given as
+  strings (`"Transform2D(1, 0, 0, 1, 5, 6)"`) are parsed only when they are a flat literal of the expected type —
+  Godot's `str_to_var` would otherwise construct objects (`Object(...)`) while parsing.
 - `script_write` compiles the code before writing it; on errors nothing is written.
 
 ## `@tool` scripts
@@ -69,6 +74,12 @@ are capped at 120 s.
   `.tres`, `.tscn` or `.gd` (scripts go through the compile-checked `script_write`/`script_edit`).
 - `image_write` writes only `.png` files generated from palette text.
 
+## Tools added in 0.4
+
+- `game_pause` / `game_step` act only on the running game; a step runs at most 3600 physics frames.
+- Inline `set` / `call` / `assert` / `wait_for` steps in `game_input` use the same checks as `game_set`, `game_call` and
+  `game_wait_for`, within the existing input limits; a failing step releases held input.
+
 ## Known limitations
 
 - A local process running as **your own user** can read the session file and connect — same-user isolation is out
@@ -79,4 +90,5 @@ are capped at 120 s.
 
 ## Reporting
 
-Please report vulnerabilities privately to the repository owner (GitHub: **@AI-osho**) rather than in a public issue.
+See [SECURITY.md](../SECURITY.md): report privately via GitHub (*Security* → *Report a vulnerability*), not in a
+public issue.

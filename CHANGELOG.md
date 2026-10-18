@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows
   overlaps).
 - The falling-block puzzle sample is now `examples/blocks/` ("Falling Blocks"), named generically.
 - `SECURITY.md` and Dependabot configuration (npm, GitHub Actions).
+- The server package now ships its `LICENSE`.
 
 ### Security
 - Godot literals given as strings are parsed only when they are a flat literal of the expected type. Godot's

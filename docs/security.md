@@ -3,7 +3,7 @@
 ## Threat model in one paragraph
 
 godot-mcp-loop lets an AI agent write GDScript and run the game. **Running a game runs its code with your user's
-permissions — so anyone who can call `script_write` + `game_run` can execute code on your machine.** That is inherent
+permissions — so anyone who can call `script_write` + `game_run` (or `test_run`) can execute code on your machine.** That is inherent
 to the purpose of the tool, not a bug. The protections below therefore aim at two things:
 
 1. keeping **other local actors** (other users, other processes, web pages in your browser) from driving your editor;
@@ -11,7 +11,7 @@ to the purpose of the tool, not a bug. The protections below therefore aim at tw
    irreversible edits).
 
 If you do not trust the agent, require human approval in your MCP client for `script_write`, `script_attach`,
-`node_add`, `node_set` and `game_run` (most clients can ask before each tool call).
+`node_add`, `node_set`, `game_run` and `test_run` (most clients can ask before each tool call).
 
 ## Bridge (MCP server ↔ editor)
 
@@ -79,6 +79,19 @@ are capped at 120 s.
 - `game_pause` / `game_step` act only on the running game; a step runs at most 3600 physics frames.
 - Inline `set` / `call` / `assert` / `wait_for` steps in `game_input` use the same checks as `game_set`, `game_call` and
   `game_wait_for`, within the existing input limits; a failing step releases held input.
+
+## Tools added in 0.6
+
+- `test_run` starts one process: the editor's own Godot executable (`OS.get_executable_path()`), with an argument list
+  (no shell), `--headless`, on this project, running only the installed framework's own runner script at its fixed path
+  (`res://addons/gut/gut_cmdln.gd` or `res://addons/gdUnit4/bin/GdUnitCmdTool.gd`). Test paths go through PathGuard
+  (inside `res://`, not `.godot/` or `.git/`, no symbolic links); a test name may only contain letters, digits and `_`.
+  One run at a time; the process is killed at `timeout_ms` (at most 10 minutes). Its report and log are written to
+  `res://.godot/mcp_loop/tests/`, which the file tools cannot reach. Like `game_run`, it runs the project's code.
+- `scenario_run` `save_to` writes PNG, Markdown and JSON files from the server process, under the same path rules
+  (inside the project, not its root, not `.godot/` or `.git/`, symbolic links resolved before checking and never written
+  through). A re-run deletes only regular files that its previous manifest lists inside that folder; a non-empty folder
+  without a manifest is refused. Not undoable.
 
 ## Known limitations
 

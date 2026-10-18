@@ -43,6 +43,8 @@ export interface HarnessOptions {
   extraFiles?: Record<string, string>;
   /** Repo-relative directories to copy into the project (e.g. "examples/platformer"). */
   copyDirs?: string[];
+  /** Directories from anywhere, copied to a project-relative path (e.g. a downloaded test framework). */
+  copyFrom?: Array<{ from: string; to: string }>;
   /** Extra text appended to project.godot (e.g. an [input] section). */
   projectGodotExtra?: string;
   /** Extra [application] lines, e.g. 'run/main_scene="res://main.tscn"'. */
@@ -54,6 +56,9 @@ export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<Go
   cpSync(join(REPO_ROOT, "addons"), join(projectPath, "addons"), { recursive: true });
   for (const d of opts.copyDirs ?? []) {
     cpSync(join(REPO_ROOT, d), join(projectPath, d), { recursive: true });
+  }
+  for (const c of opts.copyFrom ?? []) {
+    cpSync(c.from, join(projectPath, c.to), { recursive: true });
   }
   writeFileSync(
     join(projectPath, "project.godot"),

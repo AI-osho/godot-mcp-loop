@@ -5,6 +5,9 @@ export_presets.cfg
 # Node
 node_modules/
 server/dist/
+# Copied into the npm package by server/scripts/bundle-assets.mjs
+server/addon/
+server/skill/
 coverage/
 
 # OS / editor

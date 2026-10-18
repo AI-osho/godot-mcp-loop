@@ -1,22 +1,22 @@
 # Connecting MCP clients
 
-Build the server once:
-
-```bash
-cd godot-mcp-loop/server
-npm ci && npm run build
-```
-
 The server needs to know which Godot project to talk to: pass `--project /absolute/path/to/your/project`
 (the folder containing `project.godot`), or set `GODOT_PROJECT_PATH`, or start it from that folder.
 Then open that project in the Godot editor with the **MCP Loop** plugin enabled.
 
-Replace `/ABS/godot-mcp-loop` and `/ABS/my-game` below with your paths.
+Two ways to start the server — use the same version as the addon in your project (`version=` in
+`addons/mcp_loop/plugin.cfg`; `npx -y godot-mcp-loop@latest install-addon <project>` installs a matching one):
+
+- **npm**: command `npx`, arguments `-y godot-mcp-loop@<version> --project /ABS/my-game` (Node.js 20+).
+- **From source**: build once (`cd godot-mcp-loop/server && npm ci && npm run build`), then command `node`, arguments
+  `/ABS/godot-mcp-loop/server/dist/index.js --project /ABS/my-game`.
+
+The examples use npm; replace `<version>` and `/ABS/my-game` with yours.
 
 ## Claude Code
 
 ```bash
-claude mcp add godot-loop -- node /ABS/godot-mcp-loop/server/dist/index.js --project /ABS/my-game
+claude mcp add godot-loop -- npx -y godot-mcp-loop@<version> --project /ABS/my-game
 ```
 
 ## Cursor (`.cursor/mcp.json`) / Claude Desktop (`claude_desktop_config.json`)
@@ -25,8 +25,8 @@ claude mcp add godot-loop -- node /ABS/godot-mcp-loop/server/dist/index.js --pro
 {
   "mcpServers": {
     "godot-loop": {
-      "command": "node",
-      "args": ["/ABS/godot-mcp-loop/server/dist/index.js", "--project", "/ABS/my-game"]
+      "command": "npx",
+      "args": ["-y", "godot-mcp-loop@<version>", "--project", "/ABS/my-game"]
     }
   }
 }
@@ -37,17 +37,17 @@ claude mcp add godot-loop -- node /ABS/godot-mcp-loop/server/dist/index.js --pro
 ```yaml
 mcp_servers:
   godot-loop:
-    command: "node"
-    args: ["/ABS/godot-mcp-loop/server/dist/index.js", "--project", "/ABS/my-game"]
-    timeout: 180   # scenario runs can take a while
+    command: "npx"
+    args: ["-y", "godot-mcp-loop@<version>", "--project", "/ABS/my-game"]
+    timeout: 180   # scenario and test runs can take a while
 ```
 
 ## Codex CLI (`~/.codex/config.toml`)
 
 ```toml
 [mcp_servers.godot-loop]
-command = "node"
-args = ["/ABS/godot-mcp-loop/server/dist/index.js", "--project", "/ABS/my-game"]
+command = "npx"
+args = ["-y", "godot-mcp-loop@<version>", "--project", "/ABS/my-game"]
 ```
 
 ## Check it works

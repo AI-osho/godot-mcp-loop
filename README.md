@@ -49,6 +49,22 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
 
 ## Install
 
+**With npm** (Node.js 20+):
+
+1. **Addon** — the addon must match the server's version, so let the server copy it into your project and enable it:
+   ```bash
+   npx -y godot-mcp-loop@latest install-addon /ABS/my-game --skill
+   ```
+   `--skill` also adds the agent skill (step 5 below). The command prints the version to use next.
+2. **Client** — register the server with that version, e.g. Claude Code:
+   ```bash
+   claude mcp add godot-loop -- npx -y godot-mcp-loop@<version> --project /ABS/my-game
+   ```
+   Other clients: [docs/clients.md](docs/clients.md).
+3. Open your project in the Godot editor and ask the agent to call `godot_status`.
+
+**From source**:
+
 1. **Addon** — copy `addons/mcp_loop` into your project's `addons/` folder, then enable
    *Project › Project Settings › Plugins › MCP Loop*. The plugin registers an autoload `MCPLoopRuntime`
    (inactive in exported games).

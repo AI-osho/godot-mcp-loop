@@ -10,6 +10,9 @@
     "directory": "server"
   },
   "homepage": "https://github.com/AI-osho/godot-mcp-loop#readme",
+  "bugs": {
+    "url": "https://github.com/AI-osho/godot-mcp-loop/issues"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -18,20 +21,27 @@
     "gamedev",
     "ai",
     "testing",
-    "playtest"
+    "playtest",
+    "gut",
+    "gdunit4",
+    "claude-code"
   ],
   "type": "module",
   "bin": {
     "godot-mcp-loop": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "addon",
+    "skill"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "bundle": "node scripts/bundle-assets.mjs",
+    "prepack": "npm run build && node scripts/bundle-assets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude 'test/e2e/**'",
     "test:e2e": "vitest run test/e2e"

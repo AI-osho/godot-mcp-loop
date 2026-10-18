@@ -48,6 +48,22 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 
 ## インストール
 
+**npm で入れる場合**(Node.js 20 以上):
+
+1. **アドオン** — アドオンはサーバーと同じバージョンが必要です。サーバー自身にコピーと有効化をさせます。
+   ```bash
+   npx -y godot-mcp-loop@latest install-addon /絶対パス/my-game --skill
+   ```
+   `--skill` を付けると、エージェント用スキル(下の手順 5)も入ります。次の手順で使うバージョンが表示されます。
+2. **クライアント** — 表示されたバージョンでサーバーを登録します。例: Claude Code
+   ```bash
+   claude mcp add godot-loop -- npx -y godot-mcp-loop@<バージョン> --project /絶対パス/my-game
+   ```
+   その他のクライアント: [docs/clients.md](docs/clients.md)
+3. Godot エディタでプロジェクトを開き、エージェントに `godot_status` を呼ばせて接続を確認。
+
+**ソースから入れる場合**:
+
 1. **アドオン** — `addons/mcp_loop` を自分のプロジェクトの `addons/` にコピーし、
    *プロジェクト › プロジェクト設定 › プラグイン › MCP Loop* を有効化。オートロード `MCPLoopRuntime` が登録されます
    （書き出したゲームでは無効）。

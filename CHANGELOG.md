@@ -19,6 +19,10 @@ All notable changes to this project are documented here. The format follows
   `PROGRESS.md`, the last commits and uncommitted changes into the agent's context (startup, resume, `/clear`, after
   compaction; under Claude Code's 10,000 character limit), the godot-loop tools are allowed, destructive shell commands
   and reading the session token are denied. `qa/evidence/` is ignored by git (#14).
+- `test_run`: runs the project's GUT or GdUnit4 unit tests in a separate headless Godot process started by the editor
+  (its own executable, no shell, only the framework's runner script), with a timeout, and returns pass/fail counts,
+  each failing test with its message and the log's error lines, parsed from the JUnit report. `path` (folder or test
+  script), `test` (GUT), `framework` when both are installed. Error codes `TEST_FRAMEWORK_NOT_FOUND` and `BUSY` (#15).
 
 ## [0.5.0] - 2026-10-18
 

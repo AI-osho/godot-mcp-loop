@@ -1,6 +1,6 @@
 # Tools reference
 
-30 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+31 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -79,6 +79,7 @@ Conventions
 | Tool | Purpose |
 |---|---|
 | `scenario_run` | Run a YAML/JSON play-test file or inline scenario; returns a pass/fail report with per-step timing, the failing value, game errors, and screenshots. `path` may be a folder (every `.yaml`/`.yml`/`.json` in it, name order) and `paths` a list; both return one summary (`Scenarios: 5/6 passed`) with details of failures, and attach only failure screenshots by default. `stop_on_failure` stops the batch early. `save_to` keeps the screenshots, `report.md` and `report.json` as files in a project folder ([evidence](scenarios.md#keeping-evidence)). See [scenarios.md](scenarios.md). |
+| `test_run` | Run the project's unit tests with [GUT](https://github.com/bitwes/Gut) or [GdUnit4](https://github.com/MikeSchulze/gdUnit4) (whichever is installed under `addons/`; `framework` picks one when both are) in a separate headless Godot process started by the editor. Returns `Tests (GUT, res://test): FAILED — 11/13 passed, 1 failed, 1 skipped`, each failing test with its message, and error lines from the log; `report: "full"` adds every test's status as JSON. `path` is a test folder or one test script (default `res://test` or `res://tests`; GUT uses `.gutconfig.json` when there is one), `test` (GUT only) runs the tests whose name contains the text, `timeout_ms` (default 120000) stops the run. Failing tests are a normal result, not a tool error. Use it for game logic; `scenario_run` for play. |
 
 ## Script errors in the running game
 

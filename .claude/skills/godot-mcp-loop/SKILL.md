@@ -84,10 +84,16 @@ earlier state. Patterns: [references/scenario-cookbook.md](references/scenario-c
 - For the final run add `save_to: "res://qa/evidence/<name>"`: screenshots, `report.md` and `report.json` stay as files
   that a person can check later. Name the folder in your report.
 
+Logic that has no screen (damage formulas, inventory rules, save data, level generation) is cheaper to check with unit
+tests. If the project has GUT or GdUnit4 in `addons/`, write tests in `res://test/` and run them with
+`test_run {path: "res://test"}` (GUT: `test: "test_jump"` runs matching tests only). It returns counts and every
+failing test with its message. Don't install a test framework unless asked.
+
 ## Before you report done
 
 - [ ] The game starts from the intended scene and `logs_read` shows no errors or warnings you introduced.
-- [ ] Every requested behaviour is covered by a passing scenario (or a `game_wait_for` / `record` check).
+- [ ] Every requested behaviour is covered by a passing scenario (or a `game_wait_for` / `record` check), and
+  `test_run` passes if the project has unit tests.
 - [ ] Screenshots of each screen were looked at, not just taken.
 - [ ] The scenario folder passes twice in a row; the last run saved its evidence with `save_to`.
 - [ ] The report lists what was checked, with measured values, and anything not verified.

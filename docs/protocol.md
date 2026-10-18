@@ -37,7 +37,8 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 - Requests may be answered out of order; match by `id`.
 - One client at a time. A new connection replaces the old one and must send `hello` again.
 - Methods: `ping`, `editor.status`, `project.info`, `scene.open|create|save|tree`, `node.add|delete|get|set`,
-  `script.read|write|attach`, `edit.undo`, `game.run|stop|query|input|wait_for`, `screenshot`, `logs.read`.
+  `script.read|write|attach`, `edit.undo`, `game.run|stop|query|input|wait_for`, `screenshot`, `logs.read`,
+  `tests.run`.
 
 ## Error codes
 
@@ -54,6 +55,8 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 | `TIMEOUT` | A wait or call exceeded its time limit. |
 | `ASSERTION_FAILED` | A one-time check (`wait_for` with `timeout_ms: 0`, scenario `assert`) is false; the message has the actual value. |
 | `RENDERING_UNAVAILABLE` | Screenshot requested while headless. |
+| `TEST_FRAMEWORK_NOT_FOUND` | `tests.run`: neither GUT nor GdUnit4 (or not the requested one) is installed. |
+| `BUSY` | `tests.run`: another test run is still going. |
 | `INTERNAL` | Bug — please report. |
 
 Client-side codes added by the MCP server: `GODOT_NOT_RUNNING`, `BAD_SESSION_FILE`, `NOT_CONNECTED`, `DISCONNECTED`.

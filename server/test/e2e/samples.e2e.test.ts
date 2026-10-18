@@ -51,6 +51,27 @@ describe.skipIf(!ENABLED)("e2e: sample games' scenarios", () => {
     }
   }, 600_000);
 
+});
+
+/**
+ * Movie Maker records at the project's viewport size and crops the picture to that aspect ratio. The shooter sets a
+ * 256×240 content size at runtime, so its recording gets a project with a matching 768×720 viewport (the repository's
+ * project is 1152×648 for the other games) — the setup docs/scenarios.md recommends.
+ */
+describe.skipIf(!ENABLED)("e2e: a sample game recorded as a movie", () => {
+  let h: GodotHarness;
+
+  beforeAll(async () => {
+    h = await startHeadlessEditor({
+      copyDirs: ["examples"],
+      repoProjectGodot: true,
+      projectGodotExtra: `${windowedGameSettings()}\n[display]\n\nwindow/size/viewport_width=768\nwindow/size/viewport_height=720\n`,
+    });
+  });
+  afterAll(async () => {
+    await h?.stop();
+  });
+
   it("shooter boss fight as a movie", async () => {
     const client = await connectClient(h.conn);
     try {
@@ -64,8 +85,10 @@ describe.skipIf(!ENABLED)("e2e: sample games' scenarios", () => {
       );
       const text = textOf(res);
       expect(text, text).toMatch(/: PASSED/);
-      expect(text).toMatch(/Movie: \d+ frames at 30 fps .*movie\.gif/);
-      keep("shooter-movie");
+      expect(text).toMatch(/Movie: \d+ frames at 30 fps .*movie\.gif 480×450/);
+      if (process.env.E2E_SAMPLES_OUT) {
+        cpSync(join(h.projectPath, "qa", "shooter-movie"), join(process.env.E2E_SAMPLES_OUT, "shooter-movie"), { recursive: true });
+      }
     } finally {
       await client.close();
     }

@@ -122,6 +122,10 @@ sheet. Things to know:
   timeouts get ten times more room. Prefer frame-based steps (`hold_frames`, `wait_frames`, `step`) for exact timing.
 - Recording needs a game window: remove `--headless` from *Main Run Args* (`RENDERING_UNAVAILABLE` otherwise). The
   editor itself may be headless. On a Linux server, run it under `xvfb-run`.
+- The movie has the project's window size (*Display › Window › Size › Viewport Width/Height*, or the window size
+  override with the `canvas_items` stretch mode). Godot crops each frame to that aspect ratio, so a game that sets a
+  different content size at runtime (e.g. 256×240 pixel art in a 1152×648 project) loses its top and bottom — set the
+  viewport size to the game's aspect (768×720 for 256×240).
 - GIFs are capped at 300 frames (longer recordings are thinned evenly) and `gif_fps` at 50 (browsers slow faster
   GIFs down).
 

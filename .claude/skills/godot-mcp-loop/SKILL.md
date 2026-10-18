@@ -91,7 +91,9 @@ earlier state. Patterns: [references/scenario-cookbook.md](references/scenario-c
   that a person can check later. Name the folder in your report.
 - To see or show motion (animation, a jump arc, a boss pattern), add `movie: {}` to a single-scenario run with
   `save_to`: you get `contact.png` (12 labelled frames in one image, also returned to you — look at it) and
-  `movie.gif` for the report or README. It needs a game window, not `--headless` in Main Run Args.
+  `movie.gif` for the report or README. It needs a game window, not `--headless` in Main Run Args. If the frames look
+  cut off at the top and bottom, the project's viewport size has another aspect ratio than the game picture
+  (docs/scenarios.md, "Recording a movie").
 
 Logic that has no screen (damage formulas, inventory rules, save data, level generation) is cheaper to check with unit
 tests. If the project has GUT or GdUnit4 in `addons/`, write tests in `res://test/` and run them with

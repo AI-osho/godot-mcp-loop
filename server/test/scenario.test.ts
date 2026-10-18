@@ -289,6 +289,40 @@ describe("runScenario", () => {
     expect(report.steps.map((x) => x.target)).toEqual(["pause", "step 10 frames", "Player.position:x == 20 (±0.5)", "resume"]);
   });
 
+  it("step may carry input, and conditions may read a method's return value (#6, #7)", async () => {
+    const { call, calls } = fakeBridge({
+      "game.pause": () => ({ paused: true }),
+      "game.step": () => ({ frames: 8 }),
+      "game.wait_for": () => ({ met: true, value: "field" }),
+    });
+    const s = parseScenario({
+      name: "stepping input",
+      steps: [
+        { pause: true },
+        { step: { frames: 8, tap: ["rpg_right"] } },
+        { assert: { node: ".", method: "summary", property: "state", op: "==", value: "field" } },
+        { wait_for: { node: ".", method: "turn", op: "increased", timeout_ms: 500 } },
+      ],
+    });
+    const report = await runScenario(s, call);
+    expect(report.passed).toBe(true);
+    expect(calls.find(([m]) => m === "game.step")![1]).toEqual({ frames: 8, tap: ["rpg_right"] });
+    expect(calls.filter(([m]) => m === "game.wait_for")[0]![1]).toMatchObject({ method: "summary", property: "state" });
+    expect(report.steps.map((x) => x.target)).toEqual([
+      "pause",
+      "step 8 frames (tap rpg_right)",
+      '.summary():state == "field"',
+      ".turn() increased",
+    ]);
+  });
+
+  it("rejects conditions with neither property nor method, and bad step input", () => {
+    expect(() => parseScenario({ name: "x", steps: [{ assert: { node: "P", op: "==", value: 1 } }] })).toThrow(/property/);
+    expect(() => parseScenario({ name: "x", steps: [{ step: { frames: 0 } }] })).toThrow();
+    expect(() => parseScenario({ name: "x", steps: [{ step: { frames: 2, hold: ["a"] } }] })).toThrow();
+    expect(parseScenario({ name: "x", steps: [{ input: { steps: [{ wait_frames: 2 }], record: { node: "P", properties: ["x"], per: "physics" } } }] })).toBeTruthy();
+  });
+
   it("keep_running leaves the game up", async () => {
     const { call, calls } = fakeBridge({});
     await runScenario(parseScenario({ name: "s", keep_running: true, steps: [{ wait_ms: 1 }] }), call);

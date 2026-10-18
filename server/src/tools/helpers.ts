@@ -6,10 +6,12 @@ export function jsonResult(data: unknown): CallToolResult {
 }
 
 /** Wraps a tool body so every failure becomes an actionable MCP error result. */
-export function safe<A>(fn: (args: A) => Promise<CallToolResult>): (args: A) => Promise<CallToolResult> {
-  return async (args: A) => {
+export function safe<A, E = unknown>(
+  fn: (args: A, extra: E) => Promise<CallToolResult>,
+): (args: A, extra: E) => Promise<CallToolResult> {
+  return async (args: A, extra: E) => {
     try {
-      return await fn(args);
+      return await fn(args, extra);
     } catch (e) {
       return toToolError(e) as CallToolResult;
     }

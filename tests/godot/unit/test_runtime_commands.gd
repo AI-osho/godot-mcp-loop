@@ -624,3 +624,190 @@ func test_pause_and_step_validate_params() -> void:
 	for bad in [0, 5000, "3"]:
 		var r: Dictionary = await _cmds.handle("step", {"frames": bad})
 		assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- #6 input applied inside game_step ----
+
+class InputProbe extends Node:
+	var polled := 0
+	var events := 0
+	var held_frames := 0
+	var frames := 0
+	var just_at := -1
+
+	func _physics_process(_delta: float) -> void:
+		frames += 1
+		if Input.is_action_just_pressed("mcp_test_jump"):
+			polled += 1
+			just_at = frames
+		if Input.is_action_pressed("mcp_test_jump"):
+			held_frames += 1
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event.is_action_pressed("mcp_test_jump"):
+			events += 1
+
+
+func test_step_tap_is_seen_as_just_pressed_and_as_an_event() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var probe := InputProbe.new()
+	_scene.add_child(probe)
+	await _cmds.handle("pause", {"paused": true})
+	var r: Dictionary = await _cmds.handle("step", {"frames": 3, "tap": ["mcp_test_jump"]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(probe.polled, 1, "is_action_just_pressed fires once")
+	assert_eq(probe.just_at, 1, "in the first stepped frame, not one frame late")
+	assert_eq(probe.events, 1, "_unhandled_input sees the press")
+	assert_eq(probe.held_frames, 1, "a tap is held for one frame")
+	assert_false(Input.is_action_pressed("mcp_test_jump"))
+
+
+func test_step_press_holds_until_release() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var probe := InputProbe.new()
+	_scene.add_child(probe)
+	await _cmds.handle("pause", {"paused": true})
+	await _cmds.handle("step", {"frames": 2})
+	var a: Dictionary = await _cmds.handle("step", {"frames": 4, "press": ["mcp_test_jump"]})
+	assert_eq(a.ok, true, JSON.stringify(a))
+	assert_eq(probe.polled, 1)
+	assert_eq(probe.just_at, 3, "pressed in the first frame of the second step")
+	assert_eq(probe.held_frames, 4)
+	assert_true(Input.is_action_pressed("mcp_test_jump"), "still held after the step")
+	await _cmds.handle("step", {"frames": 2})
+	assert_eq(probe.held_frames, 6)
+	assert_eq(probe.polled, 1, "holding is not a new press")
+	await _cmds.handle("step", {"frames": 1, "release": ["mcp_test_jump"]})
+	assert_eq(probe.held_frames, 6, "released before game nodes run")
+	assert_false(Input.is_action_pressed("mcp_test_jump"))
+
+
+func test_step_tap_in_a_single_frame_step() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var probe := InputProbe.new()
+	_scene.add_child(probe)
+	await _cmds.handle("pause", {"paused": true})
+	var r: Dictionary = await _cmds.handle("step", {"frames": 1, "tap": ["mcp_test_jump"]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(probe.polled, 1, "a one-frame step still delivers the tap")
+	assert_eq(probe.events, 1)
+	assert_false(Input.is_action_pressed("mcp_test_jump"))
+	r = await _cmds.handle("step", {"frames": 1, "tap": ["mcp_test_jump"]})
+	assert_eq(probe.polled, 2, "and the next one-frame tap is a new press")
+
+
+func test_step_release_frees_an_action_held_with_game_input() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var probe := InputProbe.new()
+	_scene.add_child(probe)
+	await _cmds.handle("pause", {"paused": true})
+	await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "press": true}]})
+	await _cmds.handle("step", {"frames": 2})
+	var held_polled := probe.polled
+	await _cmds.handle("step", {"frames": 1, "release": ["mcp_test_jump"]})
+	assert_false(Input.is_action_pressed("mcp_test_jump"), "step release frees a game_input press")
+	await _cmds.handle("step", {"frames": 2, "tap": ["mcp_test_jump"]})
+	assert_eq(probe.polled, held_polled + 1, "a tap after the release is a new press")
+
+
+func test_step_input_validation() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	for bad in [{"frames": 2, "tap": ["no_such_action"]}, {"frames": 2, "press": "mcp_test_jump"},
+			{"frames": 2, "press": ["mcp_test_jump"], "release": ["mcp_test_jump"]}]:
+		var r: Dictionary = await _cmds.handle("step", bad)
+		assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- #7 conditions on a method's return value ----
+
+class SummaryHost extends Node:
+	var count := 3
+
+	func summary() -> Dictionary:
+		return {"state": "play", "count": count, "items": [1, 2, 3]}
+
+	func current() -> int:
+		return count
+
+	func item(i: int) -> int:
+		return [10, 20, 30][i]
+
+	func spot(v: Vector2) -> float:
+		return v.x + v.y
+
+
+func test_condition_on_method_return_value() -> void:
+	_setup()
+	var host := SummaryHost.new()
+	host.name = "Host"
+	_scene.add_child(host)
+	var a: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "summary", "property": "state", "op": "==", "value": "play", "timeout_ms": 0})
+	assert_eq(a.ok, true, JSON.stringify(a))
+	assert_eq(a.result.value, "play")
+	var b: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "summary", "property": "items:2", "op": "==", "value": 3, "timeout_ms": 0})
+	assert_eq(b.ok, true, JSON.stringify(b))
+	var c: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "current", "op": ">=", "value": 3, "timeout_ms": 0})
+	assert_eq(c.ok, true, JSON.stringify(c))
+	tree.create_timer(0.05).timeout.connect(func() -> void: host.count = 9)
+	var d: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "summary", "property": "count", "op": "increased", "timeout_ms": 1000})
+	assert_eq(d.ok, true, JSON.stringify(d))
+	assert_eq(d.result.value, 9)
+
+
+func test_method_condition_arguments_are_converted_like_game_call() -> void:
+	_setup()
+	var host := SummaryHost.new()
+	host.name = "Host"
+	_scene.add_child(host)
+	var a: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "item", "args": [1.0], "op": "==", "value": 20, "timeout_ms": 0})
+	assert_eq(a.ok, true, JSON.stringify(a))
+	var b: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "spot", "args": [[1, 2]], "op": "==", "value": 3, "timeout_ms": 0})
+	assert_eq(b.ok, true, JSON.stringify(b))
+	var few: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "item", "op": "==", "value": 1, "timeout_ms": 0})
+	assert_error_code(few, Protocol.INVALID_PARAMS)
+	assert_string_contains(few.error.message, "takes 1 argument")
+
+
+func test_method_condition_errors() -> void:
+	_setup()
+	var host := SummaryHost.new()
+	host.name = "Host"
+	_scene.add_child(host)
+	var missing: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "nope", "op": "==", "value": 1, "timeout_ms": 0})
+	assert_error_code(missing, Protocol.INVALID_PARAMS)
+	var key: Dictionary = await _cmds.handle("wait_for", {"node": "Host", "method": "summary", "property": "nope", "op": "==", "value": 1, "timeout_ms": 0})
+	assert_error_code(key, Protocol.ASSERTION_FAILED)
+	assert_string_contains(key.error.message, "Key 'nope' not found")
+	assert_string_contains(key.error.message, "summary()")
+
+
+func test_inline_assert_accepts_a_method_condition() -> void:
+	_setup()
+	var host := SummaryHost.new()
+	host.name = "Host"
+	_scene.add_child(host)
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"assert": {"node": "Host", "method": "summary", "property": "count", "op": "==", "value": 3}}]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+
+
+# ---- #9 record once per physics frame ----
+
+func test_record_per_physics_samples_once_per_physics_frame() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_frames": 10}], "record": {"node": "Player", "properties": ["position:x"], "per": "physics"}})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.record.per, "physics")
+	var n: int = r.result.record.samples_total
+	assert_true(n >= 10 and n <= 13, "samples_total %d for 10 physics frames" % n)
+	assert_true(r.result.record.samples[1].has("frame"), "samples carry the physics frame index")
+
+
+func test_record_per_validation() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_frames": 1}], "record": {"node": "Player", "properties": ["position:x"], "per": "bogus"}})
+	assert_error_code(r, Protocol.INVALID_PARAMS)

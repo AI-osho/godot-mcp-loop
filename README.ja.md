@@ -84,7 +84,8 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 | <img src="docs/images/sample-rpg.png" width="200" alt="NES 風 RPG"> | [RPG『星剣のルカ』](examples/rpg/) — オリジナルの物語とキャラクターによる NES 風 RPG。タイトルとプロローグ、マス移動、NPC との会話、ランダムエンカウント、呪文・道具・逃走・レベルアップのある正面視点の戦闘、ボスとエンディング | DeepSeek V4.1 Flash（Claude Code） | 2,284 行 | 6 |
 
 `game_run {"scene": "res://examples/shooter/shooter.tscn"}` で起動でき（シーンを開いて F6 でも可）、
-`scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` で検証を再実行できます。
+`scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` で検証を再実行できます
+（フォルダを指定すると `{"path": "res://examples/shooter/scenarios"}` で全シナリオをまとめて実行します）。
 操作方法などの詳細: [examples/README.md](examples/README.md)（英語）
 
 ## ツール一覧

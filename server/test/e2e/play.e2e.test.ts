@@ -138,6 +138,25 @@ describe("e2e: run / observe loop", () => {
     expect(r.results).toHaveLength(2);
   });
 
+  it("game_step tap reaches is_action_just_pressed; method conditions; record per physics frame (#6, #7, #9)", async () => {
+    await ok("game_wait_for", { node: "Player", method: "is_on_floor", op: "==", value: true, timeout_ms: 3000 });
+    const j0 = (await ok("game_query", { node: "Player", properties: ["jumps"] })).properties.jumps;
+    await ok("game_pause", { paused: true });
+    await ok("game_step", { frames: 1, tap: ["jump"] }); // even a one-frame step delivers the press
+    const q = await ok("game_query", { node: "Player", properties: ["jumps", "velocity:y"] });
+    expect(q.properties.jumps).toBe(j0 + 1); // the player jumps on Input.is_action_just_pressed("jump")
+    expect(q.properties["velocity:y"]).toBeLessThan(0);
+    await ok("game_pause", { paused: false });
+    const landed = await ok("game_wait_for", { node: "Player", method: "get_position", property: "y", op: ">=", value: 370, timeout_ms: 3000 });
+    expect(landed.value).toBeGreaterThanOrEqual(370);
+    expect(await fails("game_wait_for", { node: "Player", method: "no_such_method", op: "==", value: 1 })).toContain("no method");
+    const r = await ok("game_input", { steps: [{ wait_frames: 20 }], record: { node: "Player", properties: ["position:x"], per: "physics" } });
+    expect(r.record.per).toBe("physics");
+    expect(r.record.samples_total).toBeGreaterThanOrEqual(20);
+    expect(r.record.samples_total).toBeLessThanOrEqual(23);
+    expect(r.record.samples[r.record.samples.length - 1].frame).toBeGreaterThanOrEqual(20);
+  });
+
   it("game_wait_for times out with the last value", async () => {
     const msg = await fails("game_wait_for", { node: "Player", property: "jumps", op: ">", value: 5, timeout_ms: 300 });
     expect(msg).toContain("TIMEOUT");

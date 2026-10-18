@@ -35,6 +35,18 @@ describe("e2e: scenario_run against the platformer", () => {
     expect((await h.conn.call("editor.status")) as any).toMatchObject({ playing: false });
   }, 60_000);
 
+  it("a folder runs every scenario in name order with one summary (#8)", async () => {
+    const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://examples/platformer/scenarios" } });
+    const content = res.content as Array<{ type: string; text?: string }>;
+    expect(res.isError).toBeFalsy();
+    const text = content[0]!.text!;
+    expect(text.split("\n")[0], text).toMatch(/^Scenarios: 1\/2 passed/);
+    expect(text.indexOf("intentional_failure.yaml")).toBeLessThan(text.indexOf("move_right.yaml"));
+    expect(text).toMatch(/Condition position:x > 600(\.0)? is false/);
+    expect(content.filter((c) => c.type === "image").length).toBe(WINDOWED ? 1 : 0); // only the failure screenshot
+    expect((await h.conn.call("editor.status")) as any).toMatchObject({ playing: false });
+  }, 120_000);
+
   it("intentional_failure.yaml fails at the assert with the observed value", async () => {
     const { summary, report } = await run({ path: "res://examples/platformer/scenarios/intentional_failure.yaml" });
     expect(summary).toMatch(/FAILED/);

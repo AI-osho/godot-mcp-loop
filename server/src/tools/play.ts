@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { dropUndefined, registerForwardTool, type ForwardToolDef } from "./forward.js";
 import { safe } from "./helpers.js";
-import { ConditionSchema, InputStepSchema, RecordSchema, stepsDurationMs } from "../input-steps.js";
+import { checkConditionTarget, ConditionSchema, InputStepSchema, RecordSchema, stepsDurationMs } from "../input-steps.js";
 import { JsonValue, PropertyMap } from "./schemas.js";
 
 const GRACE_MS = 10_000;
@@ -15,6 +15,8 @@ export function inputTimeoutMs(args: Record<string, unknown>): number {
   const steps = Array.isArray(args.steps) ? (args.steps as Array<Record<string, unknown>>) : [];
   return stepsDurationMs(steps) + GRACE_MS;
 }
+
+const ACTION_LIST = z.array(z.string().min(1)).max(16).optional();
 
 export const PLAY_TOOLS: ForwardToolDef[] = [
   {
@@ -101,9 +103,14 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     title: "Advance running game by N frames",
     description:
       "Run exactly N physics frames, then leave the game paused (pauses it first if needed). Deterministic: every pausable node " +
-      "gets the same N _physics_process calls, independent of call latency.",
+      "gets the same N _physics_process calls, independent of call latency. press/release/tap are sent just before the " +
+      "first stepped frame, like real input, so the game sees them in that frame as Input.is_action_just_pressed() and as " +
+      "input events (tap lasts one frame) — input sent with game_input while paused can't do that.",
     input: {
       frames: z.number().int().min(1).max(3600).describe("Physics frames to run (60 per second by default)."),
+      press: ACTION_LIST.describe("Actions to press before the first frame and keep held."),
+      release: ACTION_LIST.describe("Held actions to release before the first frame."),
+      tap: ACTION_LIST.describe("Actions to press for exactly the first frame."),
     },
     timeoutFor: (args) => Math.ceil((Number(args.frames ?? 1) * 2000) / 60) + GRACE_MS,
   },
@@ -127,12 +134,16 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     method: "game.wait_for",
     title: "Wait for game condition",
     description:
-      "Wait until a property of a node in the running game satisfies a condition, checked every frame. " +
+      "Wait until a property of a node in the running game (or the return value of one of its methods, e.g. " +
+      "{method: 'summary', property: 'state'}) satisfies a condition, checked every frame. " +
       "Fails with TIMEOUT and the last observed value. timeout_ms=0 checks once (an assertion). " +
       "op changed/increased/decreased waits for a change from the value seen when waiting starts.",
+    check: checkConditionTarget,
     input: {
       node: ConditionSchema.shape.node,
       property: ConditionSchema.shape.property,
+      method: ConditionSchema.shape.method,
+      args: ConditionSchema.shape.args,
       op: ConditionSchema.shape.op,
       value: JsonValue.optional().describe("Expected value: a number, boolean, string, null or array (vectors as [x, y]). Not used by changed/increased/decreased."),
       timeout_ms: z.number().int().min(0).max(120_000).optional().describe("Default 5000."),

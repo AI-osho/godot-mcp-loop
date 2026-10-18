@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BridgeError } from "./errors.js";
 import { JsonValue, PropertyMap } from "./tools/schemas.js";
 
 /** Shared by game_input / game_wait_for and scenario files. */
@@ -12,7 +13,16 @@ const GAME_NODE = "Node in the running game, relative to the running scene (e.g.
 
 export const ConditionSchema = z.object({
   node: z.string().describe(GAME_NODE),
-  property: z.string().describe("Property path, e.g. 'position:x', 'items:2', or a script variable."),
+  property: z
+    .string()
+    .optional()
+    .describe("Property path, e.g. 'position:x', 'items:2', or a script variable. With 'method': a path inside its return value (e.g. 'message')."),
+  method: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Check this method's return value instead of a property, e.g. a summary() test hook. Called on every check, so it should only read state."),
+  args: z.array(JsonValue).max(16).optional().describe("Arguments for 'method'."),
   op: z.enum([...COMPARE_OPS, ...RELATIVE_OPS]).describe("Comparison; changed/increased/decreased compare with the value when waiting starts."),
   value: JsonValue.optional().describe("Expected value (not used by changed/increased/decreased)."),
   timeout_ms: z.number().int().min(0).max(120_000).optional(),
@@ -75,6 +85,10 @@ export const RecordSchema = z
       .max(1000)
       .optional()
       .describe("Minimum time between samples. Default 0 (every frame) — keep it for exact min/max; only raise it for very long recordings."),
+    per: z
+      .enum(["process", "physics"])
+      .optional()
+      .describe("'process' (default) samples every rendered frame; 'physics' samples once per physics frame and adds the frame index — use it for logic in _physics_process."),
     mode: z
       .enum(["all", "changes"])
       .optional()
@@ -96,6 +110,13 @@ export const RecordSchema = z
     "Sample node properties during the sequence. Returns summary {min, max, min_at_ms, max_at_ms, first, last} over every recorded frame, " +
       "samples_total, and an evenly thinned list of at most 50 samples.",
   );
+
+/** A condition names what it reads: a property, or a method (optionally with a path into its result). */
+export function checkConditionTarget(c: { property?: unknown; method?: unknown }): void {
+  if (c.property === undefined && c.method === undefined) {
+    throw new BridgeError("INVALID_PARAMS", "A condition needs 'property' (or 'method' to check a method's return value).");
+  }
+}
 
 const framesMs = (n: unknown): number => Math.ceil((Number(n) * 1000 * 2) / 60);
 

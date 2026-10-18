@@ -5,13 +5,22 @@ import { COMPARE_OPS, InputStepSchema, RecordSchema, RELATIVE_OPS } from "../inp
 
 const Condition = z.object({
   node: z.string(),
-  property: z.string(),
+  property: z.string().optional(),
+  method: z.string().min(1).optional(),
+  args: z.array(z.unknown()).max(16).optional(),
   op: z.enum([...COMPARE_OPS, ...RELATIVE_OPS]),
   value: z.unknown().optional(),
   timeout_ms: z.number().int().min(0).max(120_000).optional(),
   tolerance: z.number().min(0).optional(),
   message: z.string().max(200).optional(),
 });
+
+const hasTarget = (c: { property?: string; method?: string }) => c.property !== undefined || c.method !== undefined;
+const NEEDS_TARGET = { message: "a condition needs 'property' (or 'method' to check a method's return value)" };
+
+const ACTIONS = z.array(z.string().min(1)).max(16).optional();
+/** step: N, or {frames, press?, release?, tap?} to send input just before the first stepped frame. */
+const StepSpec = z.object({ frames: z.number().int().min(1).max(3600), press: ACTIONS, release: ACTIONS, tap: ACTIONS }).strict();
 
 const InputStep = InputStepSchema.strict();
 
@@ -47,13 +56,13 @@ const CallStep = z
   .strict();
 
 const BaseStep = z.union([
-  z.object({ wait_for: Condition }).strict(),
-  z.object({ assert: Condition.omit({ timeout_ms: true }) }).strict(),
+  z.object({ wait_for: Condition.refine(hasTarget, NEEDS_TARGET) }).strict(),
+  z.object({ assert: Condition.omit({ timeout_ms: true }).refine(hasTarget, NEEDS_TARGET) }).strict(),
   z.object({ input: InputSpec }).strict(),
   z.object({ query: z.object({ node: z.string(), properties: z.array(z.string()).optional() }) }).strict(),
   z.object({ screenshot: z.string().min(1) }).strict(),
   z.object({ pause: z.boolean() }).strict(),
-  z.object({ step: z.number().int().min(1).max(3600) }).strict(),
+  z.object({ step: z.union([z.number().int().min(1).max(3600), StepSpec]) }).strict(),
   z.object({ wait_ms: z.number().int().min(0).max(60_000) }).strict(),
   z.object({ assert_no_errors: z.literal(true) }).strict(),
   SetStep,

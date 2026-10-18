@@ -52,6 +52,21 @@ static func read(obj: Object, path: String) -> Dictionary:
 	return {"ok": true, "value": value}
 
 
+## Walks "a:b:0" inside an arbitrary value; label names the value in errors
+## (e.g. "summary()"). An empty path returns the value itself.
+static func read_value(value: Variant, path: String, label: String) -> Dictionary:
+	if path == "":
+		return {"ok": true, "value": value}
+	var walked := label
+	for key in path.split(":"):
+		var step := _step(value, key, walked)
+		if not step.ok:
+			return step
+		value = step.value
+		walked += ":" + key
+	return {"ok": true, "value": value}
+
+
 static func _step(value: Variant, key: String, at: String) -> Dictionary:
 	var t := typeof(value)
 	if INDEXABLE.has(t):

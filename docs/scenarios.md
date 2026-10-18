@@ -24,8 +24,8 @@ steps:
 |---|---|---|
 | `wait_for: {node, property, op, value, timeout_ms?}` | Poll every frame until true (default 5 s). `op: changed/increased/decreased` needs no value. `tolerance` and `message` work on `wait_for` and `assert`. | Timeout — the report shows the last value. |
 | `pause: true` / `pause: false` | Pause or resume the game (game nodes stop; checks still work). | — |
-| `step: N` | Run exactly N physics frames, then stay paused — frame-exact tests without timing slack. | — |
-| `assert: {node, property, op, value}` | Check once, right now. | Condition false. |
+| `step: N` | Run exactly N physics frames, then stay paused — frame-exact tests without timing slack. `step: {frames, press?, release?, tap?}` sends input just before the first frame, so `Input.is_action_just_pressed()` sees it in that frame (`tap` = one frame). | — |
+| `assert: {node, property, op, value}` | Check once, right now. In `assert` and `wait_for`, `method` (with optional `args`) checks a method's return value instead; `property` is then a path inside it, e.g. `{node: ".", method: summary, property: message, op: contains, value: "LEVEL UP"}`. | Condition false. |
 | `input: <step>`, `[<step>, ...]` or `{steps, record?}` | Same steps as `game_input`, run inside the game in one call: `hold_frames`/`wait_frames` for frame-exact timing, inline `set`/`call`/`assert`/`wait_for`, and `record` with `expect` checks on min/max. | Unknown action/key, a failing inline step or record check. |
 | `query: {node, properties?}` | Record live values in the report. | Node/property missing. |
 | `screenshot: <label>` | Attach a screenshot. | Never — skipped when headless. |
@@ -37,6 +37,17 @@ steps:
 
 Operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`. Numbers compare with a 0.0001 tolerance; vectors compare
 element-wise (`[x, y]`); `>`/`<` need numbers — compare a component such as `position:x`.
+
+## Running a folder
+
+`scenario_run {path: "res://tests/scenarios"}` runs every `.yaml` / `.yml` / `.json` file directly in the folder, in
+name order (number them: `1_title.yaml`, `2_movement.yaml`, ...). `paths: [...]` runs a list in the given order. The
+result starts with one line such as `Scenarios: 5/6 passed (41.2 s)`, lists each file, then shows the full report of
+each failure. A file that can't be read or parsed is reported as a failure and the rest still run;
+`stop_on_failure: true` stops at the first one. Only failure screenshots are attached unless `include_screenshots: true`.
+The server sends a progress notification after each scenario, so clients that reset their timeout on progress can run
+long batches; others may stop at their tool timeout (for Codex, raise `tool_timeout_sec` in the server's config) — run
+large suites a folder at a time there.
 
 ## Report
 

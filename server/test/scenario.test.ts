@@ -237,6 +237,34 @@ describe("runScenario", () => {
     ).toThrowError(/too many/);
   });
 
+  it("input steps support frames, inline steps and record expectations, sent to the game in one call", async () => {
+    const { call, calls } = fakeBridge({ "game.input": () => ({ steps: 3, record: { summary: {} } }) });
+    const s = parseScenario({
+      name: "atomic",
+      steps: [
+        {
+          input: {
+            steps: [
+              { set: { node: "Player", properties: { "position:y": 230 } } },
+              { action: "up", hold_frames: 30 },
+              { assert: { node: "Player", property: "position:y", op: "<", value: 230 } },
+            ],
+            record: { node: "Player", properties: ["position:y"], expect: [{ property: "position:y", stat: "min", op: ">=", value: 24 }] },
+          },
+        },
+        { wait_for: { node: "Player", property: "position:y", op: "changed", timeout_ms: 500 } },
+      ],
+    });
+    const report = await runScenario(s, call);
+    const sent = calls.find(([m]) => m === "game.input")![1] as { steps: unknown[]; record: { expect: Array<{ stat: string }> } };
+    expect(sent.steps).toHaveLength(3);
+    expect(sent.record.expect[0]!.stat).toBe("min");
+    expect(report.steps[0]!.target).toBe(
+      'set Player: position:y = 230, up (hold 30 frames), assert Player.position:y < 230; record Player [position:y] expect min position:y >= 24',
+    );
+    expect(report.steps[1]!.target).toBe("Player.position:y changed");
+  });
+
   it("keep_running leaves the game up", async () => {
     const { call, calls } = fakeBridge({});
     await runScenario(parseScenario({ name: "s", keep_running: true, steps: [{ wait_ms: 1 }] }), call);

@@ -80,6 +80,36 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(jsonOf(called)).toEqual({ got: { node: "Game", method: "restart", args: [] } });
   });
 
+  it("game_input accepts frame timing, inline set/call/assert/wait_for steps and record expectations", async () => {
+    addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
+    const args = {
+      steps: [
+        { set: { node: "Game", properties: { score: 0 } } },
+        { action: "jump", hold_frames: 6, wait_frames: 2 },
+        { call: { node: "Game", method: "tick", args: [1] } },
+        { assert: { node: "Game", property: "score", op: ">=", value: 0 } },
+        { wait_for: { node: "Player", property: "position:y", op: "increased", timeout_ms: 1000 } },
+      ],
+      record: {
+        node: "Player",
+        properties: ["position:y"],
+        expect: [{ property: "position:y", stat: "min", op: "<", value: 300 }],
+      },
+    };
+    const res = await client.callTool({ name: "game_input", arguments: args });
+    expect(res.isError).toBeFalsy();
+    expect(jsonOf(res)).toEqual({ got: args });
+  });
+
+  it("game_wait_for accepts relative operators without a value", async () => {
+    addon.handlers.set("game.wait_for", (p) => ({ ok: true, result: { got: p } }));
+    const res = await client.callTool({
+      name: "game_wait_for",
+      arguments: { node: "Game", property: "score", op: "increased", timeout_ms: 500 },
+    });
+    expect(res.isError).toBeFalsy();
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

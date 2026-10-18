@@ -1,31 +1,24 @@
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { BridgeError } from "../errors.js";
-
-const Op = z.enum(["==", "!=", ">", ">=", "<", "<=", "contains"]);
+import { COMPARE_OPS, InputStepSchema, RecordSchema, RELATIVE_OPS } from "../input-steps.js";
 
 const Condition = z.object({
   node: z.string(),
   property: z.string(),
-  op: Op,
-  value: z.unknown(),
+  op: z.enum([...COMPARE_OPS, ...RELATIVE_OPS]),
+  value: z.unknown().optional(),
   timeout_ms: z.number().int().min(0).max(120_000).optional(),
 });
 
-const InputStep = z
-  .object({
-    action: z.string().optional(),
-    hold_ms: z.number().int().min(0).optional(),
-    press: z.boolean().optional(),
-    release: z.boolean().optional(),
-    strength: z.number().min(0).max(1).optional(),
-    key: z.string().optional(),
-    mouse_move: z.tuple([z.number(), z.number()]).optional(),
-    mouse_click: z.tuple([z.number(), z.number()]).optional(),
-    button: z.enum(["left", "right"]).optional(),
-    wait_ms: z.number().int().min(0).optional(),
-  })
-  .strict();
+const InputStep = InputStepSchema.strict();
+
+/** input: a step, a list of steps, or {steps, record} (all run inside the game in one call). */
+const InputSpec = z.union([
+  InputStep,
+  z.array(InputStep).min(1),
+  z.object({ steps: z.array(InputStep).min(1), record: RecordSchema.optional() }).strict(),
+]);
 
 const SetStep = z
   .object({
@@ -54,7 +47,7 @@ const CallStep = z
 const BaseStep = z.union([
   z.object({ wait_for: Condition }).strict(),
   z.object({ assert: Condition.omit({ timeout_ms: true }) }).strict(),
-  z.object({ input: z.union([InputStep, z.array(InputStep).min(1)]) }).strict(),
+  z.object({ input: InputSpec }).strict(),
   z.object({ query: z.object({ node: z.string(), properties: z.array(z.string()).optional() }) }).strict(),
   z.object({ screenshot: z.string().min(1) }).strict(),
   z.object({ wait_ms: z.number().int().min(0).max(60_000) }).strict(),

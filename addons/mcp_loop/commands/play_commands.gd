@@ -137,11 +137,34 @@ func _call_method(p: Dictionary) -> Dictionary:
 
 
 func _input(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "input", p, steps_duration_ms(p.get("steps", [])) + RUNTIME_GRACE_MS)
+
+
+## Upper bound for how long input steps take (frames at 60 Hz with 2x headroom,
+## inline waits and calls at their timeouts). Mirrors the server's stepsDurationMs.
+static func steps_duration_ms(steps: Variant) -> int:
+	if typeof(steps) != TYPE_ARRAY:
+		return 0
 	var total := 0
-	for s in p.get("steps", []):
-		if typeof(s) == TYPE_DICTIONARY:
-			total += int(s.get("hold_ms", 100)) + int(s.get("wait_ms", 0))
-	return await dbg.call_runtime(tree, "input", p, total + RUNTIME_GRACE_MS)
+	for s in steps:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
+		var holds: bool = (s.has("action") and not s.get("press", false) and not s.get("release", false)) or s.has("key") or s.has("mouse_click")
+		if holds:
+			total += _frames_ms(s.hold_frames) if s.has("hold_frames") else int(s.get("hold_ms", 100))
+		if s.has("wait_frames"):
+			total += _frames_ms(s.wait_frames)
+		elif s.has("wait_ms"):
+			total += int(s.wait_ms)
+		if typeof(s.get("wait_for")) == TYPE_DICTIONARY:
+			total += int(s.wait_for.get("timeout_ms", 5000))
+		if typeof(s.get("call")) == TYPE_DICTIONARY:
+			total += int(s.call.get("timeout_ms", 10000))
+	return total
+
+
+static func _frames_ms(n: Variant) -> int:
+	return ceili(float(n) * 1000.0 * 2.0 / 60.0)
 
 
 func _screenshot(p: Dictionary) -> Dictionary:

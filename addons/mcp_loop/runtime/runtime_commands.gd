@@ -166,16 +166,25 @@ func _call_method(p: Dictionary) -> Dictionary:
 
 # ------------------------------------------------------------------ wait_for
 
+const RELATIVE_OPS := ["changed", "increased", "decreased"]
+
+
 func _wait_for(p: Dictionary) -> Dictionary:
 	var path := String(p.get("node", ""))
 	var prop := String(p.get("property", ""))
 	var op := String(p.get("op", "=="))
 	var expected: Variant = p.get("value")
 	var timeout_ms := clampi(int(p.get("timeout_ms", 5000)), 0, MAX_WAIT_MS)
+	var relative := RELATIVE_OPS.has(op)
+	if relative and timeout_ms == 0:
+		return Protocol.err(Protocol.INVALID_PARAMS,
+			"'%s' compares with the value when waiting starts, so it needs timeout_ms > 0." % op)
 	var start := Time.get_ticks_msec()
 	var last: Variant = null
+	var baseline: Variant = null
+	var has_baseline := false
 	var read_error := ""
-	var condition := "%s %s %s" % [prop, op, JSON.stringify(expected)]
+	var condition := "%s %s" % [prop, op] if relative else "%s %s %s" % [prop, op, JSON.stringify(expected)]
 	while true:
 		var node := _resolve(path)
 		if node != null:
@@ -186,11 +195,28 @@ func _wait_for(p: Dictionary) -> Dictionary:
 			read_error = "" if got.ok else got.error
 			if got.ok:
 				last = Codec.encode(got.value)
-				var r := Compare.evaluate(last, op, expected)
-				if not r.ok:
-					return Protocol.err(Protocol.INVALID_PARAMS, r.error)
-				if r.result:
-					return Protocol.ok({"met": true, "value": last, "elapsed_ms": Time.get_ticks_msec() - start})
+				if relative:
+					if not has_baseline:
+						baseline = last
+						has_baseline = true
+					else:
+						var met := false
+						if op == "changed":
+							var same := Compare.evaluate(last, "==", baseline)
+							met = (not same.ok) or (not same.result)
+						else:
+							var c := Compare.evaluate(last, ">" if op == "increased" else "<", baseline)
+							if not c.ok:
+								return Protocol.err(Protocol.INVALID_PARAMS, c.error)
+							met = c.result
+						if met:
+							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": Time.get_ticks_msec() - start})
+				else:
+					var r := Compare.evaluate(last, op, expected)
+					if not r.ok:
+						return Protocol.err(Protocol.INVALID_PARAMS, r.error)
+					if r.result:
+						return Protocol.ok({"met": true, "value": last, "elapsed_ms": Time.get_ticks_msec() - start})
 		var elapsed := Time.get_ticks_msec() - start
 		if elapsed >= timeout_ms:
 			var code := Protocol.ASSERTION_FAILED if timeout_ms == 0 else Protocol.TIMEOUT
@@ -205,8 +231,9 @@ func _wait_for(p: Dictionary) -> Dictionary:
 				return Protocol.err(code,
 					"Condition %s is false. Actual value: %s" % [condition, JSON.stringify(last)],
 					"The condition was checked once. If it becomes true later, wait for it with a timeout.")
+			var base_note := " (baseline %s)" % JSON.stringify(baseline) if relative else ""
 			return Protocol.err(code,
-				"Condition %s not met within %d ms. Last value: %s" % [condition, timeout_ms, JSON.stringify(last)],
+				"Condition %s not met within %d ms%s. Last value: %s" % [condition, timeout_ms, base_note, JSON.stringify(last)],
 				"Inspect the state with game_query or screenshot, or raise timeout_ms.")
 		await _tree.process_frame
 	return Protocol.err(Protocol.INTERNAL, "unreachable")
@@ -214,28 +241,52 @@ func _wait_for(p: Dictionary) -> Dictionary:
 
 # ------------------------------------------------------------------ input
 
+const MAX_STEP_FRAMES := 3600
+const INLINE_KINDS := ["set", "call", "assert", "wait_for"]
+
+
 func _validate_steps(steps: Array) -> String:
 	if steps.size() > MAX_STEPS:
 		return "At most %d steps per call (got %d)." % [MAX_STEPS, steps.size()]
 	for i in steps.size():
 		var s: Variant = steps[i]
+		var n := i + 1
 		if typeof(s) != TYPE_DICTIONARY:
-			return "Step %d must be an object." % i
+			return "Step %d must be an object." % n
 		for k in ["hold_ms", "wait_ms"]:
 			if s.has(k) and (int(s[k]) < 0 or int(s[k]) > MAX_STEP_MS):
-				return "Step %d: %s must be between 0 and %d." % [i, k, MAX_STEP_MS]
-		if s.has("action"):
+				return "Step %d: %s must be between 0 and %d." % [n, k, MAX_STEP_MS]
+		for k in ["hold_frames", "wait_frames"]:
+			if s.has(k) and (typeof(s[k]) not in [TYPE_INT, TYPE_FLOAT] or int(s[k]) < 0 or int(s[k]) > MAX_STEP_FRAMES):
+				return "Step %d: %s must be between 0 and %d." % [n, k, MAX_STEP_FRAMES]
+		if s.has("hold_ms") and s.has("hold_frames"):
+			return "Step %d: give hold_ms or hold_frames, not both." % n
+		if s.has("wait_ms") and s.has("wait_frames"):
+			return "Step %d: give wait_ms or wait_frames, not both." % n
+		var inline: Array = INLINE_KINDS.filter(func(k: String) -> bool: return s.has(k))
+		if not inline.is_empty():
+			var kind: String = inline[0]
+			var body: Variant = s[kind]
+			if inline.size() > 1 or typeof(body) != TYPE_DICTIONARY:
+				return "Step %d: '%s' must be an object, alone in its step." % [n, kind]
+			if kind == "set" and typeof(body.get("properties")) != TYPE_DICTIONARY:
+				return "Step %d: set needs {node, properties: {path: value}}." % n
+			if kind == "call" and typeof(body.get("method")) != TYPE_STRING:
+				return "Step %d: call needs {node, method, args?}." % n
+			if (kind == "assert" or kind == "wait_for") and (typeof(body.get("property")) != TYPE_STRING or typeof(body.get("op")) != TYPE_STRING):
+				return "Step %d: %s needs {node, property, op, value}." % [n, kind]
+		elif s.has("action"):
 			if not InputMap.has_action(StringName(s.action)):
-				return "Step %d: unknown input action '%s'. Use project_info to list actions." % [i, s.action]
+				return "Step %d: unknown input action '%s'. Use project_info to list actions." % [n, s.action]
 		elif s.has("key"):
 			if OS.find_keycode_from_string(String(s.key)) == KEY_NONE:
-				return "Step %d: unknown key '%s' (examples: 'Space', 'A', 'Escape', 'Left')." % [i, s.key]
+				return "Step %d: unknown key '%s' (examples: 'Space', 'A', 'Escape', 'Left')." % [n, s.key]
 		elif s.has("mouse_click") or s.has("mouse_move"):
 			var pos: Variant = s.get("mouse_click", s.get("mouse_move"))
 			if typeof(pos) != TYPE_ARRAY or pos.size() != 2:
-				return "Step %d: mouse position must be [x, y]." % i
-		elif not s.has("wait_ms"):
-			return "Step %d: expected one of action, key, mouse_click, mouse_move, wait_ms." % i
+				return "Step %d: mouse position must be [x, y]." % n
+		elif not s.has("wait_ms") and not s.has("wait_frames"):
+			return "Step %d: expected one of action, key, mouse_click, mouse_move, wait_ms, wait_frames, set, call, assert, wait_for." % n
 	return ""
 
 
@@ -260,13 +311,40 @@ func _input(p: Dictionary) -> Dictionary:
 		recorder.start = start
 		_record_sample(recorder)
 		_tree.process_frame.connect(tick)
-	await _run_steps(steps)
-	var out := {"steps": steps.size(), "duration_ms": Time.get_ticks_msec() - start}
+	var run: Dictionary = await _run_steps(steps)
 	if not recorder.is_empty():
 		_tree.process_frame.disconnect(tick)
+	if not run.ok:
+		return run
+	var out := {"steps": steps.size(), "duration_ms": Time.get_ticks_msec() - start}
+	if not run.results.is_empty():
+		out["results"] = run.results
+	if not recorder.is_empty():
 		_record_sample(recorder, true)
-		out["record"] = _record_result(recorder)
+		var rec := _record_result(recorder)
+		out["record"] = rec
+		var failed := _check_expectations(recorder.expect, rec.summary)
+		if failed != "":
+			return Protocol.err(Protocol.ASSERTION_FAILED, "Recording check failed: " + failed,
+				"Summary: " + JSON.stringify(rec.summary).left(400))
 	return Protocol.ok(out)
+
+
+const EXPECT_STATS := ["min", "max", "first", "last", "min_at_ms", "max_at_ms"]
+
+
+func _check_expectations(expect: Array, summary: Dictionary) -> String:
+	var problems: Array = []
+	for e in expect:
+		var entry: Dictionary = summary.get(e.property, {})
+		if not entry.has(e.stat):
+			problems.append("%s of %s is not available (min/max need numeric values)" % [e.stat, e.property])
+			continue
+		var actual: Variant = entry[e.stat]
+		var r := Compare.evaluate(actual, e.op, e.value)
+		if not r.ok or not r.result:
+			problems.append("%s of %s %s %s is false (actual %s)" % [e.stat, e.property, e.op, JSON.stringify(e.value), JSON.stringify(actual)])
+	return "; ".join(problems)
 
 
 # ------------------------------------------------------------------ record
@@ -293,10 +371,20 @@ func _make_recorder(spec: Variant) -> Dictionary:
 	var mode := String(spec.get("mode", "all"))
 	if mode != "all" and mode != "changes":
 		return Protocol.err(Protocol.INVALID_PARAMS, "record.mode must be 'all' (every frame) or 'changes' (only when a value changes).")
+	var expect: Variant = spec.get("expect", [])
+	if typeof(expect) != TYPE_ARRAY:
+		return Protocol.err(Protocol.INVALID_PARAMS, "record.expect must be a list of {property, stat, op, value}.")
+	for e in expect:
+		if typeof(e) != TYPE_DICTIONARY or not props.has(e.get("property")):
+			return Protocol.err(Protocol.INVALID_PARAMS, "record.expect: 'property' must be one of the recorded properties %s." % str(props))
+		if not EXPECT_STATS.has(e.get("stat")):
+			return Protocol.err(Protocol.INVALID_PARAMS, "record.expect: 'stat' must be one of %s." % ", ".join(EXPECT_STATS))
+		if not Compare.OPS.has(e.get("op")):
+			return Protocol.err(Protocol.INVALID_PARAMS, "record.expect: 'op' must be one of %s." % ", ".join(Compare.OPS))
 	var rec := {
 		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
 		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000), "changes_only": mode == "changes",
-		"samples": [], "total": 0, "frames": 0, "last_t": -1000000, "start": 0,
+		"samples": [], "total": 0, "frames": 0, "last_t": -1000000, "start": 0, "expect": expect,
 	}
 	return Protocol.ok(rec)
 
@@ -360,23 +448,47 @@ func _record_result(rec: Dictionary) -> Dictionary:
 		"note": "" if is_instance_valid(rec.node) else "The node was freed during recording."}
 
 
-func _run_steps(steps: Array) -> void:
-	for s in steps:
-		if s.has("action"):
+## Runs input steps in order with real timing. Inline set/call/assert/wait_for
+## steps run inside the game between inputs, so no time passes between them.
+## On a failing step, held input is released and the rest is skipped.
+func _run_steps(steps: Array) -> Dictionary:
+	var results: Array = []
+	var held := {}
+	for i in steps.size():
+		var s: Dictionary = steps[i]
+		var kind := ""
+		var r: Dictionary = {}
+		if s.has("set"):
+			kind = "set"
+			r = _set_properties(s.set)
+		elif s.has("call"):
+			kind = "call"
+			r = await _call_method(s.call)
+		elif s.has("assert"):
+			kind = "assert"
+			var a: Dictionary = s.assert.duplicate()
+			a["timeout_ms"] = 0
+			r = await _wait_for(a)
+		elif s.has("wait_for"):
+			kind = "wait_for"
+			r = await _wait_for(s.wait_for)
+		elif s.has("action"):
 			var action := StringName(s.action)
 			var strength := float(s.get("strength", 1.0))
 			if s.get("release", false):
 				_send_action(action, false, 0.0)
+				held.erase(action)
 			elif s.get("press", false):
 				_send_action(action, true, strength)
+				held[action] = true
 			else:
 				_send_action(action, true, strength)
-				await _sleep(int(s.get("hold_ms", 100)))
+				await _hold(s, 100)
 				_send_action(action, false, 0.0)
 		elif s.has("key"):
 			var code := OS.find_keycode_from_string(String(s.key))
 			_send_key(code, true)
-			await _sleep(int(s.get("hold_ms", 50)))
+			await _hold(s, 50)
 			_send_key(code, false)
 		elif s.has("mouse_move"):
 			_send_motion(Vector2(s.mouse_move[0], s.mouse_move[1]))
@@ -385,10 +497,33 @@ func _run_steps(steps: Array) -> void:
 			var button := MOUSE_BUTTON_RIGHT if String(s.get("button", "left")) == "right" else MOUSE_BUTTON_LEFT
 			_send_motion(pos)
 			_send_click(pos, button, true)
-			await _sleep(int(s.get("hold_ms", 50)))
+			await _hold(s, 50)
 			_send_click(pos, button, false)
-		if s.has("wait_ms"):
+		if kind != "":
+			if not r.ok:
+				for action in held:
+					_send_action(action, false, 0.0)
+				return Protocol.err(r.error.code, "step %d (%s): %s" % [i + 1, kind, r.error.message], r.error.get("hint", ""))
+			results.append({"index": i + 1, "kind": kind, "result": r.result})
+		if s.has("wait_frames"):
+			await _physics_frames(int(s.wait_frames))
+		elif s.has("wait_ms"):
 			await _sleep(int(s.wait_ms))
+	return {"ok": true, "results": results}
+
+
+func _hold(s: Dictionary, default_ms: int) -> void:
+	if s.has("hold_frames"):
+		await _physics_frames(int(s.hold_frames))
+	else:
+		await _sleep(int(s.get("hold_ms", default_ms)))
+
+
+## Physics ticks are what game logic in _physics_process counts, independent of
+## rendering hitches or a throttled window.
+func _physics_frames(n: int) -> void:
+	for i in n:
+		await _tree.physics_frame
 
 
 func _sleep(ms: int) -> void:

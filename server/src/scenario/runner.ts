@@ -1,4 +1,5 @@
 import { BridgeError } from "../errors.js";
+import { stepsDurationMs } from "../input-steps.js";
 import type { Scenario, ScenarioStep } from "./schema.js";
 
 export type BridgeCall = (method: string, params?: Record<string, unknown>, opt?: { timeoutMs?: number }) => Promise<unknown>;
@@ -40,28 +41,63 @@ function kindOf(step: ScenarioStep): string {
   return Object.keys(step)[0] ?? "unknown";
 }
 
+function describeCondition(c: { node: string; property: string; op: string; value?: unknown }): string {
+  return `${c.node}.${c.property} ${c.op}${c.value === undefined ? "" : ` ${JSON.stringify(c.value)}`}`;
+}
+
 function describeInput(x: Record<string, unknown>): string {
+  if (x.set) {
+    const st = x.set as { node?: string; properties: Record<string, unknown> };
+    return `set ${st.node ?? "."}: ${Object.entries(st.properties).map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(", ")}`;
+  }
+  if (x.call) {
+    const c = x.call as { node?: string; method: string; args?: unknown[] };
+    return `call ${c.node ?? "."}.${c.method}(${(c.args ?? []).map((a) => JSON.stringify(a)).join(", ")})`;
+  }
+  if (x.assert) return `assert ${describeCondition(x.assert as never)}`;
+  if (x.wait_for) return `wait_for ${describeCondition(x.wait_for as never)}`;
+  const hold = x.hold_frames !== undefined ? `${x.hold_frames} frames` : `${x.hold_ms ?? 100} ms`;
   if (typeof x.action === "string") {
     if (x.press) return `${x.action} press`;
     if (x.release) return `${x.action} release`;
-    return `${x.action} (hold ${x.hold_ms ?? 100} ms)`;
+    return `${x.action} (hold ${hold})`;
   }
   if (typeof x.key === "string") return `key ${x.key}`;
   if (x.mouse_click !== undefined) return `click ${JSON.stringify(x.mouse_click)}`;
   if (x.mouse_move !== undefined) return `move ${JSON.stringify(x.mouse_move)}`;
+  if (x.wait_frames !== undefined) return `wait ${x.wait_frames} frames`;
   if (x.wait_ms !== undefined) return `wait ${x.wait_ms} ms`;
   return JSON.stringify(x);
+}
+
+type InputSpec = { steps: Array<Record<string, unknown>>; record?: Record<string, unknown> };
+
+/** Normalises the three accepted input forms to {steps, record?}. */
+export function normalizeInput(input: unknown): InputSpec {
+  if (Array.isArray(input)) return { steps: input as Array<Record<string, unknown>> };
+  const obj = input as Record<string, unknown>;
+  if (Array.isArray(obj.steps)) {
+    const spec: InputSpec = { steps: obj.steps as Array<Record<string, unknown>> };
+    if (obj.record !== undefined) spec.record = obj.record as Record<string, unknown>;
+    return spec;
+  }
+  return { steps: [obj] };
 }
 
 /** One-line description of what a step checks or does, shown next to its result. */
 export function describeTarget(step: ScenarioStep): string | undefined {
   if ("wait_for" in step || "assert" in step) {
-    const c = "wait_for" in step ? step.wait_for : step.assert;
-    return `${c.node}.${c.property} ${c.op} ${JSON.stringify(c.value)}`;
+    return describeCondition("wait_for" in step ? step.wait_for : step.assert);
   }
   if ("input" in step) {
-    const list = (Array.isArray(step.input) ? step.input : [step.input]) as Array<Record<string, unknown>>;
-    return list.map(describeInput).join(", ");
+    const spec = normalizeInput(step.input);
+    let text = spec.steps.map(describeInput).join(", ");
+    if (spec.record) {
+      const rec = spec.record as { node: string; properties: string[]; expect?: Array<{ property: string; stat: string; op: string; value: unknown }> };
+      text += `; record ${rec.node} [${rec.properties.join(", ")}]`;
+      if (rec.expect?.length) text += ` expect ${rec.expect.map((e) => `${e.stat} ${e.property} ${e.op} ${JSON.stringify(e.value)}`).join(", ")}`;
+    }
+    return text;
   }
   if ("query" in step) {
     const props = step.query.properties;
@@ -179,9 +215,8 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
   } else if ("assert" in step) {
     res.detail = await call("game.wait_for", { ...step.assert, timeout_ms: 0 }, { timeoutMs: GRACE_MS });
   } else if ("input" in step) {
-    const steps = Array.isArray(step.input) ? step.input : [step.input];
-    const total = steps.reduce((n, x) => n + (x.hold_ms ?? 100) + (x.wait_ms ?? 0), 0);
-    res.detail = await call("game.input", { steps }, { timeoutMs: total + GRACE_MS });
+    const spec = normalizeInput(step.input);
+    res.detail = await call("game.input", spec, { timeoutMs: stepsDurationMs(spec.steps) + GRACE_MS });
   } else if ("query" in step) {
     res.detail = await call("game.query", step.query);
   } else if ("screenshot" in step) {

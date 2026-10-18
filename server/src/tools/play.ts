@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { dropUndefined, registerForwardTool, type ForwardToolDef } from "./forward.js";
 import { safe } from "./helpers.js";
+import { ConditionSchema, InputStepSchema, RecordSchema, stepsDurationMs } from "../input-steps.js";
 import { JsonValue, PropertyMap } from "./schemas.js";
 
 const GRACE_MS = 10_000;
@@ -10,26 +11,9 @@ const GRACE_MS = 10_000;
 const GAME_NODE =
   "Node in the running game: relative to the running scene (e.g. 'Player') or absolute (e.g. '/root/Main/Player').";
 
-const Step = z
-  .object({
-    action: z.string().optional().describe("Input action name from the project's Input Map, e.g. 'move_right'."),
-    hold_ms: z.number().int().min(0).max(60_000).optional().describe("How long to hold the action/key/button (default 100 ms for actions)."),
-    press: z.boolean().optional().describe("With 'action': press and keep it held (no release)."),
-    release: z.boolean().optional().describe("With 'action': release a previously pressed action."),
-    strength: z.number().min(0).max(1).optional().describe("Analog strength for actions (default 1)."),
-    key: z.string().optional().describe("Physical key name, e.g. 'Space', 'A', 'Escape', 'Left'."),
-    mouse_move: z.tuple([z.number(), z.number()]).optional().describe("Move the mouse to [x, y] (viewport pixels)."),
-    mouse_click: z.tuple([z.number(), z.number()]).optional().describe("Click at [x, y] (viewport pixels)."),
-    button: z.enum(["left", "right"]).optional().describe("Mouse button for mouse_click (default left)."),
-    wait_ms: z.number().int().min(0).max(60_000).optional().describe("Wait after this step (or alone: just wait)."),
-  })
-  .describe("One input step. Use exactly one of action, key, mouse_move, mouse_click, or only wait_ms.");
-
 export function inputTimeoutMs(args: Record<string, unknown>): number {
   const steps = Array.isArray(args.steps) ? (args.steps as Array<Record<string, unknown>>) : [];
-  let total = 0;
-  for (const s of steps) total += Number(s.hold_ms ?? 100) + Number(s.wait_ms ?? 0);
-  return total + GRACE_MS;
+  return stepsDurationMs(steps) + GRACE_MS;
 }
 
 export const PLAY_TOOLS: ForwardToolDef[] = [
@@ -73,34 +57,16 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     method: "game.input",
     title: "Send input to game",
     description:
-      "Play a sequence of input steps in the running game (actions, keys, mouse), in order and with real timing. " +
+      "Play a sequence of input steps in the running game (actions, keys, mouse), in order and with real timing; " +
+      "hold_frames/wait_frames count physics frames for deterministic timing. Inline set/call/assert/wait_for steps run inside the game " +
+      "between inputs with no time passing, so one call can set up, act and check (a failing step aborts and releases held input). " +
       "Returns when the whole sequence has finished. To observe something brief (e.g. the top of a jump), pass " +
       "'record': the properties are sampled every frame while the steps run, and min/max (with times) are returned. " +
       "min/max are computed from every recorded frame (up to 3000 frames); only the returned sample list is thinned " +
       "to 50 entries, so interval_ms is not needed for accuracy. Add a final {wait_ms} step to keep recording after the input ends.",
     input: {
-      steps: z.array(Step).min(1).max(200),
-      record: z
-        .object({
-          node: z.string().describe(GAME_NODE),
-          properties: z.array(z.string()).min(1).max(8).describe("Properties to sample, e.g. ['position:y']."),
-          interval_ms: z
-            .number()
-            .int()
-            .min(0)
-            .max(1000)
-            .optional()
-            .describe("Minimum time between samples. Default 0 (every frame) — keep it for exact min/max; only raise it for very long recordings."),
-          mode: z
-            .enum(["all", "changes"])
-            .optional()
-            .describe("'all' (default) keeps every frame; 'changes' keeps a sample only when a value differs from the previous one."),
-        })
-        .optional()
-        .describe(
-          "Sample node properties during the sequence. Returns summary {min, max, min_at_ms, max_at_ms, first, last} over every recorded frame, " +
-            "samples_total, and an evenly thinned list of at most 50 samples.",
-        ),
+      steps: z.array(InputStepSchema).min(1).max(200),
+      record: RecordSchema.optional(),
     },
     timeoutFor: inputTimeoutMs,
   },
@@ -138,12 +104,13 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     title: "Wait for game condition",
     description:
       "Wait until a property of a node in the running game satisfies a condition, checked every frame. " +
-      "Fails with TIMEOUT and the last observed value. timeout_ms=0 checks once (an assertion).",
+      "Fails with TIMEOUT and the last observed value. timeout_ms=0 checks once (an assertion). " +
+      "op changed/increased/decreased waits for a change from the value seen when waiting starts.",
     input: {
-      node: z.string().describe(GAME_NODE),
-      property: z.string().describe("Property name, e.g. 'position:x', 'visible', or a script variable."),
-      op: z.enum(["==", "!=", ">", ">=", "<", "<=", "contains"]).describe("Comparison operator."),
-      value: JsonValue.describe("Expected value: a number, boolean, string, null or array (vectors as [x, y]). Numbers compare with a small tolerance."),
+      node: ConditionSchema.shape.node,
+      property: ConditionSchema.shape.property,
+      op: ConditionSchema.shape.op,
+      value: JsonValue.optional().describe("Expected value: a number, boolean, string, null or array (vectors as [x, y]). Not used by changed/increased/decreased."),
       timeout_ms: z.number().int().min(0).max(120_000).optional().describe("Default 5000."),
     },
     readOnly: true,

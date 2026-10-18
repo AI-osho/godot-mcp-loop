@@ -397,3 +397,149 @@ func test_input_record_rejects_unknown_mode() -> void:
 	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}],
 		"record": {"node": "Player", "properties": ["position"], "mode": "sometimes"}})
 	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- #26 relative waits: changed / increased / decreased (vs the value when waiting starts) ----
+
+func test_wait_for_increased_relative_to_start() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.1).timeout.connect(func() -> void: player.position.x = 50)
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "increased", "timeout_ms": 2000})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(r.result.value, 50.0)
+	assert_eq(r.result.baseline, 10.0)
+
+
+func test_wait_for_changed_and_decreased() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.05).timeout.connect(func() -> void: player.position.y = 5)
+	var changed: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position", "op": "changed", "timeout_ms": 2000})
+	assert_eq(changed.ok, true, JSON.stringify(changed))
+	tree.create_timer(0.05).timeout.connect(func() -> void: player.position.y = 1)
+	var dec: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:y", "op": "decreased", "timeout_ms": 2000})
+	assert_eq(dec.ok, true, JSON.stringify(dec))
+
+
+func test_relative_op_times_out_with_baseline() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "increased", "timeout_ms": 100})
+	assert_error_code(r, Protocol.TIMEOUT)
+	assert_string_contains(r.error.message, "baseline 10")
+
+
+func test_relative_ops_need_a_timeout() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "changed", "timeout_ms": 0})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- #23 frame-based input timing ----
+
+func test_input_hold_frames_counts_physics_frames() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_move")
+	var pressed := {"n": 0}
+	var counter := func() -> void:
+		if Input.is_action_pressed("mcp_test_move"):
+			pressed.n += 1
+	tree.physics_frame.connect(counter)
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"action": "mcp_test_move", "hold_frames": 6}]})
+	tree.physics_frame.disconnect(counter)
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_true(pressed.n >= 5 and pressed.n <= 7, "pressed for %d physics frames" % pressed.n)
+	# A release sent during the physics step is flushed at the start of the next iteration.
+	await tree.process_frame
+	await tree.process_frame
+	assert_false(Input.is_action_pressed("mcp_test_move"))
+
+
+func test_input_wait_frames_waits_physics_frames() -> void:
+	_setup()
+	var start := Engine.get_physics_frames()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_frames": 10}]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	var n := Engine.get_physics_frames() - start
+	assert_true(n >= 10 and n <= 12, "waited %d physics frames" % n)
+
+
+func test_input_rejects_bad_frame_counts() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_move")
+	for bad in [{"action": "mcp_test_move", "hold_frames": -1}, {"wait_frames": 100000}, {"action": "mcp_test_move", "hold_frames": 2, "hold_ms": 100}]:
+		var r: Dictionary = await _cmds.handle("input", {"steps": [bad]})
+		assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+# ---- #24 set / call / assert / wait_for inside one input sequence ----
+
+func test_input_steps_can_set_call_and_assert_inside_the_game() -> void:
+	var g := _settable()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [
+		{"set": {"node": "Game", "properties": {"count": 5}}},
+		{"call": {"node": "Game", "method": "add", "args": [1]}},
+		{"assert": {"node": "Game", "property": "calls", "op": "==", "value": 1}},
+		{"wait_frames": 1},
+		{"wait_for": {"node": "Game", "property": "count", "op": "==", "value": 5, "timeout_ms": 500}},
+	]})
+	assert_eq(r.ok, true, JSON.stringify(r))
+	assert_eq(g.count, 5)
+	assert_eq(r.result.results.size(), 4)
+	assert_eq(r.result.results[1].kind, "call")
+	assert_eq(r.result.results[1].result.returned, 11)
+
+
+func test_input_inline_failure_aborts_and_releases_held_input() -> void:
+	_settable()
+	InputMap.add_action("mcp_test_move")
+	var t0 := Time.get_ticks_msec()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [
+		{"action": "mcp_test_move", "press": true},
+		{"assert": {"node": "Game", "property": "count", "op": "==", "value": 99}},
+		{"wait_ms": 800},
+	]})
+	assert_error_code(r, Protocol.ASSERTION_FAILED)
+	assert_string_contains(r.error.message, "step 2 (assert)")
+	await tree.process_frame  # input events are applied on the next frame
+	assert_false(Input.is_action_pressed("mcp_test_move"), "held input is released on abort")
+	assert_true(Time.get_ticks_msec() - t0 < 600, "later steps are not run")
+
+
+func test_input_validates_inline_steps_upfront() -> void:
+	_settable()
+	InputMap.add_action("mcp_test_move")
+	var r: Dictionary = await _cmds.handle("input", {"steps": [
+		{"action": "mcp_test_move", "press": true},
+		{"set": "not an object"},
+	]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_false(Input.is_action_pressed("mcp_test_move"), "nothing ran")
+
+
+# ---- #25 expectations on a recording ----
+
+func test_input_record_expect_passes_and_fails_with_actual_values() -> void:
+	_setup()
+	var player := _scene.get_node("Player")
+	tree.create_timer(0.1).timeout.connect(func() -> void: player.position.x = 500)
+	var ok_r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 300}], "record": {
+		"node": "Player", "properties": ["position:x"],
+		"expect": [{"property": "position:x", "stat": "max", "op": ">=", "value": 400}, {"property": "position:x", "stat": "first", "op": "==", "value": 10}]}})
+	assert_eq(ok_r.ok, true, JSON.stringify(ok_r))
+	var bad: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 50}], "record": {
+		"node": "Player", "properties": ["position:x"],
+		"expect": [{"property": "position:x", "stat": "max", "op": ">=", "value": 1000}]}})
+	assert_error_code(bad, Protocol.ASSERTION_FAILED)
+	assert_string_contains(bad.error.message, "max of position:x >= 1000")
+	assert_string_contains(bad.error.message, "actual 500")
+
+
+func test_input_record_expect_validation() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}], "record": {
+		"node": "Player", "properties": ["position:x"], "expect": [{"property": "position:x", "stat": "median", "op": "==", "value": 1}]}})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	var r2: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}], "record": {
+		"node": "Player", "properties": ["position:x"], "expect": [{"property": "rotation", "stat": "max", "op": "==", "value": 1}]}})
+	assert_error_code(r2, Protocol.INVALID_PARAMS)

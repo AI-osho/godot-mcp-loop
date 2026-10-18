@@ -212,7 +212,18 @@ func _editor_screenshot(p: Dictionary) -> Dictionary:
 		return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "The editor is running headless, so there is nothing to capture.")
 	var root: Node = ctx.edited_root()
 	var vp: SubViewport = EditorInterface.get_editor_viewport_3d() if root is Node3D else EditorInterface.get_editor_viewport_2d()
-	await RenderingServer.frame_post_draw
+	# In low-processor mode the editor draws only when something changed, so an idle editor (e.g. one in the
+	# background) would never emit frame_post_draw: ask for a redraw, and force one if it does not come.
+	var drawn := [false]
+	var on_drawn := func() -> void: drawn[0] = true
+	RenderingServer.frame_post_draw.connect(on_drawn, CONNECT_ONE_SHOT)
+	EditorInterface.get_base_control().queue_redraw()
+	if vp != null and vp.get_parent() is CanvasItem:
+		(vp.get_parent() as CanvasItem).queue_redraw()
+	if not await _wait_until(func() -> bool: return drawn[0], 2000):
+		if RenderingServer.frame_post_draw.is_connected(on_drawn):
+			RenderingServer.frame_post_draw.disconnect(on_drawn)
+		RenderingServer.force_draw()
 	var img: Image = vp.get_texture().get_image() if vp != null else null
 	if img == null or img.is_empty():
 		return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "Could not read the editor viewport.")

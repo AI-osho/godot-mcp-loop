@@ -1,6 +1,6 @@
 # Tools reference
 
-33 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+35 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -36,6 +36,13 @@ npx -y godot-mcp-loop@<version> --project ~/games/shooter --projects-root ~/game
 Then `project_list` → `project_connect {"path": "rpg"}` → the following tools work on `~/games/rpg`. `godot_status`
 reports `project_path` and `projects_roots`. When the project's editor isn't open, tools fail with `GODOT_NOT_RUNNING`
 until it is.
+
+## Editor
+
+| Tool | Purpose |
+|---|---|
+| `editor_launch` | Open the Godot editor on the current project and wait (default 120 s, `timeout_ms`) until the MCP Loop bridge answers; returns the `godot_status` fields plus `pid`, `godot_path` and `log` (the editor's output, `res://.godot/mcp_loop/editor.log`). Nothing happens when an editor already runs for the project (`already_running: true`). `headless: true` opens it without a window (no screenshots — for servers and CI). Godot is the server's `--godot` / `GODOT_BIN` if set, else the first Godot 4.5+ on `PATH` (`godot`, `godot4`, `Godot`) or in the usual install folders (`/Applications/Godot.app`, `/usr/bin/godot`, …). The project needs the addon installed and enabled (`ADDON_NOT_INSTALLED` / `ADDON_NOT_ENABLED` otherwise — `npx godot-mcp-loop install-addon <dir>` does both). The editor keeps running when the server stops. Errors: `GODOT_NOT_FOUND`, `EDITOR_EXITED` (with the end of the log), `TIMEOUT` (the editor keeps starting). |
+| `editor_quit` | Close the editor of the current project — only one this server opened with `editor_launch`; any other is refused with `EDITOR_NOT_LAUNCHED`. Stops a running game, saves the open scenes (`save: false` skips that), quits, and waits for the process to end (`timeout_ms`, default 20 s, then SIGTERM; `killed: true` in the result). |
 
 ## Scenes & nodes (all undoable)
 

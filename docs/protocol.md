@@ -36,7 +36,7 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 
 - Requests may be answered out of order; match by `id`.
 - One client at a time. A new connection replaces the old one and must send `hello` again.
-- Methods: `ping`, `editor.status`, `project.info`, `scene.open|create|save|tree`, `node.add|delete|get|set`,
+- Methods: `ping`, `editor.status`, `editor.quit`, `project.info`, `scene.open|create|save|tree`, `node.add|delete|get|set`,
   `script.read|write|attach`, `edit.undo`, `game.run|stop|query|input|wait_for`, `screenshot`, `logs.read`,
   `tests.run`.
 
@@ -61,7 +61,9 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 
 Client-side codes added by the MCP server: `GODOT_NOT_RUNNING`, `BAD_SESSION_FILE`, `NOT_CONNECTED`, `DISCONNECTED`;
 `project_connect`: `PROJECT_SWITCH_DISABLED` (no `--projects-root`), `PROJECT_NOT_FOUND`, `NOT_A_PROJECT` (no
-`project.godot`), `PATH_FORBIDDEN` (outside the projects roots).
+`project.godot`), `PATH_FORBIDDEN` (outside the projects roots); `editor_launch` / `editor_quit`: `GODOT_NOT_FOUND`,
+`ADDON_NOT_INSTALLED`, `ADDON_NOT_ENABLED`, `EDITOR_EXITED` (the editor ended before its bridge started),
+`EDITOR_NOT_LAUNCHED` (an editor this server did not open is never closed).
 
 ## Game channel
 

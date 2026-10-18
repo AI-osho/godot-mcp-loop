@@ -130,6 +130,7 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Area | Tools |
 |---|---|
 | Status | `godot_status`, `project_info`, `project_list`, `project_connect` (switch projects) |
+| Editor | `editor_launch` (finds Godot, opens the project), `editor_quit` |
 | Scenes | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | Nodes | `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts | `script_read`, `script_write`, `script_edit`, `script_attach` |

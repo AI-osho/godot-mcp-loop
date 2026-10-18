@@ -51,7 +51,8 @@ export interface HarnessOptions {
   applicationExtra?: string[];
 }
 
-export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<GodotHarness> {
+/** Creates a throwaway Godot project containing the addon (plus optional extra files); returns its folder. */
+export function createTestProject(opts: HarnessOptions = {}): string {
   const projectPath = mkdtempSync(join(tmpdir(), "gml-e2e-"));
   cpSync(join(REPO_ROOT, "addons"), join(projectPath, "addons"), { recursive: true });
   for (const d of opts.copyDirs ?? []) {
@@ -81,7 +82,11 @@ export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<Go
     mkdirSync(dirname(join(projectPath, rel)), { recursive: true });
     writeFileSync(join(projectPath, rel), content);
   }
+  return projectPath;
+}
 
+export async function startHeadlessEditor(opts: HarnessOptions = {}): Promise<GodotHarness> {
+  const projectPath = createTestProject(opts);
   const output: string[] = [];
   const port = 17510 + Math.floor(Math.random() * 400) * 10;
   const proc: ChildProcess = spawn(GODOT_BIN, ["--headless", "-e", "--path", projectPath], {

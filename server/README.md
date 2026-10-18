@@ -18,7 +18,8 @@ Full documentation: <https://github.com/AI-osho/godot-mcp-loop>
    `--skill` also adds the agent skill (`.claude/skills/godot-mcp-loop`). The command prints the exact version to use
    in the next step.
 
-2. Open the project in Godot 4. The **MCP Loop** plugin is enabled and listens on `127.0.0.1`.
+2. Open the project in Godot 4 (or let the agent do it later with `editor_launch`). The **MCP Loop** plugin is enabled
+   and listens on `127.0.0.1`.
 
 3. Register the server with your MCP client, pinned to the same version as the addon (shown by step 1):
 
@@ -47,6 +48,7 @@ To update, run step 1 again with `--force` and change the version in step 3.
 | | Tools |
 |---|---|
 | Status | `godot_status`, `project_info`, `project_list`, `project_connect` (switch projects with `--projects-root`) |
+| Editor | `editor_launch` (finds Godot 4.5+ and opens the project, optionally headless), `editor_quit` |
 | Scenes & nodes | `scene_open`, `scene_create`, `scene_save`, `scene_tree`, `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts & files | `script_read`, `script_write`, `script_edit`, `script_attach`, `file_write`, `image_write`, `input_action_set`, `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |

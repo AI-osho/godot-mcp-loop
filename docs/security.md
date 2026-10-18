@@ -11,7 +11,7 @@ to the purpose of the tool, not a bug. The protections below therefore aim at tw
    irreversible edits).
 
 If you do not trust the agent, require human approval in your MCP client for `script_write`, `script_attach`,
-`node_add`, `node_set`, `game_run` and `test_run` (most clients can ask before each tool call).
+`node_add`, `node_set`, `game_run`, `test_run` and `editor_launch` (most clients can ask before each tool call).
 
 ## Bridge (MCP server ↔ editor)
 
@@ -101,6 +101,15 @@ are capped at 120 s.
   server does at start; the agent cannot pick arbitrary folders. `project_list` only reads folder names,
   `project.godot`'s name and whether a session file names a live process; it searches 3 levels deep, skips hidden
   folders and does not follow symbolic links.
+- `editor_launch` starts one process: the Godot executable from the server's own configuration (`--godot`,
+  `GODOT_BIN`) or found on `PATH` / in the usual install folders and checked with `--version` — never a path from the
+  agent — with a fixed argument list (`[--headless] -e --path <current project>`), no shell, detached, its output in
+  `res://.godot/mcp_loop/editor.log` (owner-only). Opening a project in the editor runs its editor plugins and `@tool`
+  scripts, like opening it by hand.
+- `editor_quit` closes only an editor this server process launched (same pid as the project's session file), so it
+  cannot close an editor the user opened. It asks the addon to save the open scenes and quit (`editor.quit`, which
+  any authenticated client could send); if the editor does not exit in time the server sends SIGTERM (then SIGKILL)
+  to that process only.
 
 ## Known limitations
 

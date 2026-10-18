@@ -1,11 +1,11 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { GodotConnection } from "../src/connection.js";
-import { createServer } from "../src/server.js";
+import { createServer, type ServerOptions } from "../src/server.js";
 
 /** Wires an in-memory MCP client to a server built on the given connection. */
-export async function connectClient(conn: GodotConnection): Promise<Client> {
-  const server = createServer(conn);
+export async function connectClient(conn: GodotConnection, opts: ServerOptions = {}): Promise<Client> {
+  const server = createServer(conn, opts);
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await server.connect(st);
   const client = new Client({ name: "test", version: "0.0.0" });

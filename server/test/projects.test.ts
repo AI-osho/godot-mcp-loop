@@ -34,6 +34,12 @@ describe("server arguments (#12)", () => {
     expect(parseServerArgs(["--version"], {}, "/")).toMatchObject({ version: true });
     expect(parseServerArgs(["-h"], {}, "/")).toMatchObject({ help: true });
   });
+
+  it("reads --godot (both forms) for editor_launch", () => {
+    expect(parseServerArgs(["--godot", "bin/godot"], {}, "/work").godot).toBe("/work/bin/godot");
+    expect(parseServerArgs(["--godot=/opt/godot"], {}, "/work").godot).toBe("/opt/godot");
+    expect(parseServerArgs([], {}, "/work").godot).toBeUndefined();
+  });
 });
 
 describe("switching projects (#12)", () => {

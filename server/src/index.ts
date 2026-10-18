@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { existsSync } from "node:fs";
 import { runCli, USAGE } from "./cli.js";
 import { GodotConnection } from "./connection.js";
+import { EditorLauncher } from "./editor-launcher.js";
 import { parseServerArgs } from "./projects.js";
 import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
@@ -25,7 +26,7 @@ async function main(): Promise<void> {
     if (!existsSync(r)) process.stderr.write(`[${SERVER_NAME}] warning: projects root ${r} does not exist\n`);
   }
   const conn = new GodotConnection({ projectPath: args.project, projectsRoots: args.projectsRoots });
-  const server = createServer(conn);
+  const server = createServer(conn, { launcher: new EditorLauncher(args.godot !== undefined ? { godot: args.godot } : {}) });
   await server.connect(new StdioServerTransport());
   // stdout is the MCP channel; diagnostics go to stderr.
   const roots = args.projectsRoots.length > 0 ? `, projects roots: ${args.projectsRoots.join(", ")}` : "";

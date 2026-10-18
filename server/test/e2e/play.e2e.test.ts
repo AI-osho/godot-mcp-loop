@@ -113,6 +113,31 @@ describe("e2e: run / observe loop", () => {
     expect(await fails("game_set", { node: "Player", properties: { "position:x": 1, nope: 2 } })).toContain("nope");
   });
 
+  it("game_pause freezes the game; game_step runs exact frames; inline steps run atomically", async () => {
+    await ok("game_input", { steps: [{ action: "move_right", press: true }] });
+    await ok("game_pause", { paused: true });
+    const x0 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
+    await new Promise((r) => setTimeout(r, 300));
+    const x1 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
+    expect(x1).toBe(x0); // nothing moves while paused, even with the action held
+    await ok("game_step", { frames: 30 });
+    const x2 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
+    expect(x2).toBeGreaterThan(x0);
+    await ok("game_step", { frames: 30 });
+    const x3 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
+    expect(x3 - x2).toBeCloseTo(x2 - x0, 1); // same frames, same distance (at top speed)
+    await ok("game_pause", { paused: false });
+    // set + frame wait + assert inside one call, with a tolerance and a message
+    const r = await ok("game_input", {
+      steps: [
+        { action: "move_right", release: true },
+        { set: { node: "Player", properties: { "position:x": 300 } } },
+        { assert: { node: "Player", property: "position:x", op: "==", value: 300, tolerance: 0.5, message: "teleported" } },
+      ],
+    });
+    expect(r.results).toHaveLength(2);
+  });
+
   it("game_wait_for times out with the last value", async () => {
     const msg = await fails("game_wait_for", { node: "Player", property: "jumps", op: ">", value: 5, timeout_ms: 300 });
     expect(msg).toContain("TIMEOUT");

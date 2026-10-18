@@ -64,10 +64,19 @@ func _wait_until_importable(path: String, timeout_ms: int = 15000) -> bool:
 	fs.scan()
 	var tree := Engine.get_main_loop() as SceneTree
 	var deadline := Time.get_ticks_msec() + timeout_ms
+	var reimported := false
 	while Time.get_ticks_msec() < deadline:
 		await tree.process_frame
-		if not fs.is_scanning() and ResourceLoader.exists(path):
+		if fs.is_scanning():
+			continue
+		if ResourceLoader.exists(path):
 			return true
+		# Once the scan has registered the new folder, importing works without
+		# the "Can't find file" error that an earlier reimport would log.
+		if not reimported and fs.get_filesystem_path(path.get_base_dir()) != null:
+			fs.update_file(path)
+			fs.reimport_files(PackedStringArray([path]))
+			reimported = true
 	return ResourceLoader.exists(path)
 
 

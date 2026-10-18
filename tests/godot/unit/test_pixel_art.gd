@@ -100,3 +100,16 @@ func test_mirror_y_and_xy() -> void:
 
 func test_mirror_rejects_unknown_axis() -> void:
 	_fails({"palette": PALETTE, "rows": ["r"], "mirror": "z"}, "mirror")
+
+
+# ---- #29 friendlier palette / frames handling ----
+
+func test_palette_null_or_transparent_means_transparent() -> void:
+	var r := _ok({"palette": {"r": "#ff0000", ".": null, "t": "transparent"}, "rows": ["r.t"]})
+	assert_eq(r.image.get_pixel(0, 0), Color(1, 0, 0, 1))
+	assert_eq(r.image.get_pixel(1, 0).a, 0.0)
+	assert_eq(r.image.get_pixel(2, 0).a, 0.0)
+
+
+func test_flat_frames_list_gets_a_helpful_error() -> void:
+	_fails({"palette": PALETTE, "frames": ["rr", "rr"]}, "its own list")

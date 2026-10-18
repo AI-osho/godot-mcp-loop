@@ -41,8 +41,9 @@ function kindOf(step: ScenarioStep): string {
   return Object.keys(step)[0] ?? "unknown";
 }
 
-function describeCondition(c: { node: string; property: string; op: string; value?: unknown }): string {
-  return `${c.node}.${c.property} ${c.op}${c.value === undefined ? "" : ` ${JSON.stringify(c.value)}`}`;
+function describeCondition(c: { node: string; property: string; op: string; value?: unknown; tolerance?: number }): string {
+  const tol = c.tolerance === undefined ? "" : ` (±${c.tolerance})`;
+  return `${c.node}.${c.property} ${c.op}${c.value === undefined ? "" : ` ${JSON.stringify(c.value)}`}${tol}`;
 }
 
 function describeInput(x: Record<string, unknown>): string {
@@ -89,6 +90,8 @@ export function describeTarget(step: ScenarioStep): string | undefined {
   if ("wait_for" in step || "assert" in step) {
     return describeCondition("wait_for" in step ? step.wait_for : step.assert);
   }
+  if ("pause" in step) return step.pause ? "pause" : "resume";
+  if ("step" in step) return `step ${step.step} frames`;
   if ("input" in step) {
     const spec = normalizeInput(step.input);
     let text = spec.steps.map(describeInput).join(", ");
@@ -233,6 +236,10 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
     }
   } else if ("wait_ms" in step) {
     await new Promise((r) => setTimeout(r, step.wait_ms));
+  } else if ("pause" in step) {
+    res.detail = await call("game.pause", { paused: step.pause });
+  } else if ("step" in step) {
+    res.detail = await call("game.step", { frames: step.step }, { timeoutMs: Math.ceil((step.step * 2000) / 60) + GRACE_MS });
   } else if ("set" in step) {
     res.detail = await call("game.set", step.set);
   } else if ("call" in step) {

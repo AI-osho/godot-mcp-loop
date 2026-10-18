@@ -28,6 +28,8 @@ func register(router: RefCounted) -> void:
 	router.register("game.wait_for", _wait_for)
 	router.register("game.set", _set_values)
 	router.register("game.call", _call_method)
+	router.register("game.pause", _pause)
+	router.register("game.step", _step)
 	router.register("screenshot", _screenshot)
 	router.register("logs.read", _logs)
 
@@ -134,6 +136,14 @@ func _set_values(p: Dictionary) -> Dictionary:
 func _call_method(p: Dictionary) -> Dictionary:
 	var t := clampi(int(p.get("timeout_ms", 10000)), 100, 60000)
 	return await dbg.call_runtime(tree, "call", p, t + RUNTIME_GRACE_MS)
+
+
+func _pause(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "pause", p, 10000)
+
+
+func _step(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "step", p, _frames_ms(clampi(int(p.get("frames", 1)), 1, 3600)) + RUNTIME_GRACE_MS)
 
 
 func _input(p: Dictionary) -> Dictionary:

@@ -27,6 +27,15 @@ describe("BridgeClient", () => {
     expect(client.isConnected()).toBe(true);
   });
 
+  it("accepts responses with raw control characters, as Godot's JSON.stringify writes them", async () => {
+    addon.godotJson = true;
+    addon.handlers.set("logs.read", () => ({ ok: true, result: { m: "a\u001b[31mred\u0001b\nline" } }));
+    client = new BridgeClient({ port, token: addon.token, requestTimeoutMs: 2000 });
+    await client.connect();
+    const r = (await client.request("logs.read")) as { m: string };
+    expect(r.m).toBe("a\u001b[31mred\u0001b\nline");
+  });
+
   it("rejects connect with UNAUTHORIZED BridgeError on wrong token", async () => {
     client = new BridgeClient({ port, token: "wrong" });
     await expect(client.connect()).rejects.toMatchObject({ code: "UNAUTHORIZED" });

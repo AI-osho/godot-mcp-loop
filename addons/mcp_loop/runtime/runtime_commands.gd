@@ -7,6 +7,7 @@ const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
 const PropertyPath = preload("res://addons/mcp_loop/util/property_path.gd")
 const Compare = preload("res://addons/mcp_loop/util/compare.gd")
+const Stepper = preload("res://addons/mcp_loop/runtime/stepper.gd")
 
 const MAX_WAIT_MS := 120_000
 ## Input sequences: per-step hold/wait limit and maximum number of steps.
@@ -35,6 +36,10 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return _set_properties(p)
 		"call":
 			return await _call_method(p)
+		"pause":
+			return _pause(p)
+		"step":
+			return await _step(p)
 	return Protocol.err(Protocol.UNKNOWN_METHOD, "Unknown runtime method '%s'." % method)
 
 
@@ -169,13 +174,27 @@ func _call_method(p: Dictionary) -> Dictionary:
 const RELATIVE_OPS := ["changed", "increased", "decreased"]
 
 
+## Wraps the check so an optional 'message' explains a failure in the test's words.
 func _wait_for(p: Dictionary) -> Dictionary:
+	var r: Dictionary = await _wait_for_condition(p)
+	var note := str(p.get("message", "")).strip_edges()
+	if not r.ok and note != "":
+		r.error.message = "%s: %s" % [note, r.error.message]
+	return r
+
+
+func _wait_for_condition(p: Dictionary) -> Dictionary:
 	var path := String(p.get("node", ""))
 	var prop := String(p.get("property", ""))
 	var op := String(p.get("op", "=="))
 	var expected: Variant = p.get("value")
 	var timeout_ms := clampi(int(p.get("timeout_ms", 5000)), 0, MAX_WAIT_MS)
 	var relative := RELATIVE_OPS.has(op)
+	var tolerance := Compare.EPSILON
+	if p.has("tolerance"):
+		if typeof(p.tolerance) not in [TYPE_INT, TYPE_FLOAT] or float(p.tolerance) < 0:
+			return Protocol.err(Protocol.INVALID_PARAMS, "'tolerance' must be a number >= 0.")
+		tolerance = float(p.tolerance)
 	if relative and timeout_ms == 0:
 		return Protocol.err(Protocol.INVALID_PARAMS,
 			"'%s' compares with the value when waiting starts, so it needs timeout_ms > 0." % op)
@@ -202,17 +221,17 @@ func _wait_for(p: Dictionary) -> Dictionary:
 					else:
 						var met := false
 						if op == "changed":
-							var same := Compare.evaluate(last, "==", baseline)
+							var same := Compare.evaluate(last, "==", baseline, tolerance)
 							met = (not same.ok) or (not same.result)
 						else:
-							var c := Compare.evaluate(last, ">" if op == "increased" else "<", baseline)
+							var c := Compare.evaluate(last, ">" if op == "increased" else "<", baseline, tolerance)
 							if not c.ok:
 								return Protocol.err(Protocol.INVALID_PARAMS, c.error)
 							met = c.result
 						if met:
 							return Protocol.ok({"met": true, "value": last, "baseline": baseline, "elapsed_ms": Time.get_ticks_msec() - start})
 				else:
-					var r := Compare.evaluate(last, op, expected)
+					var r := Compare.evaluate(last, op, expected, tolerance)
 					if not r.ok:
 						return Protocol.err(Protocol.INVALID_PARAMS, r.error)
 					if r.result:
@@ -237,6 +256,31 @@ func _wait_for(p: Dictionary) -> Dictionary:
 				"Inspect the state with game_query or screenshot, or raise timeout_ms.")
 		await _tree.process_frame
 	return Protocol.err(Protocol.INTERNAL, "unreachable")
+
+
+# ------------------------------------------------------------------ pause / step
+
+## Pausing freezes game nodes (process_mode Pausable, the default) while the
+## runtime keeps answering: query/set/call/wait_for still work.
+func _pause(p: Dictionary) -> Dictionary:
+	if typeof(p.get("paused")) != TYPE_BOOL:
+		return Protocol.err(Protocol.INVALID_PARAMS, "'paused' must be true or false.")
+	_tree.paused = p.paused
+	return Protocol.ok({"paused": _tree.paused, "physics_frame": Engine.get_physics_frames()})
+
+
+## Runs exactly N physics frames, then leaves the game paused.
+func _step(p: Dictionary) -> Dictionary:
+	var raw: Variant = p.get("frames", 1)
+	if typeof(raw) not in [TYPE_INT, TYPE_FLOAT] or int(raw) < 1 or int(raw) > MAX_STEP_FRAMES:
+		return Protocol.err(Protocol.INVALID_PARAMS, "'frames' must be between 1 and %d." % MAX_STEP_FRAMES)
+	var frames := int(raw)
+	var stepper: Node = Stepper.new(frames)
+	_tree.root.add_child(stepper)
+	_tree.paused = false
+	await stepper.finished
+	stepper.queue_free()
+	return Protocol.ok({"paused": true, "frames": frames, "physics_frame": Engine.get_physics_frames()})
 
 
 # ------------------------------------------------------------------ input

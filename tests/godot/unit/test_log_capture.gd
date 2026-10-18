@@ -102,3 +102,10 @@ func test_count_at_least_level() -> void:
 	c._log_error("f", "x.gd", 1, "", "w", false, Logger.ERROR_TYPE_WARNING, [])
 	assert_eq(c.count("error"), 1)
 	assert_eq(c.count("warning"), 2)
+
+
+func test_terminal_color_codes_are_stripped() -> void:
+	var cap := LogCapture.new()
+	cap._log_message(char(27) + "[1;31mERROR:" + char(27) + "[0m something broke", true)
+	var r: Dictionary = cap.read(0)
+	assert_eq(r.entries[0].message, "ERROR: something broke")

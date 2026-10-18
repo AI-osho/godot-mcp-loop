@@ -20,6 +20,7 @@ func _setup() -> void:
 
 
 func after_each() -> void:
+	tree.paused = false
 	if is_instance_valid(_scene):
 		_scene.queue_free()
 		await tree.process_frame
@@ -543,3 +544,83 @@ func test_input_record_expect_validation() -> void:
 	var r2: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}], "record": {
 		"node": "Player", "properties": ["position:x"], "expect": [{"property": "rotation", "stat": "max", "op": "==", "value": 1}]}})
 	assert_error_code(r2, Protocol.INVALID_PARAMS)
+
+
+# ---- #28 tolerance and custom failure messages ----
+
+func test_wait_for_tolerance_widens_equality() -> void:
+	_setup()
+	var strict: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 10.3, "timeout_ms": 0})
+	assert_error_code(strict, Protocol.ASSERTION_FAILED)
+	var loose: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 10.3, "tolerance": 0.5, "timeout_ms": 0})
+	assert_eq(loose.ok, true, JSON.stringify(loose))
+	var ge: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": ">=", "value": 10.4, "tolerance": 0.5, "timeout_ms": 0})
+	assert_eq(ge.ok, true, JSON.stringify(ge))
+
+
+func test_wait_for_rejects_negative_tolerance() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 10, "tolerance": -1, "timeout_ms": 0})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+
+
+func test_failure_message_is_prefixed() -> void:
+	_setup()
+	var r: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 99, "timeout_ms": 0, "message": "player should be at the goal"})
+	assert_error_code(r, Protocol.ASSERTION_FAILED)
+	assert_true(r.error.message.begins_with("player should be at the goal: "), r.error.message)
+
+
+# ---- #30 pause and frame stepping ----
+
+class PhysicsCounter extends Node:
+	var n := 0
+
+	func _physics_process(_delta: float) -> void:
+		n += 1
+
+
+func test_pause_and_step_run_exact_physics_frames() -> void:
+	_setup()
+	var counter := PhysicsCounter.new()
+	_scene.add_child(counter)
+	var p: Dictionary = await _cmds.handle("pause", {"paused": true})
+	assert_eq(p.ok, true, JSON.stringify(p))
+	assert_true(tree.paused)
+	var before := counter.n
+	await tree.physics_frame
+	await tree.physics_frame
+	assert_eq(counter.n, before, "paused: game nodes don't run")
+	var s: Dictionary = await _cmds.handle("step", {"frames": 5})
+	assert_eq(s.ok, true, JSON.stringify(s))
+	assert_eq(counter.n - before, 5, "exactly 5 physics frames")
+	assert_true(tree.paused, "paused again after the step")
+	await tree.physics_frame
+	await tree.physics_frame
+	assert_eq(counter.n - before, 5)
+	var again: Dictionary = await _cmds.handle("step", {"frames": 1})
+	assert_eq(again.ok, true)
+	assert_eq(counter.n - before, 6)
+	var resume: Dictionary = await _cmds.handle("pause", {"paused": false})
+	assert_eq(resume.result.paused, false)
+	assert_false(tree.paused)
+
+
+func test_runtime_answers_while_paused() -> void:
+	_setup()
+	await _cmds.handle("pause", {"paused": true})
+	var q: Dictionary = await _cmds.handle("query", {"node": "Player", "properties": ["position"]})
+	assert_eq(q.ok, true, JSON.stringify(q))
+	var w: Dictionary = await _cmds.handle("wait_for", {"node": "Player", "property": "position:x", "op": "==", "value": 10, "timeout_ms": 500})
+	assert_eq(w.ok, true, JSON.stringify(w))
+	var s: Dictionary = await _cmds.handle("set", {"node": "Player", "properties": {"position:x": 42}})
+	assert_eq(s.ok, true, JSON.stringify(s))
+
+
+func test_pause_and_step_validate_params() -> void:
+	_setup()
+	var np: Dictionary = await _cmds.handle("pause", {})
+	assert_error_code(np, Protocol.INVALID_PARAMS)
+	for bad in [0, 5000, "3"]:
+		var r: Dictionary = await _cmds.handle("step", {"frames": bad})
+		assert_error_code(r, Protocol.INVALID_PARAMS)

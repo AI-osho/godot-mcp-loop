@@ -44,11 +44,18 @@ static func build(spec: Dictionary) -> Dictionary:
 		var ch := str(key)
 		if ch.length() != 1:
 			return _fail("Palette keys must be a single character (got '%s')." % ch)
-		var c := Codec.decode(raw_palette[key], TYPE_COLOR)
+		var value: Variant = raw_palette[key]
+		if value == null or (typeof(value) == TYPE_STRING and ["", "transparent", "none"].has(String(value).to_lower())):
+			palette[ch] = Color(0, 0, 0, 0)
+			continue
+		var c := Codec.decode(value, TYPE_COLOR)
 		if not c.ok:
-			return _fail("Palette color for '%s': %s" % [ch, c.error])
+			return _fail("Palette color for '%s': %s (use null or \"transparent\" for a see-through pixel)" % [ch, c.error])
 		palette[ch] = c.value
 
+	if has_frames and typeof(frames[0]) == TYPE_STRING:
+		return _fail("'frames' got a list of strings; each frame must be its own list of row strings: " +
+			"frames: [[\"..##..\", \".####.\"], [\"..##..\", \"#....#\"]]. For a single image use 'rows'.")
 	var fw := -1
 	var fh := -1
 	for fi in frames.size():

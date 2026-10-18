@@ -265,6 +265,30 @@ describe("runScenario", () => {
     expect(report.steps[1]!.target).toBe("Player.position:y changed");
   });
 
+  it("pause / step steps and assert tolerance + message are forwarded", async () => {
+    const { call, calls } = fakeBridge({
+      "game.pause": () => ({ paused: true }),
+      "game.step": () => ({ frames: 10 }),
+      "game.wait_for": () => ({ met: true, value: 20 }),
+    });
+    const s = parseScenario({
+      name: "stepping",
+      steps: [
+        { pause: true },
+        { step: 10 },
+        { assert: { node: "Player", property: "position:x", op: "==", value: 20, tolerance: 0.5, message: "moved 10 frames" } },
+        { pause: false },
+      ],
+    });
+    const report = await runScenario(s, call);
+    expect(report.passed).toBe(true);
+    expect(calls.filter(([m]) => m === "game.pause").map(([, p]) => p)).toEqual([{ paused: true }, { paused: false }]);
+    expect(calls.find(([m]) => m === "game.step")![1]).toEqual({ frames: 10 });
+    const assertCall = calls.find(([m, p]) => m === "game.wait_for" && (p as { timeout_ms?: number }).timeout_ms === 0)![1];
+    expect(assertCall).toMatchObject({ tolerance: 0.5, message: "moved 10 frames" });
+    expect(report.steps.map((x) => x.target)).toEqual(["pause", "step 10 frames", "Player.position:x == 20 (±0.5)", "resume"]);
+  });
+
   it("keep_running leaves the game up", async () => {
     const { call, calls } = fakeBridge({});
     await runScenario(parseScenario({ name: "s", keep_running: true, steps: [{ wait_ms: 1 }] }), call);

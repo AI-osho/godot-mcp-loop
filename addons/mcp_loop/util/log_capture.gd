@@ -64,8 +64,12 @@ func count(min_level: String) -> int:
 	return n
 
 
+var _ansi := RegEx.create_from_string("\u001b\\[[0-9;?]*[A-Za-z]")
+
+
 func _log_message(message: String, error: bool) -> void:
-	var text := message.strip_edges(false, true)
+	# Terminal color codes (headless/CLI output) are noise for readers.
+	var text := _ansi.sub(message, "", true).strip_edges(false, true)
 	if text.begins_with(OWN_PREFIX):
 		return
 	_push({"level": "error" if error else "info", "message": text})

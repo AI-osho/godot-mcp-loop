@@ -9,7 +9,17 @@ export type Handler = (params: Record<string, unknown>) => unknown | Promise<unk
  * requires hello+token, then dispatches to registered handlers.
  * Handlers return the full envelope ({ok:true,result} / {ok:false,error}).
  */
+/**
+ * Godot's JSON.stringify leaves control characters other than \b \t \n \f \r
+ * unescaped (invalid JSON); mimic that.
+ */
+export function asGodotJson(json: string): string {
+  return json.replace(/\\u00([01][0-9a-f])/g, (m, h: string) => String.fromCharCode(parseInt(h, 16)));
+}
+
 export class FakeAddon {
+  /** Serialize responses like Godot does (raw control characters). */
+  godotJson = false;
   /** Version reported in the hello reply; defaults to the server's own version. */
   addonVersion: string = SERVER_VERSION;
   readonly token: string;
@@ -56,7 +66,8 @@ export class FakeAddon {
             ? await h(params)
             : { ok: false, error: { code: "UNKNOWN_METHOD", message: `Unknown method '${String(req.method)}'.` } };
         }
-        ws.send(JSON.stringify({ id, ...(env as object) }));
+        const json = JSON.stringify({ id, ...(env as object) });
+        ws.send(this.godotJson ? asGodotJson(json) : json);
       });
     });
     return (this.wss.address() as AddressInfo).port;

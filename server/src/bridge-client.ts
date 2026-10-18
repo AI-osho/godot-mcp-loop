@@ -118,12 +118,8 @@ export class BridgeClient {
   }
 
   private onMessage(text: string): void {
-    let msg: Record<string, unknown>;
-    try {
-      msg = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      return;
-    }
+    const msg = parseGodotJson(text);
+    if (!msg) return;
     if (typeof msg.event === "string") {
       for (const l of this.listeners) l(msg.event, msg.data);
       return;
@@ -170,4 +166,25 @@ function notRunning(url: string, detail: string): BridgeError {
     `Could not reach the Godot editor bridge at ${url} (${detail}).`,
     "Open the project in the Godot editor and enable Project > Project Settings > Plugins > MCP Loop.",
   );
+}
+
+
+/**
+ * Godot's JSON.stringify leaves control characters other than \b \t \n \f \r
+ * unescaped (e.g. ESC from colored log output), which JSON.parse rejects.
+ * Escape them and parse again instead of dropping the response.
+ */
+export function parseGodotJson(text: string): Record<string, unknown> | undefined {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    try {
+      // Raw control characters can only appear inside strings here: Godot
+      // escapes \b \t \n \f \r itself, so escaping the rest is lossless.
+      const fixed = text.replace(/[\u0000-\u0008\u000b\u000e-\u001f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+      return JSON.parse(fixed) as Record<string, unknown>;
+    } catch {
+      return undefined;
+    }
+  }
 }

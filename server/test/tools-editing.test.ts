@@ -118,4 +118,13 @@ describe("editing tools (forwarding layer)", () => {
     expect(textOf(res)).toContain("INVALID_PARAMS");
     expect(textOf(res)).toContain("Delete children instead.");
   });
+
+  it("image_write explains the frames shape and accepts null/'transparent' palette entries", async () => {
+    addon.handlers.set("image.write", (p) => ({ ok: true, result: { got: p } }));
+    const flat = await client.callTool({ name: "image_write", arguments: { path: "res://a.png", palette: { r: "red" }, frames: ["rr", "rr"] } });
+    expect(flat.isError).toBe(true);
+    expect(textOf(flat)).toContain("each frame is its own list of row strings");
+    const ok = await client.callTool({ name: "image_write", arguments: { path: "res://a.png", palette: { r: "red", ".": null, t: "transparent" }, rows: ["r.t"] } });
+    expect(ok.isError).toBeFalsy();
+  });
 });

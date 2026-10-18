@@ -80,10 +80,23 @@ export const FILE_TOOLS: ForwardToolDef[] = [
     input: {
       path: z.string().describe("res:// path ending in .png."),
       palette: z
-        .record(z.string(), z.union([z.string(), z.array(z.number())]))
-        .describe("Character -> color ('#rrggbb', '#rrggbbaa', a name, or [r, g, b, a] in 0..1), e.g. {\"k\": \"#000000\", \"r\": \"#d82800\"}."),
+        .record(z.string(), z.union([z.string(), z.array(z.number()), z.null()]))
+        .describe(
+          "Character -> color ('#rrggbb', '#rrggbbaa', a name, or [r, g, b, a] in 0..1), e.g. {\"k\": \"#000000\", \"r\": \"#d82800\"}. " +
+            "null or 'transparent' = see-through ('.' and ' ' already are).",
+        ),
       rows: z.array(z.string()).max(256).optional().describe("One image: rows of palette characters, all the same length (max 256x256)."),
-      frames: z.array(z.array(z.string()).max(256)).max(64).optional().describe("Several same-sized frames, laid out left to right."),
+      frames: z
+        .array(
+          z
+            .array(z.string(), {
+              error: 'each frame is its own list of row strings: frames: [["..##..", ".####."], ["..##..", "#....#"]] (use rows for one image)',
+            })
+            .max(256),
+        )
+        .max(64)
+        .optional()
+        .describe('Several same-sized frames, laid out left to right. Each frame is a list of row strings: [["..##..", ...], ["..##..", ...]].'),
       scale: z.number().int().min(1).max(16).optional().describe("Integer upscale factor (default 1). Prefer 1 and scale the node instead."),
       mirror: z
         .enum(["x", "y", "xy"])

@@ -16,6 +16,8 @@ export const ConditionSchema = z.object({
   op: z.enum([...COMPARE_OPS, ...RELATIVE_OPS]).describe("Comparison; changed/increased/decreased compare with the value when waiting starts."),
   value: JsonValue.optional().describe("Expected value (not used by changed/increased/decreased)."),
   timeout_ms: z.number().int().min(0).max(120_000).optional(),
+  tolerance: z.number().min(0).optional().describe("Allowed difference for numbers with ==, !=, >=, <= (default 0.0001)."),
+  message: z.string().max(200).optional().describe("Explains a failure in the test's words; prefixed to the error."),
 });
 
 export const InputStepShape = {

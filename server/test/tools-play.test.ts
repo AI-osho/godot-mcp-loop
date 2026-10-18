@@ -110,6 +110,18 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(res.isError).toBeFalsy();
   });
 
+  it("game_pause / game_step forward to the game; game_wait_for passes tolerance and message", async () => {
+    addon.handlers.set("game.pause", (p) => ({ ok: true, result: { got: p } }));
+    addon.handlers.set("game.step", (p) => ({ ok: true, result: { got: p } }));
+    addon.handlers.set("game.wait_for", (p) => ({ ok: true, result: { got: p } }));
+    expect(jsonOf(await client.callTool({ name: "game_pause", arguments: { paused: true } }))).toEqual({ got: { paused: true } });
+    expect(jsonOf(await client.callTool({ name: "game_step", arguments: { frames: 12 } }))).toEqual({ got: { frames: 12 } });
+    const wf = { node: "P", property: "position:x", op: "==", value: 10, tolerance: 0.5, message: "player at start" };
+    expect(jsonOf(await client.callTool({ name: "game_wait_for", arguments: wf }))).toEqual({ got: wf });
+    const bad = await client.callTool({ name: "game_step", arguments: { frames: 0 } });
+    expect(bad.isError).toBe(true);
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

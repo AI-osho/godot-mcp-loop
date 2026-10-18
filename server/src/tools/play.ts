@@ -84,6 +84,30 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     },
   },
   {
+    name: "game_pause",
+    method: "game.pause",
+    title: "Pause / resume running game",
+    description:
+      "Pause (paused: true) or resume the running game. While paused, game nodes don't run but game_query, game_set, game_call and " +
+      "game_wait_for still work — inspect and set up a situation across several calls without time passing, then advance with game_step. " +
+      "Input sent with press: true stays held while stepping.",
+    input: {
+      paused: z.boolean(),
+    },
+  },
+  {
+    name: "game_step",
+    method: "game.step",
+    title: "Advance running game by N frames",
+    description:
+      "Run exactly N physics frames, then leave the game paused (pauses it first if needed). Deterministic: every pausable node " +
+      "gets the same N _physics_process calls, independent of call latency.",
+    input: {
+      frames: z.number().int().min(1).max(3600).describe("Physics frames to run (60 per second by default)."),
+    },
+    timeoutFor: (args) => Math.ceil((Number(args.frames ?? 1) * 2000) / 60) + GRACE_MS,
+  },
+  {
     name: "game_call",
     method: "game.call",
     title: "Call method in running game",
@@ -112,6 +136,8 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       op: ConditionSchema.shape.op,
       value: JsonValue.optional().describe("Expected value: a number, boolean, string, null or array (vectors as [x, y]). Not used by changed/increased/decreased."),
       timeout_ms: z.number().int().min(0).max(120_000).optional().describe("Default 5000."),
+      tolerance: ConditionSchema.shape.tolerance,
+      message: ConditionSchema.shape.message,
     },
     readOnly: true,
     timeoutFor: (a) => Number(a.timeout_ms ?? 5000) + GRACE_MS,

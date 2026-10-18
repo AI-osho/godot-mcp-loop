@@ -11,21 +11,21 @@ static func _num(v: Variant) -> bool:
 	return typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT
 
 
-static func equals(a: Variant, b: Variant) -> bool:
+static func equals(a: Variant, b: Variant, tolerance: float = EPSILON) -> bool:
 	if _num(a) and _num(b):
-		return absf(float(a) - float(b)) <= EPSILON
+		return absf(float(a) - float(b)) <= tolerance
 	if typeof(a) == TYPE_ARRAY and typeof(b) == TYPE_ARRAY:
 		if a.size() != b.size():
 			return false
 		for i in a.size():
-			if not equals(a[i], b[i]):
+			if not equals(a[i], b[i], tolerance):
 				return false
 		return true
 	if typeof(a) == TYPE_DICTIONARY and typeof(b) == TYPE_DICTIONARY:
 		if a.size() != b.size():
 			return false
 		for k in a:
-			if not b.has(k) or not equals(a[k], b[k]):
+			if not b.has(k) or not equals(a[k], b[k], tolerance):
 				return false
 		return true
 	if typeof(a) != typeof(b):
@@ -45,15 +45,16 @@ static func _coerce_expected(actual: Variant, expected: Variant) -> Variant:
 
 
 ## Returns {ok, result, error}. ok=false means the comparison itself is invalid.
-static func evaluate(actual: Variant, op: String, raw_expected: Variant) -> Dictionary:
+## tolerance applies to numbers (also inside vectors/arrays) for ==, !=, >=, <=.
+static func evaluate(actual: Variant, op: String, raw_expected: Variant, tolerance: float = EPSILON) -> Dictionary:
 	var expected: Variant = _coerce_expected(actual, raw_expected)
 	if not OPS.has(op):
 		return {"ok": false, "result": false, "error": "Unknown operator '%s'. Use one of %s." % [op, ", ".join(OPS)]}
 	match op:
 		"==":
-			return {"ok": true, "result": equals(actual, expected), "error": ""}
+			return {"ok": true, "result": equals(actual, expected, tolerance), "error": ""}
 		"!=":
-			return {"ok": true, "result": not equals(actual, expected), "error": ""}
+			return {"ok": true, "result": not equals(actual, expected, tolerance), "error": ""}
 		"contains":
 			if typeof(actual) == TYPE_STRING and typeof(expected) == TYPE_STRING:
 				return {"ok": true, "result": actual.contains(expected), "error": ""}
@@ -74,9 +75,9 @@ static func evaluate(actual: Variant, op: String, raw_expected: Variant) -> Dict
 		">":
 			r = a > b
 		">=":
-			r = a >= b - EPSILON
+			r = a >= b - tolerance
 		"<":
 			r = a < b
 		"<=":
-			r = a <= b + EPSILON
+			r = a <= b + tolerance
 	return {"ok": true, "result": r, "error": ""}

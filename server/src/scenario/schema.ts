@@ -9,6 +9,8 @@ const Condition = z.object({
   op: z.enum([...COMPARE_OPS, ...RELATIVE_OPS]),
   value: z.unknown().optional(),
   timeout_ms: z.number().int().min(0).max(120_000).optional(),
+  tolerance: z.number().min(0).optional(),
+  message: z.string().max(200).optional(),
 });
 
 const InputStep = InputStepSchema.strict();
@@ -50,6 +52,8 @@ const BaseStep = z.union([
   z.object({ input: InputSpec }).strict(),
   z.object({ query: z.object({ node: z.string(), properties: z.array(z.string()).optional() }) }).strict(),
   z.object({ screenshot: z.string().min(1) }).strict(),
+  z.object({ pause: z.boolean() }).strict(),
+  z.object({ step: z.number().int().min(1).max(3600) }).strict(),
   z.object({ wait_ms: z.number().int().min(0).max(60_000) }).strict(),
   z.object({ assert_no_errors: z.literal(true) }).strict(),
   SetStep,

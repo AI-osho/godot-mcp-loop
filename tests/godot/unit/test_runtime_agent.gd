@@ -23,7 +23,10 @@ func test_other_messages_are_not_taken() -> void:
 	agent.free()
 
 
-func test_movie_frame_rate_comes_from_the_command_line() -> void:
-	assert_eq(RuntimeCommands.movie_fps(PackedStringArray(["--path", "/p", "--write-movie", "/m/frame.png", "--fixed-fps", "24"])), 24)
-	assert_eq(RuntimeCommands.movie_fps(PackedStringArray(["--path", "/p"])), 0)
-	assert_eq(RuntimeCommands.movie_fps(PackedStringArray(["--write-movie", "/m/frame.png"])), 60)
+# While recording, a wait counts frames of the movie's fixed step (the time scale doesn't change the step).
+func test_movie_frame_length_in_game_time() -> void:
+	assert_true(absf(RuntimeCommands.movie_frame_ms(true, 1.0 / 30.0, 1.0) - 1000.0 / 30.0) < 0.001)
+	assert_true(absf(RuntimeCommands.movie_frame_ms(true, 0.5 / 60.0, 0.5) - 1000.0 / 60.0) < 0.001)
+	assert_eq(RuntimeCommands.movie_frame_ms(false, 1.0 / 30.0, 1.0), 0.0) # not recording: real time
+	assert_eq(RuntimeCommands.movie_frame_ms(true, 0.0, 1.0), 0.0) # first frame, step not known yet
+	assert_eq(RuntimeCommands.movie_frame_ms(true, 0.0, 0.0), 0.0) # frozen game: real time, so the wait still ends

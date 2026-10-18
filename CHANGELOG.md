@@ -16,11 +16,18 @@ Improvements from the vertical-shooter generation trial.
   failing with `ASSERTION_FAILED` and the actual value. Scenario `input` accepts `{steps, record}`.
 - Relative waits: `op: changed | increased | decreased` compare with the value seen when waiting starts.
 - `image_write` `mirror: x | y | xy` (with `mirror_overlap`) completes symmetric sprites from a half or quarter.
+- `game_pause` / `game_step` (and scenario `pause:` / `step:`): freeze the game while inspecting or setting it up across calls,
+  then run exactly N physics frames — requested in both the shooter and the side-scroller trials.
+- `tolerance` and `message` on `game_wait_for` / scenario `wait_for` / `assert`.
+- `image_write` palette entries may be `null` or `"transparent"`; a flat `frames` list gets an error showing the expected shape.
 
 ### Fixed
 - `input_action_set` stored events for "keyboard only" (device 16); they now match all devices (-1) like actions
   made in the editor.
 - The first `image_write` into a new folder logged "Can't find file … during file reimport" in the editor.
+- Responses containing control characters (e.g. colored log lines) timed out: Godot's `JSON.stringify` leaves them
+  unescaped, which the server's JSON parser rejected. The server now escapes them and parses again; captured logs
+  drop terminal color codes.
 
 ## [0.3.0] - 2026-10-17
 

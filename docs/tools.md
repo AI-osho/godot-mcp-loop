@@ -1,6 +1,6 @@
 # Tools reference
 
-28 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+30 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -49,7 +49,7 @@ Conventions
 | Tool | What it does |
 |---|---|
 | `file_write` | Text files `.yaml/.yml/.json/.md/.txt/.csv` by `content` or `edits`. YAML syntax is checked before writing; a YAML file with `steps` is validated as a scenario (warnings); JSON must parse. Not for `.gd`, `.tscn`, `.cfg`, `.tres`, or anything under `addons/` / `.godot/`. |
-| `image_write` | Pixel-art PNG from text: `palette` (single character → color) and `rows`, or `frames` for a horizontal sprite sheet; `scale` uses nearest neighbour; `mirror: x / y / xy` (+ `mirror_overlap`) completes symmetric sprites from a half or quarter. Imported immediately — use `{"res": path}` as a `Sprite2D` texture, `texture_filter: 1` (Nearest) for crisp pixels, `hframes`/`frame` to animate. |
+| `image_write` | Pixel-art PNG from text: `palette` (single character → color) and `rows`, or `frames` for a horizontal sprite sheet; `scale` uses nearest neighbour; `mirror: x / y / xy` (+ `mirror_overlap`) completes symmetric sprites from a half or quarter. A palette entry of `null` or `"transparent"` is see-through. Imported immediately — use `{"res": path}` as a `Sprite2D` texture, `texture_filter: 1` (Nearest) for crisp pixels, `hframes`/`frame` to animate. |
 | `input_action_set` | Add/replace an input action in project.godot (`keys` by physical position, `mouse_buttons`, `joypad_buttons`, `deadzone`) or `remove: true`. Restart the game to apply. |
 
 ## Undo
@@ -66,8 +66,10 @@ Conventions
 | `game_stop` | Stop the game. Game logs remain readable. |
 | `game_query` | Live values from the running game (`properties`), or an overview incl. script variables and children. |
 | `game_input` | Ordered input steps with real timing: `{action, hold_ms}`, `{action, press}`/`{action, release}`, `{key}`, `{mouse_move}`, `{mouse_click}`, `{wait_ms}`. Unknown actions/keys are rejected before anything runs. `hold_frames` / `wait_frames` count physics frames (deterministic for logic in `_physics_process`). Inline steps `{set}`, `{call}`, `{assert}`, `{wait_for}` run inside the game between inputs with no time passing; a failing one aborts and releases held input. Optional `record: {node, properties, interval_ms?, mode?, expect?}` samples the properties every frame while the steps run and returns `summary` (`min`, `max`, `min_at_ms`, `max_at_ms`, `first`, `last`) computed over every recorded frame (up to 3000), plus `samples_total` and an evenly thinned list of at most 50 samples — keep `interval_ms` at 0 for exact min/max — use it for brief states such as the top of a jump (add a final `{wait_ms}` to keep recording after the input). |
-| `game_wait_for` | Wait until `node.property <op> value` (`== != > >= < <= contains`), checked every frame. `timeout_ms: 0` = one-shot assertion (`ASSERTION_FAILED` with the actual value). `op: changed / increased / decreased` waits for a change from the value seen when waiting starts. On timeout returns the last observed value. |
+| `game_wait_for` | Wait until `node.property <op> value` (`== != > >= < <= contains`), checked every frame. `timeout_ms: 0` = one-shot assertion (`ASSERTION_FAILED` with the actual value). `op: changed / increased / decreased` waits for a change from the value seen when waiting starts. `tolerance` widens numeric comparisons (default 0.0001); `message` is prefixed to a failure. On timeout returns the last observed value. |
 | `game_set` | Change live state: `{properties: {"score": 300, "position:x": 40, "items:2": 5}}`. Paths may address members, array elements and dictionary keys; values are converted to the existing type; all-or-nothing; returns before/after. |
+| `game_pause` | `paused: true/false`. While paused, game nodes don't run but `game_query` / `game_set` / `game_call` / `game_wait_for` still work, so a situation can be inspected and set up across calls without time passing. |
+| `game_step` | Run exactly `frames` physics frames, then stay paused. Every pausable node gets the same N `_physics_process` calls, independent of call latency. Actions held with `press: true` stay held. |
 | `game_call` | Call a method on a game node (e.g. a test hook `restart()` or `spawn_wave(3)`); arguments converted to the declared types; coroutines awaited; returns the result. |
 | `logs_read` | `print` output, errors and warnings with file/line/stack. `source: game` (default) or `editor`; use `since: <next>` to read incrementally. |
 | `screenshot` | PNG of the running game (`target: game`) or the editor viewport (`target: editor`). Unavailable when headless. |

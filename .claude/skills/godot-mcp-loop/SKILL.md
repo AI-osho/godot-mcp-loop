@@ -18,6 +18,10 @@ and checked the result with a query, a condition or a scenario.
 If `godot_status` cannot connect, the editor is not open or the MCP Loop plugin is disabled — ask the user; do not
 try to start or configure Godot yourself.
 
+Several games: when `godot_status` shows `projects_roots`, `project_list` lists the projects you may switch to and
+`project_connect {path}` points every following tool call at another one (check that its result names the project
+you meant before editing).
+
 ## Editing
 
 | Do | With |

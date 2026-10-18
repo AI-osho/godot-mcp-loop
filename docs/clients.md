@@ -55,5 +55,22 @@ args = ["-y", "godot-mcp-loop@<version>", "--project", "/ABS/my-game"]
 Ask the agent to call `godot_status`. If you get `GODOT_NOT_RUNNING`, the editor isn't open on that project or the
 plugin is disabled; the error's hint says which. Debug output from the server goes to stderr.
 
+## One registration for several projects
+
+Clients that register MCP servers globally (Hermes, Codex) would otherwise need one entry per game. Add
+`--projects-root` with the folder that holds your games (repeatable; or `GODOT_PROJECTS_ROOT`, separated by `:` —
+`;` on Windows):
+
+```yaml
+mcp_servers:
+  godot-loop:
+    command: "npx"
+    args: ["-y", "godot-mcp-loop@<version>", "--project", "/ABS/games/my-game", "--projects-root", "/ABS/games"]
+```
+
+The agent then lists the projects with `project_list` and switches with `project_connect {"path": "other-game"}`; the
+following tool calls work on that project. Only projects below a projects root are allowed — without the flag the
+server stays on `--project`. Each project needs the addon (same version) and its own open editor.
+
 Tip: per-call timeouts. `game_input`, `game_wait_for` and `scenario_run` can legitimately take tens of seconds; raise
 your client's tool timeout if it is lower than ~120 s.

@@ -1,6 +1,6 @@
 # Tools reference
 
-31 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+33 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -21,6 +21,21 @@ Conventions
 |---|---|
 | `godot_status` | Connection, Godot version, project, edited scene, whether the game is running, game error count. Call first. |
 | `project_info` | Name, main scene, autoloads, input actions (built-in `ui_*` hidden unless `include_builtin_actions`); `glob` (e.g. `*.tscn`) lists matching files. |
+| `project_list` | Godot projects the server may switch to: folders with `project.godot` up to 3 levels below each `--projects-root` (hidden folders, `node_modules`, `addons` and symbolic links skipped), with `name`, `addon_installed`, `editor_running` and `current`. |
+| `project_connect` | Point the running server at another project (`path`: absolute, `~/…`, or relative to a projects root) — one MCP registration for many games. Allowed only below `--projects-root` folders (resolved through symbolic links, never inside `.godot/` or `.git/`); without `--projects-root` it fails with `PROJECT_SWITCH_DISABLED`. Returns the new project's `godot_status` fields, or `editor_running: false` with how to open it. The previous editor and game keep running. |
+
+### Several projects with one server
+
+By default the server stays on its `--project`. Start it with `--projects-root <folder>` (repeatable, or
+`GODOT_PROJECTS_ROOT` with the system path separator) to let the agent switch:
+
+```bash
+npx -y godot-mcp-loop@<version> --project ~/games/shooter --projects-root ~/games
+```
+
+Then `project_list` → `project_connect {"path": "rpg"}` → the following tools work on `~/games/rpg`. `godot_status`
+reports `project_path` and `projects_roots`. When the project's editor isn't open, tools fail with `GODOT_NOT_RUNNING`
+until it is.
 
 ## Scenes & nodes (all undoable)
 

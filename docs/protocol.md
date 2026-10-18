@@ -59,7 +59,9 @@ picked up automatically; a file whose `pid` is dead is treated as "editor not ru
 | `BUSY` | `tests.run`: another test run is still going. |
 | `INTERNAL` | Bug — please report. |
 
-Client-side codes added by the MCP server: `GODOT_NOT_RUNNING`, `BAD_SESSION_FILE`, `NOT_CONNECTED`, `DISCONNECTED`.
+Client-side codes added by the MCP server: `GODOT_NOT_RUNNING`, `BAD_SESSION_FILE`, `NOT_CONNECTED`, `DISCONNECTED`;
+`project_connect`: `PROJECT_SWITCH_DISABLED` (no `--projects-root`), `PROJECT_NOT_FOUND`, `NOT_A_PROJECT` (no
+`project.godot`), `PATH_FORBIDDEN` (outside the projects roots).
 
 ## Game channel
 

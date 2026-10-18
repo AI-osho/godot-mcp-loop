@@ -1,13 +1,18 @@
 import { BridgeClient, type HelloResult } from "./bridge-client.js";
+import { BridgeError } from "./errors.js";
 import { readSession as defaultReadSession, type SessionInfo } from "./session.js";
 
 type EventListener = (event: string, data: unknown) => void;
 
 export interface GodotConnectionOptions {
   projectPath: string;
+  /** Folders whose projects project_connect may switch to (#12); empty = bound to projectPath. */
+  projectsRoots?: string[];
   readSession?: (projectPath: string) => SessionInfo;
   requestTimeoutMs?: number;
 }
+
+const SWITCH_HINT = "Or switch to another project: project_list shows them, project_connect {path} connects.";
 
 /**
  * Lazily connected, self-healing handle to the editor bridge. Each call
@@ -15,18 +20,39 @@ export interface GodotConnectionOptions {
  * (new port/token) are picked up transparently.
  */
 export class GodotConnection {
-  readonly projectPath: string;
+  readonly projectsRoots: string[];
+  private currentProject: string;
   private readonly readSessionFn: (projectPath: string) => SessionInfo;
   private readonly requestTimeoutMs: number | undefined;
   private client: BridgeClient | undefined;
   private info: HelloResult | undefined;
   private connecting: Promise<BridgeClient> | undefined;
+  /** Bumped by switchProject, so a connect started for the previous project is discarded. */
+  private generation = 0;
   private readonly listeners = new Set<EventListener>();
 
   constructor(opts: GodotConnectionOptions) {
-    this.projectPath = opts.projectPath;
+    this.currentProject = opts.projectPath;
+    this.projectsRoots = opts.projectsRoots ?? [];
     this.readSessionFn = opts.readSession ?? defaultReadSession;
     this.requestTimeoutMs = opts.requestTimeoutMs;
+  }
+
+  get projectPath(): string {
+    return this.currentProject;
+  }
+
+  /** Session of any project (used to tell whether its editor runs); throws like readSession. */
+  readSessionOf(projectPath: string): SessionInfo {
+    return this.readSessionFn(projectPath);
+  }
+
+  /** Points the connection at another project: drops the current editor connection; the next call connects anew. */
+  switchProject(projectPath: string): void {
+    this.generation += 1;
+    this.connecting = undefined;
+    this.close();
+    this.currentProject = projectPath;
   }
 
   isConnected(): boolean {
@@ -70,7 +96,17 @@ export class GodotConnection {
 
   private async connectOnce(): Promise<BridgeClient> {
     this.client?.close();
-    const s = this.readSessionFn(this.projectPath);
+    const generation = this.generation;
+    const project = this.currentProject;
+    let s: SessionInfo;
+    try {
+      s = this.readSessionFn(project);
+    } catch (e) {
+      if (e instanceof BridgeError && e.code === "GODOT_NOT_RUNNING" && this.projectsRoots.length > 0) {
+        throw new BridgeError(e.code, e.message, e.hint ? `${e.hint} ${SWITCH_HINT}` : SWITCH_HINT);
+      }
+      throw e;
+    }
     const client = new BridgeClient({
       port: s.port,
       token: s.token,
@@ -79,7 +115,16 @@ export class GodotConnection {
     client.onEvent((e, d) => {
       for (const l of this.listeners) l(e, d);
     });
-    this.info = await client.connect();
+    const info = await client.connect();
+    if (generation !== this.generation) {
+      client.close();
+      throw new BridgeError(
+        "DISCONNECTED",
+        `The server was switched from ${project} to ${this.currentProject} while connecting.`,
+        "Call the tool again; it now talks to the new project.",
+      );
+    }
+    this.info = info;
     this.client = client;
     return client;
   }

@@ -93,6 +93,15 @@ are capped at 120 s.
   through). A re-run deletes only regular files that its previous manifest lists inside that folder; a non-empty folder
   without a manifest is refused. Not undoable.
 
+## Tools added in 0.7
+
+- `project_connect` switches the server to another project only when the server was started with `--projects-root`
+  (default: off, bound to `--project`). The target must contain `project.godot` and lie below a projects root after
+  resolving symbolic links, and not inside `.godot/` or `.git/`. It reads that project's session file like the
+  server does at start; the agent cannot pick arbitrary folders. `project_list` only reads folder names,
+  `project.godot`'s name and whether a session file names a live process; it searches 3 levels deep, skips hidden
+  folders and does not follow symbolic links.
+
 ## Known limitations
 
 - A local process running as **your own user** can read the session file and connect — same-user isolation is out

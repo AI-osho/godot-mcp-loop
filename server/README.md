@@ -46,7 +46,7 @@ To update, run step 1 again with `--force` and change the version in step 3.
 
 | | Tools |
 |---|---|
-| Status | `godot_status`, `project_info` |
+| Status | `godot_status`, `project_info`, `project_list`, `project_connect` (switch projects with `--projects-root`) |
 | Scenes & nodes | `scene_open`, `scene_create`, `scene_save`, `scene_tree`, `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts & files | `script_read`, `script_write`, `script_edit`, `script_attach`, `file_write`, `image_write`, `input_action_set`, `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |

@@ -134,7 +134,7 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 
 | 区分 | ツール |
 |---|---|
-| 状態 | `godot_status`, `project_info` |
+| 状態 | `godot_status`, `project_info`, `project_list`, `project_connect`（プロジェクト切り替え） |
 | シーン | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | ノード | `node_add`, `node_delete`, `node_get`, `node_set` |
 | スクリプト | `script_read`, `script_write`, `script_edit`, `script_attach` |

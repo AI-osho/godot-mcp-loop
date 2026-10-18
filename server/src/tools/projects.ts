@@ -25,7 +25,7 @@ export function openEditorHint(project: string, addon: boolean): string {
       `\`npx godot-mcp-loop install-addon ${shq(project)}\` and open the project in Godot.`
     );
   }
-  return `No Godot editor is running for this project. Open it (\`godot -e --path ${shq(project)}\`) with the MCP Loop plugin enabled; the tools connect as soon as it runs.`;
+  return `No Godot editor is running for this project. Call editor_launch to open it (or ask the user to run \`godot -e --path ${shq(project)}\`); the tools connect as soon as it runs.`;
 }
 
 export function registerProjectTools(server: McpServer, conn: GodotConnection): void {

@@ -12,6 +12,8 @@ import { readSession as defaultReadSession, type SessionInfo } from "./session.j
 export interface ServerArgs {
   project: string;
   projectsRoots: string[];
+  /** Godot executable for editor_launch (--godot). */
+  godot?: string;
   version: boolean;
   help: boolean;
 }
@@ -30,6 +32,7 @@ export function parseServerArgs(
 ): ServerArgs {
   let project = env.GODOT_PROJECT_PATH ?? cwd;
   const roots: string[] = [];
+  let godot: string | undefined;
   let version = false;
   let help = false;
   for (let i = 0; i < argv.length; i++) {
@@ -38,6 +41,8 @@ export function parseServerArgs(
     else if (a.startsWith("--project=")) project = a.slice("--project=".length);
     else if (a === "--projects-root" && argv[i + 1] !== undefined) roots.push(argv[++i] as string);
     else if (a.startsWith("--projects-root=")) roots.push(a.slice("--projects-root=".length));
+    else if (a === "--godot" && argv[i + 1] !== undefined) godot = argv[++i] as string;
+    else if (a.startsWith("--godot=")) godot = a.slice("--godot=".length);
     else if (a === "--version") version = true;
     else if (a === "--help" || a === "-h") help = true;
   }
@@ -45,6 +50,7 @@ export function parseServerArgs(
   return {
     project: resolve(cwd, expandHome(project)),
     projectsRoots: roots.map((r) => resolve(cwd, expandHome(r))),
+    ...(godot !== undefined ? { godot: resolve(cwd, expandHome(godot)) } : {}),
     version,
     help,
   };

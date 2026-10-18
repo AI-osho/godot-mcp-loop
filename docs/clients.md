@@ -72,5 +72,11 @@ The agent then lists the projects with `project_list` and switches with `project
 following tool calls work on that project. Only projects below a projects root are allowed — without the flag the
 server stays on `--project`. Each project needs the addon (same version) and its own open editor.
 
+## Letting the agent open the editor
+
+`editor_launch` opens the Godot editor on the current project (add `headless: true` on machines without a display) and
+`editor_quit` closes it again. The server finds Godot 4.5+ on `PATH` or in the usual install folders; if yours is
+elsewhere, add `--godot /path/to/godot` to the server's arguments or set `GODOT_BIN` in its environment.
+
 Tip: per-call timeouts. `game_input`, `game_wait_for` and `scenario_run` can legitimately take tens of seconds; raise
 your client's tool timeout if it is lower than ~120 s.

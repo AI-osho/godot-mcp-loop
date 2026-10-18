@@ -13,6 +13,13 @@ All notable changes to this project are documented here. The format follows
   `.git/`). Without `--projects-root` nothing changes (`PROJECT_SWITCH_DISABLED`). `godot_status` shows
   `projects_roots`; the `GODOT_NOT_RUNNING` hint mentions switching when it is enabled. A connect still in flight for
   the previous project is discarded.
+- `editor_launch` / `editor_quit`: the agent can open the Godot editor on the current project and close it again.
+  Godot is the server's new `--godot <path>` / `GODOT_BIN`, else the first Godot 4.5+ on `PATH` or in the usual install
+  folders (checked with `--version`). The editor starts detached with a fixed argument list (`[--headless] -e --path
+  <project>`), no shell, output in `res://.godot/mcp_loop/editor.log`; the tool waits until the bridge answers and
+  returns the `godot_status` fields. It refuses projects without the addon installed and enabled, and reports an
+  editor that exits early with the end of its log. `editor_quit` closes only editors this server opened: stops the
+  game, saves the open scenes (new bridge method `editor.quit`), waits for the process, SIGTERM after `timeout_ms`.
 - Test: every tool is listed in `docs/tools.md` and the three READMEs.
 
 ## [0.6.0] - 2026-10-18

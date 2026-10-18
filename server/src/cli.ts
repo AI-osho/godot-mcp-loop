@@ -18,6 +18,7 @@ const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const USAGE = `Usage:
   godot-mcp-loop [--project <dir>]                      run the MCP server (stdio) for a Godot project
       --projects-root <dir>   allow switching (project_connect) to the projects below <dir>; repeatable
+      --godot <path>          Godot executable for editor_launch (default: $GODOT_BIN, PATH, usual install folders)
   godot-mcp-loop install-addon <dir> [options]          copy the editor addon (same version) into a project
       --skill       also add the agent skill to <dir>/.claude/skills/godot-mcp-loop
       --force       replace an addon of another version (or an existing skill)

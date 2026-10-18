@@ -15,8 +15,10 @@ and checked the result with a query, a condition or a scenario.
 2. `project_info` — main scene, autoloads, input actions; `glob: "*.tscn"` lists scenes.
 3. Read before you change: `scene_tree`, `node_get`, `script_read`.
 
-If `godot_status` cannot connect, the editor is not open or the MCP Loop plugin is disabled — ask the user; do not
-try to start or configure Godot yourself.
+If `godot_status` fails with `GODOT_NOT_RUNNING`, open the editor with `editor_launch` (`headless: true` when nobody
+needs to see it; screenshots need a window) and close it with `editor_quit` when you are done. If it fails with
+`GODOT_NOT_FOUND` or `ADDON_NOT_INSTALLED` / `ADDON_NOT_ENABLED`, ask the user — do not install or configure Godot
+yourself.
 
 Several games: when `godot_status` shows `projects_roots`, `project_list` lists the projects you may switch to and
 `project_connect {path}` points every following tool call at another one (check that its result names the project

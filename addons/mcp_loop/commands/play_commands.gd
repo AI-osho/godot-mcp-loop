@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-## editor.status, game.run, game.stop, game.query, game.input, game.wait_for, game.set, game.call,
+## editor.status, editor.quit, game.run, game.stop, game.query, game.input, game.wait_for, game.set, game.call,
 ## screenshot, logs.read
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
@@ -21,6 +21,7 @@ func _init(context: RefCounted, debugger_bridge: EditorDebuggerPlugin, scene_tre
 
 func register(router: RefCounted) -> void:
 	router.register("editor.status", _status)
+	router.register("editor.quit", _quit)
 	router.register("game.run", _run)
 	router.register("game.stop", _stop)
 	router.register("game.query", _query)
@@ -118,6 +119,20 @@ func _stop(_p: Dictionary) -> Dictionary:
 	EditorInterface.stop_playing_scene()
 	var stopped: bool = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
 	return Protocol.ok({"stopped": stopped, "was_running": true, "game": dbg.status()})
+
+
+## editor_quit: stops the game, saves the open scenes unless save=false, answers, then quits the editor.
+func _quit(p: Dictionary) -> Dictionary:
+	var was_playing := EditorInterface.is_playing_scene()
+	if was_playing:
+		EditorInterface.stop_playing_scene()
+		await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
+	var save := bool(p.get("save", true))
+	if save:
+		EditorInterface.save_all_scenes()
+	# Quit only after the reply has gone out (the bridge sends it on the next poll).
+	tree.create_timer(0.5, true).timeout.connect(func() -> void: tree.quit())
+	return Protocol.ok({"quitting": true, "saved": save, "stopped_game": was_playing})
 
 
 func _query(p: Dictionary) -> Dictionary:

@@ -17,7 +17,8 @@ export function sessionFilePath(projectPath: string): string {
 
 const OPEN_HINT =
   "Open this project in the Godot editor (4.5+) with the MCP Loop plugin enabled " +
-  "(Project > Project Settings > Plugins). Check that --project points at the folder containing project.godot.";
+  "(Project > Project Settings > Plugins), or call editor_launch to open it. Check that --project points at the folder " +
+  "containing project.godot.";
 
 /** Reads the session file written by the running editor's addon. */
 export function readSession(projectPath: string): SessionInfo {

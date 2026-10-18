@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-19
+
+One registration for many projects, an agent that can open and close the editor, Movie Maker recordings with a GIF
+and a contact sheet, and the sample games' scenarios in CI (which found two runtime bugs fixed here).
+
 ### Added
 - `project_connect` / `project_list`: one server registration for many projects (#12). Start the server with
   `--projects-root <folder>` (repeatable, or `GODOT_PROJECTS_ROOT`) and the agent can list the Godot projects below it

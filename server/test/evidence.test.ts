@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BridgeError } from "../src/errors.js";
 import type { ScenarioReport } from "../src/scenario/runner.js";
-import { resolveEvidenceFolder, saveBatchEvidence, saveScenarioEvidence, shotFileName } from "../src/scenario/evidence.js";
+import { mdCell, resolveEvidenceFolder, saveBatchEvidence, saveScenarioEvidence, shotFileName } from "../src/scenario/evidence.js";
 
 const PNG_A = Buffer.from("png-a").toString("base64");
 const PNG_B = Buffer.from("png-b").toString("base64");
@@ -74,6 +74,11 @@ describe("scenario evidence (#13)", () => {
       writeFileSync(join(project, "notes.txt"), "x");
       expect(() => resolveEvidenceFolder(project, "res://notes.txt")).toThrow(BridgeError);
     });
+  });
+
+  it("escapes table cells: backslashes before pipes, no line breaks", () => {
+    expect(mdCell("a|b\\c\nd")).toBe("a\\|b\\\\c d");
+    expect(mdCell("ends with \\")).toBe("ends with \\\\"); // a trailing backslash can't swallow the cell border
   });
 
   it("names screenshot files by position and a filesystem-safe label", () => {

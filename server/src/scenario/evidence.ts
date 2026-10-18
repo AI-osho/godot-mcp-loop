@@ -199,6 +199,8 @@ export function shotFileName(index: number, label: string): string {
 }
 
 const altText = (s: string) => s.replace(/[[\]\n\r]/g, " ").trim();
+/** Text for one Markdown table cell: backslashes first, then pipes, and no line breaks. */
+export const mdCell = (s: string): string => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 const stamp = () => new Date().toISOString();
 
 /** Writes one scenario's files into dir; returns names relative to dir. */
@@ -288,13 +290,13 @@ export function saveBatchEvidence(
       const out = writeScenario(ownSubdir(folder.abs, name), e.report, summariseOne(e.report), e.path);
       files.push(...out.files.map((f) => `${name}/${f}`));
       pngs += out.pngs;
-      rows.push(`| ${e.path} | ${e.report.passed ? "✓ passed" : "✗ FAILED"} | [report](${name}/report.md) |`);
+      rows.push(`| ${mdCell(e.path)} | ${e.report.passed ? "✓ passed" : "✗ FAILED"} | [report](${name}/report.md) |`);
       scenarios.push({ path: e.path, folder: name, passed: e.report.passed });
     } else if (e.skipped) {
-      rows.push(`| ${e.path} | - not run | |`);
+      rows.push(`| ${mdCell(e.path)} | - not run | |`);
       scenarios.push({ path: e.path, skipped: true });
     } else {
-      rows.push(`| ${e.path} | ✗ ${(e.error ?? "error").replace(/\|/g, "\\|").replace(/\n/g, " ")} | |`);
+      rows.push(`| ${mdCell(e.path)} | ✗ ${mdCell(e.error ?? "error")} | |`);
       scenarios.push({ path: e.path, error: e.error });
     }
   }

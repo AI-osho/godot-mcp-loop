@@ -78,7 +78,7 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 
 | | ゲーム | 作成したモデル | 規模 | シナリオ |
 |---|---|---|---|---|
-| <img src="docs/images/sample-tetris.png" width="200" alt="テトリス"> | [テトリス](examples/tetris/) — SRS 回転と壁キック、ゴースト表示、レベルと得点、シード固定の出現順 | Claude Opus 5.5（Claude Code） | 381 行 | 4 |
+| <img src="docs/images/sample-blocks.png" width="200" alt="落ち物パズル"> | [落ち物パズル（Falling Blocks）](examples/blocks/) — SRS 方式の回転と壁キック、ゴースト表示、レベルと得点、シード固定の出現順 | Claude Opus 5.5（Claude Code） | 381 行 | 4 |
 | <img src="docs/images/sample-shooter.png" width="200" alt="縦シューティング"> | [縦シューティング](examples/shooter/) — 5 ウェーブに 4 種類の敵、3 つの攻撃パターンを持つボス、爆発、星空スクロール、ドット絵 11 枚 | Claude Opus 5.5（Claude Code） | 805 行 | 4 |
 | <img src="docs/images/sample-action.png" width="200" alt="横スクロールアクション"> | [横スクロールアクション](examples/action/) — 加減速と可変ジャンプ、穴と動く足場のある 8 画面のステージ、踏んで倒せる敵、コイン、ゴール、3 層の多重スクロール、ドット絵 12 枚 | DeepSeek V4.1 Flash（Claude Code） | 967 行 | 4 |
 | <img src="docs/images/sample-rpg.png" width="200" alt="NES 風 RPG"> | [RPG『星剣のルカ』](examples/rpg/) — オリジナルの物語とキャラクターによる NES 風 RPG。タイトルとプロローグ、マス移動、NPC との会話、ランダムエンカウント、呪文・道具・逃走・レベルアップのある正面視点の戦闘、ボスとエンディング | DeepSeek V4.1 Flash（Claude Code） | 2,284 行 | 6 |

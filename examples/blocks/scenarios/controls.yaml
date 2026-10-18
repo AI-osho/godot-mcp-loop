@@ -1,7 +1,7 @@
 # Move / rotate (with wall kick) / soft drop / hard drop change the piece and board as expected.
 # Fixed order T, I, O and no gravity (test_controls.tscn), so every position is deterministic.
-name: tetris controls - move, rotate, wall kick, soft and hard drop
-scene: res://examples/tetris/test_controls.tscn
+name: falling blocks controls - move, rotate, wall kick, soft and hard drop
+scene: res://examples/blocks/test_controls.tscn
 steps:
   # Initial state: T at spawn (x=3, y=0), next is I, empty board
   - wait_for: { node: Game, property: piece_type, op: "==", value: "T", timeout_ms: 3000 }

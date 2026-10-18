@@ -2,8 +2,8 @@
 # Part 1: five O pieces side by side clear 2 lines at level 1 -> +300, level becomes 2.
 # Part 2: eight O pieces fill columns 0-7 four rows high, two vertical I in columns 8 and 9
 #         -> a 4-line clear at level 2 -> +800 x 2 = 1600. Total 1900, 6 lines, level 4.
-name: tetris line clears and scoring
-scene: res://examples/tetris/test_lines.tscn
+name: falling blocks line clears and scoring
+scene: res://examples/blocks/test_lines.tscn
 steps:
   - wait_for: { node: Game, property: piece_type, op: "==", value: "O", timeout_ms: 3000 }
   - assert: { node: Game, property: score, op: "==", value: 0 }
@@ -72,7 +72,7 @@ steps:
       - { key: Right, hold_ms: 30, wait_ms: 30 }
       - { key: Space, hold_ms: 30, wait_ms: 50 }
   - assert: { node: Game, property: stack_text, op: "==", value: "OOOOOOOOI.|OOOOOOOOI.|OOOOOOOOI.|OOOOOOOOI." }
-  - screenshot: before_tetris
+  - screenshot: before_four_line_clear
   # Vertical I into column 9 -> 4 lines
   - input:
       - { key: Up, hold_ms: 30, wait_ms: 30 }
@@ -89,5 +89,5 @@ steps:
   # Gravity speeds up with level: 0.8 * 0.8^3
   - assert: { node: Game, property: fall_interval, op: "==", value: 0.4096 }
   - query: { node: Game, properties: [score, lines, level, fall_interval, piece_type, next_type] }
-  - screenshot: after_tetris
+  - screenshot: after_four_line_clear
   - assert_no_errors: true

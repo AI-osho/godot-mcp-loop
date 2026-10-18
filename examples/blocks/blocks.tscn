@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://dd5csq3vnguiq"]
 
-[ext_resource type="Script" path="res://examples/tetris/tetris.gd" id="1_rw7d2"]
+[ext_resource type="Script" path="res://examples/blocks/blocks.gd" id="1_rw7d2"]
 
-[node name="Tetris" type="Node2D" unique_id=561516700]
+[node name="Blocks" type="Node2D" unique_id=561516700]
 script = ExtResource("1_rw7d2")
 
 [node name="NextLabel" type="Label" parent="." unique_id=1924569383]

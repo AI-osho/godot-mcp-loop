@@ -1,5 +1,5 @@
 extends Node2D
-## Tetris: 10x20 board, 7 tetrominoes, gravity, line clears, score/level, next piece, game over + restart.
+## Falling-block puzzle: 10x20 board, 7 tetrominoes, gravity, line clears, score/level, next piece, game over + restart.
 ## Keys: Left/Right move, Up/X rotate CW, Z rotate CCW, Down soft drop, Space hard drop, R restart.
 ## For automated tests: set `sequence` (e.g. "OOTI", cycles) or `rng_seed`, and `gravity_enabled = false`.
 
@@ -103,7 +103,7 @@ func restart() -> void:
 	_update_speed()
 	next_type = _draw_type()
 	_spawn()
-	print("[tetris] restart (sequence='%s', seed=%d)" % [sequence, rng_seed])
+	print("[blocks] restart (sequence='%s', seed=%d)" % [sequence, rng_seed])
 
 
 func _draw_type() -> String:
@@ -112,7 +112,7 @@ func _draw_type() -> String:
 		var t := seq[_seq_index % seq.length()]
 		_seq_index += 1
 		if not SHAPES.has(t):
-			push_error("[tetris] invalid piece '%s' in sequence" % t)
+			push_error("[blocks] invalid piece '%s' in sequence" % t)
 			return "T"
 		return t
 	if _bag.is_empty():
@@ -139,7 +139,7 @@ func _spawn() -> void:
 	_fall_timer = 0.0
 	if not _fits(piece_x, piece_y, piece_rot):
 		game_over = true
-		print("[tetris] game over: score=%d lines=%d level=%d" % [score, lines, level])
+		print("[blocks] game over: score=%d lines=%d level=%d" % [score, lines, level])
 	_refresh()
 
 
@@ -211,7 +211,7 @@ func _lock() -> void:
 			continue
 		board[by][piece_x + c.x] = piece_type
 	if game_over:
-		print("[tetris] game over (lock out): score=%d" % score)
+		print("[blocks] game over (lock out): score=%d" % score)
 		_refresh()
 		return
 	_clear_lines()
@@ -238,7 +238,7 @@ func _clear_lines() -> void:
 	lines += cleared
 	level = 1 + lines / maxi(1, lines_per_level)
 	_update_speed()
-	print("[tetris] cleared %d line(s): +%d -> score=%d lines=%d level=%d" % [cleared, gained, score, lines, level])
+	print("[blocks] cleared %d line(s): +%d -> score=%d lines=%d level=%d" % [cleared, gained, score, lines, level])
 
 
 func _update_speed() -> void:

@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows
   original story, cast and monsters — title, prologue, grid movement, NPC dialogue, random encounters, front-view
   battles, a boss and an ending; six scenarios. Four small fixes after review (hold to keep walking, three cosmetic
   overlaps).
+- The falling-block puzzle sample is now `examples/blocks/` ("Falling Blocks"), named generically.
 - `SECURITY.md` and Dependabot configuration (npm, GitHub Actions).
 
 ### Security
@@ -27,7 +28,7 @@ All notable changes to this project are documented here. The format follows
 Improvements from the vertical-shooter and side-scroller generation trials, and three advanced samples.
 
 ### Added
-- Advanced samples in `examples/`: Tetris, a vertical shooter and a side-scroller, each generated end to end by an AI
+- Advanced samples in `examples/`: a falling-block puzzle, a vertical shooter and a side-scroller, each generated end to end by an AI
   agent through godot-mcp-loop (Claude Opus 5.5 and DeepSeek V4.1 Flash) and verified independently.
 - Frame-based input timing: `hold_frames` / `wait_frames` count physics frames, so tests of logic in
   `_physics_process` don't depend on wall-clock time (a momentary stall made a "hold 2.5 s" test fail once).
@@ -52,7 +53,7 @@ Improvements from the vertical-shooter and side-scroller generation trials, and 
 
 ## [0.3.0] - 2026-10-17
 
-Tool improvements from the Tetris generation trial (Claude Code built a full Tetris; these remove the friction it reported).
+Tool improvements from the falling-block puzzle generation trial (Claude Code built a complete game; these remove the friction it reported).
 
 ### Added
 - `game_set` / `game_call`: change state in the running game (members, array elements, dictionary keys; values

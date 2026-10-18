@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-10-18
 
 Tool improvements from the RPG generation trial (#6–#9).
 
@@ -22,6 +22,8 @@ Tool improvements from the RPG generation trial (#6–#9).
   timeout on progress can run long batches.
 
 ### Changed
+- Development dependencies: TypeScript 7 (emitted JavaScript identical to 5.9), `@types/node` kept at Node 20, the
+  oldest supported version; CI actions updated (checkout 7, setup-node 7, cache 6), still pinned to commit SHAs.
 - The RPG sample's movement scenario drives frame-exact moves with `step: {frames: 1, tap: [...]}` and checks
   `summary()` directly, instead of a `start_move()` test hook.
 

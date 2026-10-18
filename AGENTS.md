@@ -39,5 +39,8 @@ npm run test:e2e                       # end-to-end against a headless editor (s
   127.0.0.1 only; file access goes through `PathGuard` (no `.godot/`, `.git/`, `addons/` writes, no symlinks out);
   every edit is undoable and supports `dry_run`.
 - Keep the addon version (`addons/mcp_loop/plugin.cfg`) and the server version (`server/package.json`) equal.
+- Releases: a release PR sets both versions and the `CHANGELOG.md` section, then pushing tag `vX.Y.Z` runs
+  `.github/workflows/release.yml` (GitHub release + npm staged publish that a maintainer approves with 2FA). Creating
+  tags, releases and npm publishes needs the maintainer's approval. See `docs/releasing.md`.
 - Trials of game generation run in `sandbox/<name>/` with input actions prefixed by the game name; don't touch
   `sandbox/` folders someone else is testing in.

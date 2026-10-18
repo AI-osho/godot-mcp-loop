@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { decodePng } from "../../src/media/png.js";
 import { connectClient, textOf } from "../helpers.js";
-import { PLATFORMER_PROJECT, startHeadlessEditor, type GodotHarness } from "./godot-harness.js";
+import { PLATFORMER_PROJECT, startHeadlessEditor, windowedGameSettings, type GodotHarness } from "./godot-harness.js";
 
 /** Movie Maker needs a game window: runs on macOS, or elsewhere with E2E_GAME_WINDOW=1 (e.g. under xvfb). */
 const CAN_RECORD = process.platform === "darwin" || process.env.E2E_GAME_WINDOW === "1";
@@ -13,7 +13,10 @@ describe.skipIf(!CAN_RECORD)("e2e: scenario_run movie (Movie Maker → GIF + con
 
   beforeAll(async () => {
     // The platformer, with its games in a window (no --headless in Main Run Args).
-    h = await startHeadlessEditor({ ...PLATFORMER_PROJECT, projectGodotExtra: PLATFORMER_PROJECT.projectGodotExtra!.replace(/\[editor\][\s\S]*$/, "") });
+    h = await startHeadlessEditor({
+      ...PLATFORMER_PROJECT,
+      projectGodotExtra: PLATFORMER_PROJECT.projectGodotExtra!.replace(/\[editor\][\s\S]*$/, "") + windowedGameSettings(),
+    });
   });
   afterAll(async () => {
     await h?.stop();

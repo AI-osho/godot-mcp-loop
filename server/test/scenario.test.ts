@@ -63,6 +63,24 @@ steps:
 });
 
 describe("runScenario", () => {
+  it("records a movie when asked: game.run gets the frame rate, the game is ended gracefully even with keep_running", async () => {
+    const { call, calls } = fakeBridge({
+      "game.run": (p) => ({ running: true, movie: { dir: "/proj/.godot/mcp_loop/movie", fps: (p.movie as { fps: number }).fps } }),
+    });
+    const s = parseScenario({ name: "m", keep_running: true, steps: [{ wait_ms: 1 }] });
+    const report = await runScenario(s, call, { movie: { fps: 24 } });
+    expect(calls[0]).toEqual(["game.run", { scene: "main", restart: true, movie: { fps: 24 } }]);
+    expect(report.movie).toEqual({ dir: "/proj/.godot/mcp_loop/movie", fps: 24 });
+    expect(calls.find(([m]) => m === "game.stop")?.[1]).toEqual({ graceful: true });
+  });
+
+  it("without a movie, game.run and game.stop are called as before", async () => {
+    const { call, calls } = fakeBridge({});
+    const report = await runScenario(parseScenario({ name: "p", steps: [{ wait_ms: 1 }] }), call);
+    expect(calls[0]).toEqual(["game.run", { scene: "main", restart: true }]);
+    expect(calls.find(([m]) => m === "game.stop")?.[1]).toEqual({});
+    expect(report.movie).toBeUndefined();
+  });
   it("runs steps in order, passes, and stops the game", async () => {
     const { call, calls } = fakeBridge({
       "game.wait_for": () => ({ met: true, value: 300 }),

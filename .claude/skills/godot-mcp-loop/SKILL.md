@@ -89,6 +89,9 @@ earlier state. Patterns: [references/scenario-cookbook.md](references/scenario-c
 - Run the folder twice before reporting; a scenario that passes only sometimes is a bug in the game or the test.
 - For the final run add `save_to: "res://qa/evidence/<name>"`: screenshots, `report.md` and `report.json` stay as files
   that a person can check later. Name the folder in your report.
+- To see or show motion (animation, a jump arc, a boss pattern), add `movie: {}` to a single-scenario run with
+  `save_to`: you get `contact.png` (12 labelled frames in one image, also returned to you — look at it) and
+  `movie.gif` for the report or README. It needs a game window, not `--headless` in Main Run Args.
 
 Logic that has no screen (damage formulas, inventory rules, save data, level generation) is cheaper to check with unit
 tests. If the project has GUT or GdUnit4 in `addons/`, write tests in `res://test/` and run them with

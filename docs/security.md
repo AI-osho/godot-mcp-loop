@@ -110,6 +110,11 @@ are capped at 120 s.
   cannot close an editor the user opened. It asks the addon to save the open scenes and quit (`editor.quit`, which
   any authenticated client could send); if the editor does not exit in time the server sends SIGTERM (then SIGKILL)
   to that process only.
+- `scenario_run` `movie` makes the game write PNG frames (and a WAV) only to the fixed folder
+  `res://.godot/mcp_loop/movie/` (the agent cannot choose it; the file tools cannot reach it); the addon deletes only
+  `frameNNNNNNNN.png` / `frame.wav` there before a recording. The Movie Maker project settings are changed in memory
+  for one launch and restored right after it. The GIF, contact sheet and copied frames are written by the server into
+  the `save_to` folder under the evidence rules above.
 
 ## Known limitations
 

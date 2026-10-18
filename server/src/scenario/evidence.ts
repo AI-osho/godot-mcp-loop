@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { BridgeError } from "../errors.js";
+import type { MovieOutput } from "../media/movie.js";
 import { SERVER_VERSION } from "../version.js";
 import type { ScenarioReport, Shot } from "./runner.js";
 
@@ -26,6 +27,14 @@ export interface SavedEvidence {
   index: string;
 }
 
+/** A recording to keep with one scenario's evidence: movie.gif, contact.png and, with keepFrames, frames/. */
+export interface EvidenceMovie {
+  output: MovieOutput;
+  keepFrames: boolean;
+  /** One line describing the recording (also in the tool summary). */
+  line: string;
+}
+
 export interface EvidenceBatchEntry {
   path: string;
   report?: ScenarioReport;
@@ -43,6 +52,8 @@ export function withoutImages(r: ScenarioReport): unknown {
     ...r,
     screenshots: r.screenshots.map(({ label, width, height }) => ({ label, width, height })),
     failure_screenshot: r.failure_screenshot ? { label: r.failure_screenshot.label } : undefined,
+    // The recording's local folder (under .godot/) stays out of reports.
+    movie: r.movie ? { fps: r.movie.fps, frames: r.movie.frames, seconds: r.movie.seconds } : undefined,
   };
 }
 
@@ -204,7 +215,13 @@ export const mdCell = (s: string): string => s.replace(/\\/g, "\\\\").replace(/\
 const stamp = () => new Date().toISOString();
 
 /** Writes one scenario's files into dir; returns names relative to dir. */
-function writeScenario(dir: string, report: ScenarioReport, summary: string, source: string | undefined): { files: string[]; pngs: number } {
+function writeScenario(
+  dir: string,
+  report: ScenarioReport,
+  summary: string,
+  source: string | undefined,
+  movie?: EvidenceMovie,
+): { files: string[]; pngs: number } {
   const files: string[] = [];
   const shots: Array<{ shot: Shot; file: string; failure: boolean }> = report.screenshots.map((shot, i) => ({
     shot,
@@ -233,6 +250,27 @@ function writeScenario(dir: string, report: ScenarioReport, summary: string, sou
       md.push("", `### ${s.failure ? `Failure: ${s.shot.label}` : `${i + 1}. ${s.shot.label}`}`, "", `![${altText(s.shot.label)}](${s.file})`);
     });
   }
+  if (movie) {
+    md.push("", "## Movie", "", movie.line);
+    if (movie.output.gif) {
+      writeOwn(join(dir, "movie.gif"), movie.output.gif.data);
+      files.push("movie.gif");
+      md.push("", "![movie](movie.gif)");
+    }
+    if (movie.output.contact) {
+      writeOwn(join(dir, "contact.png"), movie.output.contact.data);
+      files.push("contact.png");
+      md.push("", "![contact sheet](contact.png)");
+    }
+    if (movie.keepFrames) {
+      const frames = ownSubdir(dir, "frames");
+      for (const f of movie.output.files) {
+        writeOwn(join(frames, basename(f)), readFileSync(f));
+        files.push(`frames/${basename(f)}`);
+      }
+      md.push("", `Every frame: [frames/](frames/) (${movie.output.files.length} PNG files).`);
+    }
+  }
   writeOwn(join(dir, "report.md"), `${md.join("\n")}\n`);
   files.push("report.md", "report.json");
   const manifest = {
@@ -254,9 +292,10 @@ export function saveScenarioEvidence(
   report: ScenarioReport,
   summary: string,
   source?: string,
+  movie?: EvidenceMovie,
 ): SavedEvidence {
   const folder = prepare(projectPath, saveTo);
-  const { files, pngs } = writeScenario(folder.abs, report, summary, source);
+  const { files, pngs } = writeScenario(folder.abs, report, summary, source, movie);
   return { dir: folder.res, files, screenshots: pngs, index: "report.md" };
 }
 

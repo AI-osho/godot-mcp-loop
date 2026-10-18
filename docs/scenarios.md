@@ -89,6 +89,41 @@ scenario_run did not write is refused. Same path rules as other writes (inside t
 not the project root); the folder is checked before the game starts. Writing evidence is not undoable — add the folder
 to `.gitignore` or commit it on purpose.
 
+## Recording a movie
+
+`movie` records the run with Godot's Movie Maker and keeps it with the evidence (one scenario, `save_to` required):
+
+```json
+{"path": "res://examples/shooter/scenarios/4_boss_clear.yaml", "save_to": "res://qa/boss",
+ "movie": {"fps": 30, "gif_fps": 15, "max_width": 480, "contact_sheet": 12}}
+```
+
+```
+qa/boss/
+  movie.gif      the run as a looping GIF (every second frame at 15 fps, 480 px wide)
+  contact.png    12 evenly spaced frames in a grid, each labelled "<game time>s (<frame>)"
+  frames/        every recorded frame, only with "frames": true
+  report.md      summary, screenshots, the GIF and the contact sheet
+```
+
+The contact sheet also comes back as an image in the tool result, so the agent sees the motion in one look; the
+summary adds a line such as `Movie: 240 frames at 30 fps (8.00 s of game time) → movie.gif 480×270, 120 frames at 15 fps
+(812 KB); contact.png (12 frames)`.
+
+How it works: the editor starts the game with `--write-movie` and `--fixed-fps <fps>` (the Movie Maker settings are
+set only for that launch and restored at once), the game writes `res://.godot/mcp_loop/movie/frameNNNNNNNN.png`, and
+at the end the game is asked to quit by itself so the last frame is complete. The server then builds the GIF (one
+palette — exact for up to 256 colours, as in pixel art — and only the changed rectangle per frame) and the contact
+sheet. Things to know:
+
+- The game runs at a fixed step of 1/`fps` per frame, as fast as it can render — usually faster than real time.
+  Waits and timers in the scenario are game time, so the movie shows the same timing a player would see; prefer
+  frame-based steps (`hold_frames`, `wait_frames`, `step`) for exact timing.
+- Recording needs a game window: remove `--headless` from *Main Run Args* (`RENDERING_UNAVAILABLE` otherwise). The
+  editor itself may be headless. On a Linux server, run it under `xvfb-run`.
+- GIFs are capped at 300 frames (longer recordings are thinned evenly) and `gif_fps` at 50 (browsers slow faster
+  GIFs down).
+
 ## Examples
 
 - [`examples/platformer/scenarios/move_right.yaml`](../examples/platformer/scenarios/move_right.yaml) — passes.

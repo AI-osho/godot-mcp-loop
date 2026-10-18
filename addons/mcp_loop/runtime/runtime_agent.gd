@@ -15,6 +15,8 @@ var _cmds: RuntimeCommands
 var _log: LogCapture
 var _log_cursor := 1
 var _last_flush := 0
+## Requests waiting for a safe point (see _on_message).
+var _pending: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -59,11 +61,23 @@ func _flush_logs() -> void:
 
 
 # The capture receives the message name without the "mcp_loop:" prefix.
+# GDScript polls the debugger every few thousand executed lines, so this can be called in the middle of the game's own
+# code (e.g. inside a loop over enemies). Running a command right here could free or change what that code is using,
+# so requests are queued and handled at the next deferred-call flush, between callbacks.
 func _on_message(message: String, data: Array) -> bool:
 	if message != "request" or data.is_empty() or typeof(data[0]) != TYPE_DICTIONARY:
 		return false
-	_handle(data[0])
+	_pending.append(data[0])
+	if _pending.size() == 1:
+		_drain.call_deferred()
 	return true
+
+
+func _drain() -> void:
+	var batch := _pending
+	_pending = []
+	for req in batch:
+		_handle(req) # not awaited: requests still run side by side
 
 
 func _handle(req: Dictionary) -> void:

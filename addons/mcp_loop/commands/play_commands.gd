@@ -8,10 +8,14 @@ const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 const Movie = preload("res://addons/mcp_loop/commands/movie.gd")
 
 const RUNTIME_GRACE_MS := 5000
+## While recording a movie the game counts waits in game time and may run much slower than real time (software
+## rendering, PNG encoding), so the editor's own safety timeouts get this much more room.
+const MOVIE_SLOWDOWN := 10
 
 var ctx: RefCounted
 var dbg: EditorDebuggerPlugin
 var tree: SceneTree
+var _recording := false
 
 
 func _init(context: RefCounted, debugger_bridge: EditorDebuggerPlugin, scene_tree: SceneTree) -> void:
@@ -98,6 +102,7 @@ func _run(p: Dictionary) -> Dictionary:
 	await _wait_until(func() -> bool: return not fs.is_scanning(), timeout_ms)
 
 	dbg.reset_for_run(bool(p.get("pause_on_error", false)))
+	_recording = movie != null
 	var movie_info := {}
 	var saved_movie := {}
 	if movie != null:
@@ -164,13 +169,17 @@ func _quit(p: Dictionary) -> Dictionary:
 	return Protocol.ok({"quitting": true, "saved": save, "stopped_game": was_playing})
 
 
+func _slack(ms: int) -> int:
+	return ms * MOVIE_SLOWDOWN if _recording else ms
+
+
 func _query(p: Dictionary) -> Dictionary:
 	return await dbg.call_runtime(tree, "query", p, 10000)
 
 
 func _wait_for(p: Dictionary) -> Dictionary:
 	var t := clampi(int(p.get("timeout_ms", 5000)), 0, 120000)
-	return await dbg.call_runtime(tree, "wait_for", p, t + RUNTIME_GRACE_MS)
+	return await dbg.call_runtime(tree, "wait_for", p, _slack(t) + RUNTIME_GRACE_MS)
 
 
 func _set_values(p: Dictionary) -> Dictionary:
@@ -179,7 +188,7 @@ func _set_values(p: Dictionary) -> Dictionary:
 
 func _call_method(p: Dictionary) -> Dictionary:
 	var t := clampi(int(p.get("timeout_ms", 10000)), 100, 60000)
-	return await dbg.call_runtime(tree, "call", p, t + RUNTIME_GRACE_MS)
+	return await dbg.call_runtime(tree, "call", p, _slack(t) + RUNTIME_GRACE_MS)
 
 
 func _pause(p: Dictionary) -> Dictionary:
@@ -187,11 +196,11 @@ func _pause(p: Dictionary) -> Dictionary:
 
 
 func _step(p: Dictionary) -> Dictionary:
-	return await dbg.call_runtime(tree, "step", p, _frames_ms(clampi(int(p.get("frames", 1)), 1, 3600)) + RUNTIME_GRACE_MS)
+	return await dbg.call_runtime(tree, "step", p, _slack(_frames_ms(clampi(int(p.get("frames", 1)), 1, 3600))) + RUNTIME_GRACE_MS)
 
 
 func _input(p: Dictionary) -> Dictionary:
-	return await dbg.call_runtime(tree, "input", p, steps_duration_ms(p.get("steps", [])) + RUNTIME_GRACE_MS)
+	return await dbg.call_runtime(tree, "input", p, _slack(steps_duration_ms(p.get("steps", []))) + RUNTIME_GRACE_MS)
 
 
 ## Upper bound for how long input steps take (frames at 60 Hz with 2x headroom,

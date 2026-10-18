@@ -116,9 +116,10 @@ at the end the game is asked to quit by itself so the last frame is complete. Th
 palette — exact for up to 256 colours, as in pixel art — and only the changed rectangle per frame) and the contact
 sheet. Things to know:
 
-- The game runs at a fixed step of 1/`fps` per frame, as fast as it can render — usually faster than real time.
-  Waits and timers in the scenario are game time, so the movie shows the same timing a player would see; prefer
-  frame-based steps (`hold_frames`, `wait_frames`, `step`) for exact timing.
+- The game runs at a fixed step of 1/`fps` per frame, as fast as it can render — faster or slower than real time.
+  Waits, holds and `wait_for` timeouts in the scenario count game time, so the movie shows the same timing a player
+  would see and a slow machine (software rendering) doesn't make them fire early; the editor's and server's own safety
+  timeouts get ten times more room. Prefer frame-based steps (`hold_frames`, `wait_frames`, `step`) for exact timing.
 - Recording needs a game window: remove `--headless` from *Main Run Args* (`RENDERING_UNAVAILABLE` otherwise). The
   editor itself may be headless. On a Linux server, run it under `xvfb-run`.
 - GIFs are capped at 300 frames (longer recordings are thinned evenly) and `gif_fps` at 50 (browsers slow faster

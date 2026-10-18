@@ -26,38 +26,34 @@ steps:
   - assert: { node: ., property: tile, op: "==", value: [7, 9] }
   - assert: { node: Actors/Player, property: frame, op: "==", value: 4 }
   - assert: { node: Actors/Player, property: flip_h, op: "==", value: false }
-  # Frame-exact check with pause/step (no wall clock involved).
+  # Frame-exact check with pause/step and real input: a tap sent with the step
+  # lands in its first frame, where the move starts (no test hook needed).
   - pause: true
   - call: { node: ., method: warp, args: [castle, 7, 9] }
-  - call: { node: ., method: start_move, args: [right] }
-  - assert: { node: ., property: moving, op: "==", value: true }
+  - step: { frames: 1, tap: [rpg_right] }
+  - assert: { node: ., method: summary, property: moving, op: "==", value: true }
   - assert: { node: ., property: move_elapsed, op: "==", value: 0 }
   - assert: { node: Actors/Player, property: position:x, op: "==", value: 120 }
   - step: 1
-  - assert: { node: ., property: moving, op: "==", value: true }
   - assert: { node: ., property: move_elapsed, op: "==", value: 1 }
   - assert: { node: Actors/Player, property: position:x, op: "==", value: 122 }
   - step: 7
   - assert: { node: ., property: moving, op: "==", value: false }
   - assert: { node: ., property: move_elapsed, op: "==", value: 8 }
   - assert: { node: Actors/Player, property: position:x, op: "==", value: 136 }
-  - assert: { node: ., property: tile, op: "==", value: [8, 9] }
+  - assert: { node: ., method: summary, property: tile, op: "==", value: [8, 9] }
   # Collision while paused. Water below (3,4), mountain above (8,5), castle wall left of (1,7).
   - call: { node: ., method: warp, args: [world, 3, 4] }
-  - call: { node: ., method: face, args: [down] }
-  - call: { node: ., method: start_move, args: [down] }
+  - step: { frames: 1, tap: [rpg_down] }
   - assert: { node: ., property: moving, op: "==", value: false }
-  - step: 1
   - assert: { node: ., property: tile, op: "==", value: [3, 4] }
   - call: { node: ., method: warp, args: [world, 8, 5] }
-  - call: { node: ., method: start_move, args: [up] }
+  - step: { frames: 1, tap: [rpg_up] }
   - assert: { node: ., property: moving, op: "==", value: false }
-  - step: 1
   - assert: { node: ., property: tile, op: "==", value: [8, 5] }
   - call: { node: ., method: warp, args: [castle, 1, 7] }
-  - call: { node: ., method: start_move, args: [left] }
+  - step: { frames: 1, tap: [rpg_left] }
   - assert: { node: ., property: moving, op: "==", value: false }
-  - step: 1
   - assert: { node: ., property: tile, op: "==", value: [1, 7] }
   - pause: false
   # Encounters off: walking on forest must not start a battle.

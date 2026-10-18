@@ -85,8 +85,8 @@ regression scenarios — and then verified independently: every scenario passes 
 | <img src="docs/images/sample-rpg.png" width="200" alt="NES-style RPG"> | [RPG "星剣のルカ"](examples/rpg/) — NES-style RPG with an original story and cast: title and prologue, grid movement, NPC dialogue, random encounters, front-view battles with spells, items, fleeing and level-ups, a boss and an ending (Japanese text) | DeepSeek V4.1 Flash (Claude Code) | 2,284 lines | 6 |
 
 Play one with `game_run {"scene": "res://examples/shooter/shooter.tscn"}` (or open the scene and press F6) and
-replay its checks with `scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}`. Controls and
-details: [examples/README.md](examples/README.md).
+replay its checks with `scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` — or all of them
+with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [examples/README.md](examples/README.md).
 
 ## Tools
 

@@ -126,6 +126,85 @@ describe("scenario_run tool", () => {
     }
   });
 
+  describe("folders and lists (#8)", () => {
+    beforeEach(() => {
+      addon.handlers.set("game.wait_for", (p) =>
+        (p as { property?: string }).property === "bad"
+          ? { ok: false, error: { code: "TIMEOUT", message: "Last value: 3" } }
+          : { ok: true, result: { met: true, value: 1 } },
+      );
+      const ok = (n: string) => `name: ${n}\nsteps:\n  - assert: { node: P, property: x, op: '>', value: 0 }\n  - screenshot: end_${n}\n`;
+      write("tests/s/2_b.yaml", ok("b"));
+      write("tests/s/1_a.yaml", ok("a"));
+      write("tests/s/3_bad.yml", "name: bad\nsteps:\n  - assert: { node: P, property: bad, op: '>', value: 9 }\n");
+      write("tests/s/notes.txt", "not a scenario");
+    });
+
+    it("runs every scenario in a folder in name order and summarises", async () => {
+      const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s" } });
+      expect(res.isError).toBeFalsy();
+      const text = textOf(res);
+      expect(text.split("\n")[0]).toMatch(/^Scenarios: 2\/3 passed/);
+      expect(text.indexOf("1_a.yaml")).toBeLessThan(text.indexOf("2_b.yaml"));
+      expect(text.indexOf("2_b.yaml")).toBeLessThan(text.indexOf("3_bad.yml"));
+      expect(text).not.toContain("notes.txt");
+      expect(text).toContain("Last value: 3"); // details of the failure
+      // Only the failure screenshot is attached in a batch by default.
+      const images = (res.content as Array<{ type: string }>).filter((c) => c.type === "image");
+      expect(images).toHaveLength(1);
+    });
+
+    it("stop_on_failure leaves the rest unrun; paths keeps the given order", async () => {
+      write("tests/s/0_bad.yaml", "name: first\nsteps:\n  - assert: { node: P, property: bad, op: '>', value: 9 }\n");
+      const stopped = textOf(await client.callTool({ name: "scenario_run", arguments: { path: "tests/s", stop_on_failure: true } }));
+      expect(stopped.split("\n")[0]).toMatch(/^Scenarios: 0\/4 passed/);
+      expect(stopped).toMatch(/1_a\.yaml.*not run/);
+      const listed = textOf(await client.callTool({ name: "scenario_run", arguments: { paths: ["res://tests/s/2_b.yaml", "res://tests/s/1_a.yaml"] } }));
+      expect(listed.split("\n")[0]).toMatch(/^Scenarios: 2\/2 passed/);
+      expect(listed.indexOf("2_b.yaml")).toBeLessThan(listed.indexOf("1_a.yaml"));
+    });
+
+    it("reports a broken or forbidden file inside the batch and keeps going", async () => {
+      write("tests/s/4_broken.yaml", "name: broken\nsteps:\n  - fly: 1\n");
+      const outside = mkdtempSync(join(tmpdir(), "gml-outside-"));
+      writeFileSync(join(outside, "x.yaml"), "name: x\nsteps:\n  - wait_ms: 1\n");
+      symlinkSync(join(outside, "x.yaml"), join(project, "tests", "s", "5_link.yaml"));
+      const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s" } });
+      expect(res.isError).toBeFalsy();
+      const text = textOf(res);
+      expect(text.split("\n")[0]).toMatch(/^Scenarios: 2\/5 passed/);
+      expect(text).toMatch(/4_broken\.yaml.*Invalid scenario/);
+      expect(text).toMatch(/5_link\.yaml.*PATH_FORBIDDEN/);
+      rmSync(outside, { recursive: true, force: true });
+    });
+
+    it("reports progress per scenario so clients can keep long batches alive", async () => {
+      const seen: Array<{ progress: number; total?: number; message?: string }> = [];
+      await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s" } }, undefined, {
+        onprogress: (p) => seen.push(p),
+      });
+      expect(seen.map((p) => p.progress)).toEqual([0, 1, 2, 3]);
+      expect(seen.every((p) => p.total === 3)).toBe(true);
+      expect(seen[1]!.message).toMatch(/1_a\.yaml.*passed/);
+      expect(seen[3]!.message).toMatch(/3_bad\.yml.*failed/);
+    });
+
+    it("refuses protected folders, empty folders, and mixed arguments", async () => {
+      mkdirSync(join(project, ".godot"), { recursive: true });
+      writeFileSync(join(project, ".godot", "s.yaml"), "name: x\nsteps:\n  - wait_ms: 1\n");
+      for (const args of [{ path: "res://.godot" }, { paths: ["res://.godot/s.yaml"] }]) {
+        const res = await client.callTool({ name: "scenario_run", arguments: args });
+        expect(textOf(res)).toContain("PATH_FORBIDDEN");
+      }
+      mkdirSync(join(project, "empty"));
+      const empty = await client.callTool({ name: "scenario_run", arguments: { path: "res://empty" } });
+      expect(empty.isError).toBe(true);
+      expect(textOf(empty)).toContain("No scenario files");
+      const both = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/s", paths: ["res://tests/s/1_a.yaml"] } });
+      expect(both.isError).toBe(true);
+    });
+  });
+
   it("requires exactly one of path or scenario", async () => {
     const res = await client.callTool({ name: "scenario_run", arguments: {} });
     expect(res.isError).toBe(true);

@@ -132,7 +132,19 @@ func _call_method(p: Dictionary) -> Dictionary:
 	if node == null:
 		return _not_found(path)
 	var method := String(p.get("method", ""))
-	var raw_args: Variant = p.get("args", [])
+	var prepared := _prepare_call(node, method, p.get("args", []))
+	if not prepared.ok:
+		return prepared
+	var result: Variant = node.callv(method, prepared.result)
+	# A coroutine returns a function state; wait for its real result.
+	if result is Object and is_instance_valid(result) and result.has_signal("completed"):
+		result = await result.completed
+	return Protocol.ok({"node": str(node.get_path()), "method": method, "returned": Codec.encode(result)})
+
+
+## Checks a method exists and converts JSON arguments to its declared
+## parameter types (shared by game_call and method conditions).
+func _prepare_call(node: Node, method: String, raw_args: Variant) -> Dictionary:
 	if typeof(raw_args) != TYPE_ARRAY:
 		return Protocol.err(Protocol.INVALID_PARAMS, "'args' must be an array.")
 	var info := {}
@@ -162,11 +174,7 @@ func _call_method(p: Dictionary) -> Dictionary:
 		if not d.ok:
 			return Protocol.err(Protocol.INVALID_PARAMS, "Argument %d (%s): %s" % [i + 1, params[i].name if i < params.size() else "?", d.error])
 		args.append(d.value)
-	var result: Variant = node.callv(method, args)
-	# A coroutine returns a function state; wait for its real result.
-	if result is Object and is_instance_valid(result) and result.has_signal("completed"):
-		result = await result.completed
-	return Protocol.ok({"node": str(node.get_path()), "method": method, "returned": Codec.encode(result)})
+	return Protocol.ok(args)
 
 
 # ------------------------------------------------------------------ wait_for
@@ -203,14 +211,36 @@ func _wait_for_condition(p: Dictionary) -> Dictionary:
 	var baseline: Variant = null
 	var has_baseline := false
 	var read_error := ""
-	var condition := "%s %s" % [prop, op] if relative else "%s %s %s" % [prop, op, JSON.stringify(expected)]
+	var method := String(p.get("method", ""))
+	var call_args: Array = []
+	var prepared_for := 0
+	var subject := prop
+	if method != "":
+		subject = "%s()%s" % [method, (":" + prop) if prop != "" else ""]
+	elif prop == "":
+		return Protocol.err(Protocol.INVALID_PARAMS, "Give 'property' (or 'method' to check a method's return value).")
+	var condition := "%s %s" % [subject, op] if relative else "%s %s %s" % [subject, op, JSON.stringify(expected)]
 	while true:
 		var node := _resolve(path)
 		if node != null:
-			if not _has_property(node, prop):
-				return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop.split(":")[0]])
-			# An element may not exist yet (e.g. an array that grows), so keep waiting.
-			var got := PropertyPath.read(node, prop)
+			var got: Dictionary
+			if method != "":
+				# Called on every check, so it should only read state.
+				if prepared_for != node.get_instance_id():
+					var prepared := _prepare_call(node, method, p.get("args", []))
+					if not prepared.ok:
+						return prepared
+					call_args = prepared.result
+					prepared_for = node.get_instance_id()
+				var returned: Variant = node.callv(method, call_args)
+				if returned is Object and is_instance_valid(returned) and returned.has_signal("completed"):
+					return Protocol.err(Protocol.INVALID_PARAMS, "%s() is a coroutine; a condition needs a method that returns right away." % method)
+				got = PropertyPath.read_value(returned, prop, method + "()")
+			else:
+				if not _has_property(node, prop):
+					return Protocol.err(Protocol.INVALID_PARAMS, "%s has no property '%s'." % [node.get_class(), prop.split(":")[0]])
+				# An element may not exist yet (e.g. an array that grows), so keep waiting.
+				got = PropertyPath.read(node, prop)
 			read_error = "" if got.ok else got.error
 			if got.ok:
 				last = Codec.encode(got.value)
@@ -275,9 +305,27 @@ func _step(p: Dictionary) -> Dictionary:
 	if typeof(raw) not in [TYPE_INT, TYPE_FLOAT] or int(raw) < 1 or int(raw) > MAX_STEP_FRAMES:
 		return Protocol.err(Protocol.INVALID_PARAMS, "'frames' must be between 1 and %d." % MAX_STEP_FRAMES)
 	var frames := int(raw)
-	var stepper: Node = Stepper.new(frames)
+	var input := {}
+	for key in ["press", "release", "tap"]:
+		var list: Variant = p.get(key, [])
+		if typeof(list) != TYPE_ARRAY or list.size() > 16:
+			return Protocol.err(Protocol.INVALID_PARAMS, "'%s' must be a list of up to 16 input action names." % key)
+		for a in list:
+			if typeof(a) != TYPE_STRING or not InputMap.has_action(StringName(a)):
+				return Protocol.err(Protocol.INVALID_PARAMS, "%s: unknown input action '%s'. Use project_info to list actions." % [key, str(a)])
+		input[key] = list
+	for a in input.press + input.tap:
+		if input.release.has(a):
+			return Protocol.err(Protocol.INVALID_PARAMS, "'%s' is both pressed and released in one step." % a)
+	var has_input: bool = not (input.press.is_empty() and input.release.is_empty() and input.tap.is_empty())
+	if has_input and Engine.is_in_physics_frame():
+		# Input must arrive between frames to count as pressed in the next one.
+		await _tree.process_frame
+	var stepper: Node = Stepper.new(frames, input.tap)
 	_tree.root.add_child(stepper)
 	_tree.paused = false
+	if has_input:
+		Stepper.apply_input(input.press, input.release, input.tap)
 	await stepper.finished
 	stepper.queue_free()
 	return Protocol.ok({"paused": true, "frames": frames, "physics_frame": Engine.get_physics_frames()})
@@ -317,8 +365,9 @@ func _validate_steps(steps: Array) -> String:
 				return "Step %d: set needs {node, properties: {path: value}}." % n
 			if kind == "call" and typeof(body.get("method")) != TYPE_STRING:
 				return "Step %d: call needs {node, method, args?}." % n
-			if (kind == "assert" or kind == "wait_for") and (typeof(body.get("property")) != TYPE_STRING or typeof(body.get("op")) != TYPE_STRING):
-				return "Step %d: %s needs {node, property, op, value}." % [n, kind]
+			if (kind == "assert" or kind == "wait_for") and (typeof(body.get("op")) != TYPE_STRING or
+					(typeof(body.get("property")) != TYPE_STRING and typeof(body.get("method")) != TYPE_STRING)):
+				return "Step %d: %s needs {node, property (or method), op, value}." % [n, kind]
 		elif s.has("action"):
 			if not InputMap.has_action(StringName(s.action)):
 				return "Step %d: unknown input action '%s'. Use project_info to list actions." % [n, s.action]
@@ -353,11 +402,12 @@ func _input(p: Dictionary) -> Dictionary:
 	var tick := _record_sample.bind(recorder)
 	if not recorder.is_empty():
 		recorder.start = start
+		recorder.start_frame = Engine.get_physics_frames()
 		_record_sample(recorder)
-		_tree.process_frame.connect(tick)
+		_record_signal(recorder).connect(tick)
 	var run: Dictionary = await _run_steps(steps)
 	if not recorder.is_empty():
-		_tree.process_frame.disconnect(tick)
+		_record_signal(recorder).disconnect(tick)
 	if not run.ok:
 		return run
 	var out := {"steps": steps.size(), "duration_ms": Time.get_ticks_msec() - start}
@@ -375,6 +425,12 @@ func _input(p: Dictionary) -> Dictionary:
 
 
 const EXPECT_STATS := ["min", "max", "first", "last", "min_at_ms", "max_at_ms"]
+
+
+## per "physics": one sample per physics tick (the state left by the previous
+## tick), independent of how often frames are rendered.
+func _record_signal(rec: Dictionary) -> Signal:
+	return _tree.physics_frame if rec.per == "physics" else _tree.process_frame
 
 
 func _check_expectations(expect: Array, summary: Dictionary) -> String:
@@ -415,6 +471,9 @@ func _make_recorder(spec: Variant) -> Dictionary:
 	var mode := String(spec.get("mode", "all"))
 	if mode != "all" and mode != "changes":
 		return Protocol.err(Protocol.INVALID_PARAMS, "record.mode must be 'all' (every frame) or 'changes' (only when a value changes).")
+	var per := String(spec.get("per", "process"))
+	if per != "process" and per != "physics":
+		return Protocol.err(Protocol.INVALID_PARAMS, "record.per must be 'process' (every rendered frame) or 'physics' (once per physics frame).")
 	var expect: Variant = spec.get("expect", [])
 	if typeof(expect) != TYPE_ARRAY:
 		return Protocol.err(Protocol.INVALID_PARAMS, "record.expect must be a list of {property, stat, op, value}.")
@@ -429,6 +488,7 @@ func _make_recorder(spec: Variant) -> Dictionary:
 		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
 		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000), "changes_only": mode == "changes",
 		"samples": [], "total": 0, "frames": 0, "last_t": -1000000, "start": 0, "expect": expect,
+		"per": per, "start_frame": Engine.get_physics_frames(),
 	}
 	return Protocol.ok(rec)
 
@@ -440,6 +500,8 @@ func _record_sample(rec: Dictionary, force: bool = false) -> void:
 	if not is_instance_valid(rec.node) or rec.samples.size() >= MAX_RECORD_SAMPLES:
 		return
 	var sample := {"t_ms": t}
+	if rec.per == "physics":
+		sample["frame"] = Engine.get_physics_frames() - rec.start_frame
 	for prop in rec.properties:
 		var got := PropertyPath.read(rec.node, prop)
 		sample[prop] = Codec.encode(got.value) if got.ok else null
@@ -488,7 +550,7 @@ func _record_result(rec: Dictionary) -> Dictionary:
 		shown = []
 		for i in RETURNED_SAMPLES:
 			shown.append(samples[roundi(float(i) * (samples.size() - 1) / (RETURNED_SAMPLES - 1))])
-	return {"node": rec.path, "samples_total": rec.total, "frames_observed": rec.frames, "samples": shown, "summary": summary,
+	return {"node": rec.path, "per": rec.per, "samples_total": rec.total, "frames_observed": rec.frames, "samples": shown, "summary": summary,
 		"note": "" if is_instance_valid(rec.node) else "The node was freed during recording."}
 
 

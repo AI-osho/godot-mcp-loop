@@ -122,6 +122,27 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(bad.isError).toBe(true);
   });
 
+  it("game_step forwards press/release/tap; game_wait_for accepts a method condition without property (#6, #7)", async () => {
+    addon.handlers.set("game.step", (p) => ({ ok: true, result: { got: p } }));
+    addon.handlers.set("game.wait_for", (p) => ({ ok: true, result: { got: p } }));
+    const step = { frames: 8, tap: ["rpg_right"], press: ["rpg_run"], release: ["rpg_left"] };
+    expect(jsonOf(await client.callTool({ name: "game_step", arguments: step }))).toEqual({ got: step });
+    const wf = { node: ".", method: "summary", property: "state", op: "==", value: "battle" };
+    expect(jsonOf(await client.callTool({ name: "game_wait_for", arguments: wf }))).toEqual({ got: wf });
+    const noProp = { node: ".", method: "hp", args: [1], op: ">", value: 0 };
+    expect(jsonOf(await client.callTool({ name: "game_wait_for", arguments: noProp }))).toEqual({ got: noProp });
+    const neither = await client.callTool({ name: "game_wait_for", arguments: { node: ".", op: "==", value: 1 } });
+    expect(neither.isError).toBe(true);
+  });
+
+  it("game_input passes record.per (#9)", async () => {
+    addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
+    const args = { steps: [{ wait_frames: 5 }], record: { node: "P", properties: ["position:x"], per: "physics" } };
+    expect(jsonOf(await client.callTool({ name: "game_input", arguments: args }))).toMatchObject({ got: args });
+    const bad = await client.callTool({ name: "game_input", arguments: { ...args, record: { ...args.record, per: "bogus" } } });
+    expect(bad.isError).toBe(true);
+  });
+
   it("game_input rejects an empty step list", async () => {
     const res = await client.callTool({ name: "game_input", arguments: { steps: [] } });
     expect(res.isError).toBe(true);

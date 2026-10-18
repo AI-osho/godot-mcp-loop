@@ -3,6 +3,28 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Tool improvements from the RPG generation trial (#6–#9).
+
+### Added
+- `game_step` takes `press` / `release` / `tap` lists of actions, sent just before the first stepped frame like real
+  input — the game sees them in that frame as `Input.is_action_just_pressed()` and as input events; `tap` lasts one
+  frame. Scenario steps: `step: {frames, press?, release?, tap?}` (#6). (Godot counts a press made during a physics
+  frame as "just pressed" only from the next frame, so the input is sent between frames.)
+- Conditions can check a method's return value: `{node, method, args?, property?, op, value}` where `property` is a
+  path inside the result (e.g. `summary().state`). Works in `game_wait_for`, scenario `wait_for` / `assert` and inline
+  steps (#7).
+- `scenario_run` runs a folder (`path` to a directory) or a list (`paths`) and returns one summary with the details of
+  failures; `stop_on_failure` ends the batch early (#8).
+- `record.per: "physics"` samples once per physics frame and adds the frame index (#9).
+- `scenario_run` with a folder or list sends a progress notification after each scenario, so clients that reset their
+  timeout on progress can run long batches.
+
+### Changed
+- The RPG sample's movement scenario drives frame-exact moves with `step: {frames: 1, tap: [...]}` and checks
+  `summary()` directly, instead of a `start_move()` test hook.
+
 ## [0.4.1] - 2026-10-18
 
 ### Added

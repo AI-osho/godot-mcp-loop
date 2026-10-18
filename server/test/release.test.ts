@@ -80,6 +80,10 @@ describe("release automation", () => {
     expect(wf).toContain("id-token: write");
     expect(wf).toContain("npm stage publish");
     expect(wf).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN:\s*\$\{\{\s*secrets/); // no long-lived token
+    // The unit tests include the package-contents check, which needs dist/: build first (as ci.yml does).
+    const build = wf.indexOf("npm run build");
+    expect(build, "release.yml must run npm run build").toBeGreaterThan(0);
+    expect(build).toBeLessThan(wf.indexOf("npm test"));
     // Every action is pinned to a full commit SHA.
     for (const m of wf.matchAll(/uses:\s*([^\s#]+)/g)) expect(m[1]).toMatch(/@[0-9a-f]{40}$/);
   });

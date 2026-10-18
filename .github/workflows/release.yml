@@ -47,11 +47,12 @@ jobs:
           if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then echo "Not a version: $v" >&2; exit 1; fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
-      - name: Type check and unit tests
+      - name: Type check, build and unit tests
         working-directory: server
         run: |
           npm ci
           npm run typecheck
+          npm run build
           npm test
 
       - name: Artifacts (versions checked, tarball contents checked)

@@ -6,8 +6,9 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     ignore:
-      # Keep Node's type definitions at the oldest supported Node (engines: >=20),
-      # so the type check catches APIs that Node 20 doesn't have.
+      # Keep Node's type definitions on the oldest line the toolchain accepts (22;
+      # vitest needs >= 22), close to the oldest supported Node (20, still tested in
+      # CI), so the type check catches APIs that only newer Node versions have.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions

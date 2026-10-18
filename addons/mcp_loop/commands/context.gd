@@ -41,8 +41,11 @@ class FileOps extends RefCounted:
 		f.store_buffer(data)
 		f.close()
 		var fs := EditorInterface.get_resource_filesystem()
-		fs.update_file(path)
-		fs.reimport_files(PackedStringArray([path]))
+		# In a folder the editor hasn't registered yet, reimport_files logs
+		# "Can't find file"; image.write then scans and waits for the import.
+		if fs.get_filesystem_path(path.get_base_dir()) != null:
+			fs.update_file(path)
+			fs.reimport_files(PackedStringArray([path]))
 
 	func remove_asset(path: String) -> void:
 		for p in [path, path + ".import"]:

@@ -22,9 +22,9 @@ steps:
 
 | Step | Meaning | Fails when |
 |---|---|---|
-| `wait_for: {node, property, op, value, timeout_ms?}` | Poll every frame until true (default 5 s). | Timeout — the report shows the last value. |
+| `wait_for: {node, property, op, value, timeout_ms?}` | Poll every frame until true (default 5 s). `op: changed/increased/decreased` needs no value. | Timeout — the report shows the last value. |
 | `assert: {node, property, op, value}` | Check once, right now. | Condition false. |
-| `input: <step>` or `[<step>, ...]` | Same steps as `game_input`. | Unknown action/key. |
+| `input: <step>`, `[<step>, ...]` or `{steps, record?}` | Same steps as `game_input`, run inside the game in one call: `hold_frames`/`wait_frames` for frame-exact timing, inline `set`/`call`/`assert`/`wait_for`, and `record` with `expect` checks on min/max. | Unknown action/key, a failing inline step or record check. |
 | `query: {node, properties?}` | Record live values in the report. | Node/property missing. |
 | `screenshot: <label>` | Attach a screenshot. | Never — skipped when headless. |
 | `wait_ms: <n>` | Sleep. | Never. |

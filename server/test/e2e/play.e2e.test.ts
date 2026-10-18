@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { connectClient, textOf } from "../helpers.js";
@@ -157,6 +159,11 @@ describe("e2e: run / observe loop", () => {
     expect(await fails("game_input", { steps: [{ action: "mcp_fire" }] })).toContain("unknown input action");
     const r = await ok("input_action_set", { name: "mcp_fire", keys: ["X", "Space"] });
     expect(r.events).toHaveLength(2);
+    // Like actions created in the editor: matched on every device.
+    const projectFile = readFileSync(join(h.projectPath, "project.godot"), "utf8");
+    const fire = projectFile.slice(projectFile.indexOf("mcp_fire="), projectFile.indexOf("}", projectFile.indexOf("mcp_fire=")));
+    expect(fire).toContain('"device":-1');
+    expect(fire).not.toContain('"device":16');
     await ok("game_run", { restart: true });
     await ok("game_input", { steps: [{ action: "mcp_fire", hold_ms: 30 }] });
     await ok("edit_undo");

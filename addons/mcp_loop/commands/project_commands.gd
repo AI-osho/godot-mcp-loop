@@ -44,18 +44,21 @@ func _action_set(p: Dictionary) -> Dictionary:
 			if code == KEY_NONE:
 				return Protocol.err(Protocol.INVALID_PARAMS, "Unknown key '%s' (examples: 'Space', 'A', 'Left', 'Escape', 'Shift')." % k)
 			var ev := InputEventKey.new()
+			ev.device = -1  # all devices, like actions made in the editor
 			ev.physical_keycode = code
 			events.append(ev)
 		for b in p.get("mouse_buttons", []):
 			if not MOUSE_BUTTONS.has(String(b)):
 				return Protocol.err(Protocol.INVALID_PARAMS, "Mouse buttons are 'left', 'right' or 'middle' (got '%s')." % b)
 			var mb := InputEventMouseButton.new()
+			mb.device = -1
 			mb.button_index = MOUSE_BUTTONS[String(b)]
 			events.append(mb)
 		for j in p.get("joypad_buttons", []):
 			if int(j) < 0 or int(j) > 127:
 				return Protocol.err(Protocol.INVALID_PARAMS, "Joypad buttons are numbered 0-127 (got %s)." % str(j))
 			var jb := InputEventJoypadButton.new()
+			jb.device = -1
 			jb.button_index = int(j)
 			events.append(jb)
 		if events.is_empty():

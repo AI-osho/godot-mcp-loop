@@ -85,6 +85,11 @@ export const FILE_TOOLS: ForwardToolDef[] = [
       rows: z.array(z.string()).max(256).optional().describe("One image: rows of palette characters, all the same length (max 256x256)."),
       frames: z.array(z.array(z.string()).max(256)).max(64).optional().describe("Several same-sized frames, laid out left to right."),
       scale: z.number().int().min(1).max(16).optional().describe("Integer upscale factor (default 1). Prefer 1 and scale the node instead."),
+      mirror: z
+        .enum(["x", "y", "xy"])
+        .optional()
+        .describe("Symmetric sprites: give only the left half ('x'), top half ('y') or top-left quarter ('xy'); the rest is mirrored."),
+      mirror_overlap: z.boolean().optional().describe("Share the middle column/row instead of repeating it (odd widths/heights)."),
       dry_run: z.boolean().optional().describe("Validate and report the size without writing."),
     },
   },

@@ -20,6 +20,18 @@ static func build(spec: Dictionary) -> Dictionary:
 	var frames: Array = [spec.rows] if has_rows else spec.frames
 	if typeof(frames) != TYPE_ARRAY or frames.is_empty() or frames.size() > MAX_FRAMES:
 		return _fail("'frames' must hold 1 to %d frames." % MAX_FRAMES)
+	var mirror := str(spec.get("mirror", ""))
+	if not ["", "x", "y", "xy"].has(mirror):
+		return _fail("'mirror' must be 'x' (left half given), 'y' (top half given) or 'xy' (top-left quarter given).")
+	if mirror != "":
+		var overlap: bool = spec.get("mirror_overlap", false)
+		var mirrored: Array = []
+		for rows in frames:
+			if typeof(rows) != TYPE_ARRAY:
+				mirrored.append(rows)  # reported by the checks below
+				continue
+			mirrored.append(_mirror(rows, mirror, overlap))
+		frames = mirrored
 	var scale := int(spec.get("scale", 1))
 	if scale < 1 or scale > MAX_SCALE:
 		return _fail("'scale' must be between 1 and %d." % MAX_SCALE)
@@ -72,6 +84,26 @@ static func build(spec: Dictionary) -> Dictionary:
 	if scale > 1:
 		img.resize(img.get_width() * scale, img.get_height() * scale, Image.INTERPOLATE_NEAREST)
 	return {"ok": true, "image": img, "frames": frames.size(), "frame_width": fw * scale, "frame_height": fh * scale}
+
+
+## Completes a symmetric sprite from its left half / top half / top-left quarter.
+## With overlap, the last column/row is shared instead of repeated (odd sizes).
+static func _mirror(rows: Array, axis: String, overlap: bool) -> Array:
+	var out: Array = []
+	for row in rows:
+		var r := str(row)
+		if axis.contains("x"):
+			var tail := r.substr(0, r.length() - 1) if overlap else r
+			var rev := ""
+			for i in range(tail.length() - 1, -1, -1):
+				rev += tail[i]
+			r += rev
+		out.append(r)
+	if axis.contains("y"):
+		var top := out.slice(0, out.size() - 1) if overlap else out.duplicate()
+		top.reverse()
+		out.append_array(top)
+	return out
 
 
 static func _fail(message: String) -> Dictionary:

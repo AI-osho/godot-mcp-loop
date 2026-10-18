@@ -3,6 +3,25 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Improvements from the vertical-shooter generation trial.
+
+### Added
+- Frame-based input timing: `hold_frames` / `wait_frames` count physics frames, so tests of logic in
+  `_physics_process` don't depend on wall-clock time (a momentary stall made a "hold 2.5 s" test fail once).
+- Inline `set` / `call` / `assert` / `wait_for` steps inside `game_input` (and scenario `input`): they run inside the
+  game between inputs with no time passing; a failing step aborts the sequence and releases held input.
+- `record.expect`: checks on the recording summary (`{property, stat: min|max|first|last|min_at_ms|max_at_ms, op, value}`),
+  failing with `ASSERTION_FAILED` and the actual value. Scenario `input` accepts `{steps, record}`.
+- Relative waits: `op: changed | increased | decreased` compare with the value seen when waiting starts.
+- `image_write` `mirror: x | y | xy` (with `mirror_overlap`) completes symmetric sprites from a half or quarter.
+
+### Fixed
+- `input_action_set` stored events for "keyboard only" (device 16); they now match all devices (-1) like actions
+  made in the editor.
+- The first `image_write` into a new folder logged "Can't find file … during file reimport" in the editor.
+
 ## [0.3.0] - 2026-10-17
 
 Tool improvements from the Tetris generation trial (Claude Code built a full Tetris; these remove the friction it reported).

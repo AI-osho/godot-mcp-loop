@@ -302,6 +302,7 @@ describe("e2e: safe editing tools", () => {
   });
 
   it("image_write creates an imported pixel-art PNG usable as a texture, undoably", async () => {
+    const before = await ok("logs_read", { source: "editor" });
     const r = await ok("image_write", {
       path: "res://art/hero.png",
       palette: { k: "#000000", r: "#d82800" },
@@ -313,6 +314,11 @@ describe("e2e: safe editing tools", () => {
     });
     expect(r).toMatchObject({ width: 12, height: 4, frames: 2, frame_width: 6, frame_height: 4 });
     expect(existsSync(file("art/hero.png"))).toBe(true);
+    // Writing into a folder the editor hadn't seen must not log import errors.
+    const logs = await ok("logs_read", { source: "editor", since: before.next });
+    expect(logs.entries.map((x: any) => x.message).join("\n")).not.toContain("Can't find file");
+    const mirrored = await ok("image_write", { path: "res://art/ship.png", palette: { w: "white" }, rows: ["w.", "ww"], mirror: "x", dry_run: true });
+    expect(mirrored).toMatchObject({ width: 4, height: 2 });
     await ok("node_add", {
       parent: ".",
       type: "Sprite2D",

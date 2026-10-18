@@ -27,8 +27,10 @@ that environment in the repository settings if you want a second approval before
    `addons/mcp_loop/plugin.cfg`, and turn `## [Unreleased]` in `CHANGELOG.md` into `## [X.Y.Z] - YYYY-MM-DD` (keep an
    empty `## [Unreleased]` above it). The text of that section becomes the release notes, so start it with a short
    summary. CI must pass; rebase-merge.
-2. **Dry run** (optional): Actions › Release › Run workflow with the version. It builds and checks everything and
-   publishes nothing; the artifacts are attached to the run.
+2. **Dry run** (optional): Actions › Release › Run workflow on the release branch with the new version
+   (`gh workflow run release.yml --ref <branch> -f version=X.Y.Z`). It builds and checks everything and publishes
+   nothing; the artifacts are attached to the run. Its `npm publish --dry-run` fails for a version that is already on
+   npm, so it also catches a forgotten version bump.
 3. **Tag**: `git tag vX.Y.Z <merge commit> && git push origin vX.Y.Z`. The workflow
    - checks that the tag, `server/package.json`, `plugin.cfg` and the CHANGELOG agree, runs type check and unit tests;
    - builds `godot-mcp-loop-addon-X.Y.Z.zip`, `godot-mcp-loop-X.Y.Z.tgz` and `SHA256SUMS.txt`

@@ -1,0 +1,90 @@
+# 4. Front-view battle: seeded damage, messages, menus, spell/heal/herb, victory and level up.
+name: "4 battle commands damage growth"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false, rng_seed: 4242, message_instant: true, fast_mode: false } }
+  - call:
+      node: .
+      method: set_player_stats
+      args: [{ level: 1, hp: 10, max_hp: 30, mp: 10, max_mp: 10, atk: 12, def: 6, exp: 19, next_exp: 20, gold: 40, herbs: 3 }]
+  - call: { node: ., method: start_battle, args: [pulun] }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - pause: true
+  - screenshot: battle_menu
+  # Physical damage formula: floor((12*2-2)/3)=7 plus 0..2.
+  - call: { node: ., method: battle_command, args: [attack] }
+  - assert: { node: Battle, property: last_damage, op: ">=", value: 7 }
+  - assert: { node: Battle, property: last_damage, op: "<=", value: 9 }
+  - assert: { node: Battle, property: monster_hp, op: "<=", value: 5 }
+  - step: 50
+  - assert: { node: Battle, property: _msg_text, op: "contains", value: "ダメージ" }
+  - screenshot: battle_damage
+  - set: { node: ., properties: { fast_mode: true } }
+  - step: 20
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: turn, op: "==", value: 1 }
+  # Real keyboard: down selects じゅもん, confirm opens the spell list, cancel returns.
+  - pause: false
+  - input:
+      steps:
+        - { action: rpg_down, hold_frames: 1, wait_frames: 2 }
+        - { action: rpg_confirm, hold_frames: 1, wait_frames: 2 }
+  - assert: { node: Battle, property: menu_mode, op: "==", value: spell }
+  - input: { action: rpg_cancel, hold_frames: 1, wait_frames: 2 }
+  - assert: { node: Battle, property: menu_mode, op: "==", value: command }
+  - pause: true
+  # Heal: 12 + level*3 + 0..2 = 15..17, costs 3 MP.
+  - call: { node: ., method: set_player_stats, args: [{ hp: 5 }] }
+  - call: { node: ., method: battle_command, args: [heal] }
+  - assert: { node: Battle, property: last_heal, op: ">=", value: 15 }
+  - assert: { node: Battle, property: last_heal, op: "<=", value: 17 }
+  - assert: { node: ., property: player:mp, op: "==", value: 7 }
+  - step: 20
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  # Herb: fixed 15 HP, one consumed.
+  - call: { node: ., method: set_player_stats, args: [{ hp: 5 }] }
+  - call: { node: ., method: battle_command, args: [herb] }
+  - assert: { node: Battle, property: last_heal, op: "==", value: 15 }
+  - assert: { node: ., property: player:herbs, op: "==", value: 2 }
+  - step: 20
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  # ヒカリ: 6 + level*3 + 0..3 = 9..12, costs 4 MP, kills the wounded プルン.
+  - call: { node: ., method: battle_command, args: [light] }
+  - assert: { node: Battle, property: last_damage, op: ">=", value: 9 }
+  - assert: { node: Battle, property: last_damage, op: "<=", value: 12 }
+  - assert: { node: ., property: player:mp, op: "==", value: 3 }
+  - step: 8
+  - screenshot: battle_levelup
+  - step: 60
+  - assert: { node: Battle, property: phase, op: "==", value: victory }
+  - assert: { node: ., property: player:exp, op: "==", value: 23 }
+  - assert: { node: ., property: player:gold, op: "==", value: 43 }
+  - assert: { node: ., property: player:level, op: "==", value: 2 }
+  - assert: { node: ., property: player:max_hp, op: "==", value: 35 }
+  - assert: { node: ., property: player:max_mp, op: "==", value: 12 }
+  - assert: { node: ., property: player:atk, op: "==", value: 14 }
+  - assert: { node: ., property: player:def, op: "==", value: 7 }
+  - assert: { node: ., property: player:hp, op: "==", value: 35 }
+  - assert: { node: ., property: player:mp, op: "==", value: 12 }
+  - assert: { node: ., property: player:next_exp, op: "==", value: 60 }
+  - screenshot: battle_victory
+  - call: { node: ., method: finish_battle }
+  - assert: { node: ., property: last_battle_result, op: "==", value: victory }
+  - assert: { node: ., property: state, op: "==", value: field }
+  # Typewriter check: without instant/fast mode one character appears per physics frame.
+  - pause: false
+  - set: { node: ., properties: { message_instant: false, fast_mode: false, rng_seed: 4242 } }
+  - call: { node: ., method: start_battle, args: [pulun] }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 5000 }
+  - pause: true
+  - call: { node: ., method: battle_command, args: [attack] }
+  - assert: { node: Battle, property: _typed, op: "==", value: 0 }
+  - step: 1
+  - assert: { node: Battle, property: _typed, op: "==", value: 1 }
+  - step: 1
+  - assert: { node: Battle, property: _typed, op: "==", value: 2 }
+  - screenshot: battle_typing
+  - call: { node: ., method: start_new_game }
+  - pause: false
+  - assert_no_errors: true

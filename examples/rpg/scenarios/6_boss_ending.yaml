@@ -1,0 +1,78 @@
+# 6. Boss: no escape, special attack every third action, victory -> epilogue -> credits -> title.
+name: "6 boss ending and title loop"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false, rng_seed: 99, message_instant: true, fast_mode: true } }
+  - call:
+      node: .
+      method: set_player_stats
+      args: [{ level: 10, hp: 500, max_hp: 500, mp: 200, max_mp: 200, atk: 8, def: 6, exp: 0, next_exp: 9999, gold: 40, herbs: 5 }]
+  - call: { node: ., method: start_boss }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - assert: { node: ., property: map_name, op: "==", value: world }
+  - assert: { node: ., property: tile, op: "==", value: [13, 4] }
+  - assert: { node: ., property: facing, op: "==", value: up }
+  - screenshot: boss_menu
+  - pause: true
+  # Turn 1.
+  - call: { node: ., method: battle_command, args: [attack] }
+  - step: 15
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: turn, op: "==", value: 1 }
+  - assert: { node: Battle, property: monster_id, op: "==", value: zorga }
+  # Turn 2.
+  - call: { node: ., method: battle_command, args: [attack] }
+  - step: 15
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: turn, op: "==", value: 2 }
+  # Escape is not possible from the boss and does not count as a flee attempt.
+  - call: { node: ., method: battle_command, args: [flee] }
+  - step: 10
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: last_flee_success, op: "==", value: false }
+  - assert: { node: Battle, property: flee_attempts, op: "==", value: 0 }
+  - assert: { node: Battle, property: _msg_text, op: "contains", value: "にげられない" }
+  # Turn 3: the third enemy action is やみのいかり.
+  - call: { node: ., method: battle_command, args: [attack] }
+  - step: 20
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: turn, op: "==", value: 3 }
+  - assert: { node: Battle, property: boss_special_used, op: ">=", value: 1 }
+  - assert: { node: Battle, property: last_enemy_action, op: "==", value: "やみのいかり" }
+  # Finish the boss with a test-only attack value.
+  - call: { node: ., method: set_player_stats, args: [{ atk: 999 }] }
+  - call: { node: ., method: battle_command, args: [attack] }
+  - step: 30
+  - assert: { node: Battle, property: phase, op: "==", value: victory }
+  - assert: { node: Battle, property: rewards:exp, op: "==", value: 100 }
+  - assert: { node: Battle, property: rewards:gold, op: "==", value: 200 }
+  - assert: { node: ., property: player:exp, op: "==", value: 100 }
+  - assert: { node: ., property: player:gold, op: "==", value: 240 }
+  - screenshot: boss_victory
+  - call: { node: ., method: finish_battle }
+  - assert: { node: ., property: state, op: "==", value: ending }
+  - assert: { node: ., property: boss_defeated, op: "==", value: true }
+  - assert: { node: ., property: ending_phase, op: "==", value: epilogue }
+  - assert: { node: ., property: ending_page, op: "==", value: 0 }
+  - screenshot: ending_epilogue
+  - call: { node: ., method: advance_ending }
+  - assert: { node: ., property: ending_page, op: "==", value: 1 }
+  - call: { node: ., method: advance_ending }
+  - assert: { node: ., property: ending_page, op: "==", value: 2 }
+  - screenshot: ending_epilogue2
+  - call: { node: ., method: advance_ending }
+  - assert: { node: ., property: ending_phase, op: "==", value: credits }
+  - step: 120
+  - screenshot: ending_credits
+  - call: { node: ., method: skip_credits }
+  - assert: { node: ., property: ending_phase, op: "==", value: finish }
+  - screenshot: ending_finish
+  - call: { node: ., method: advance_ending }
+  - assert: { node: ., property: state, op: "==", value: title }
+  - assert: { node: ., property: boss_defeated, op: "==", value: false }
+  - assert: { node: ., property: player:level, op: "==", value: 1 }
+  - assert: { node: ., property: player:gold, op: "==", value: 40 }
+  - screenshot: title_again
+  - pause: false
+  - assert_no_errors: true

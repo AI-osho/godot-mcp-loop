@@ -1,0 +1,101 @@
+# 2. Grid movement: real key input, exact 8 physics frames per tile at 2 px/frame,
+#    wall/water/mountain collision, and grass/forest random encounters.
+name: "2 movement collision encounters"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false } }
+  # Real input: one right step, sampled every frame. 16 px in 8 active frames.
+  - input:
+      steps:
+        - { action: rpg_right, hold_frames: 1 }
+        - { wait_frames: 10 }
+      record:
+        node: Actors/Player
+        properties: ["position:x"]
+        expect:
+          - { property: "position:x", stat: first, op: "==", value: 120 }
+          - { property: "position:x", stat: max, op: "==", value: 136 }
+          - { property: "position:x", stat: last, op: "==", value: 136 }
+  - assert: { node: ., property: tile, op: "==", value: [8, 9] }
+  - assert: { node: ., property: steps_taken, op: "==", value: 1 }
+  - assert: { node: Actors/Player, property: frame, op: "==", value: 5 }
+  - assert: { node: Actors/Player, property: flip_h, op: "==", value: true }
+  # Back left: the side sprite is not flipped when facing left.
+  - input: { action: rpg_left, hold_frames: 1, wait_frames: 10 }
+  - assert: { node: ., property: tile, op: "==", value: [7, 9] }
+  - assert: { node: Actors/Player, property: frame, op: "==", value: 4 }
+  - assert: { node: Actors/Player, property: flip_h, op: "==", value: false }
+  # Frame-exact check with pause/step (no wall clock involved).
+  - pause: true
+  - call: { node: ., method: warp, args: [castle, 7, 9] }
+  - call: { node: ., method: start_move, args: [right] }
+  - assert: { node: ., property: moving, op: "==", value: true }
+  - assert: { node: ., property: move_elapsed, op: "==", value: 0 }
+  - assert: { node: Actors/Player, property: position:x, op: "==", value: 120 }
+  - step: 1
+  - assert: { node: ., property: moving, op: "==", value: true }
+  - assert: { node: ., property: move_elapsed, op: "==", value: 1 }
+  - assert: { node: Actors/Player, property: position:x, op: "==", value: 122 }
+  - step: 7
+  - assert: { node: ., property: moving, op: "==", value: false }
+  - assert: { node: ., property: move_elapsed, op: "==", value: 8 }
+  - assert: { node: Actors/Player, property: position:x, op: "==", value: 136 }
+  - assert: { node: ., property: tile, op: "==", value: [8, 9] }
+  # Collision while paused. Water below (3,4), mountain above (8,5), castle wall left of (1,7).
+  - call: { node: ., method: warp, args: [world, 3, 4] }
+  - call: { node: ., method: face, args: [down] }
+  - call: { node: ., method: start_move, args: [down] }
+  - assert: { node: ., property: moving, op: "==", value: false }
+  - step: 1
+  - assert: { node: ., property: tile, op: "==", value: [3, 4] }
+  - call: { node: ., method: warp, args: [world, 8, 5] }
+  - call: { node: ., method: start_move, args: [up] }
+  - assert: { node: ., property: moving, op: "==", value: false }
+  - step: 1
+  - assert: { node: ., property: tile, op: "==", value: [8, 5] }
+  - call: { node: ., method: warp, args: [castle, 1, 7] }
+  - call: { node: ., method: start_move, args: [left] }
+  - assert: { node: ., property: moving, op: "==", value: false }
+  - step: 1
+  - assert: { node: ., property: tile, op: "==", value: [1, 7] }
+  - pause: false
+  # Encounters off: walking on forest must not start a battle.
+  - call: { node: ., method: warp, args: [world, 6, 11] }
+  - set: { node: ., properties: { encounters_enabled: false, encounter_rate: 10, rng_seed: 5 } }
+  - input: { action: rpg_down, hold_frames: 1, wait_frames: 12 }
+  - assert: { node: ., property: tile, op: "==", value: [6, 12] }
+  - assert: { node: ., property: state, op: "==", value: field }
+  - input: { action: rpg_up, hold_frames: 1, wait_frames: 12 }
+  - assert: { node: ., property: tile, op: "==", value: [6, 11] }
+  # Encounters on at rate 1: the next forest step always starts a battle.
+  - set: { node: ., properties: { encounters_enabled: true, encounter_rate: 1, rng_seed: 5 } }
+  - input: { action: rpg_down, hold_frames: 1, wait_frames: 12 }
+  - wait_for: { node: ., property: state, op: "==", value: battle, timeout_ms: 2000 }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - assert: { node: Battle, property: monster_id, op: "!=", value: "" }
+  - assert: { node: Battle, property: monster_max_hp, op: ">", value: 0 }
+  - screenshot: forest_encounter
+  # Grass encounter: (5,5) -> (5,6) are both grass tiles. Rate 1 forces a battle.
+  - call: { node: ., method: start_new_game }
+  - call: { node: ., method: warp, args: [world, 5, 5] }
+  - set: { node: ., properties: { encounters_enabled: true, encounter_rate: 1, rng_seed: 5, encounter_cooldown: 0 } }
+  - input: { action: rpg_down, hold_frames: 1, wait_frames: 12 }
+  - wait_for: { node: ., property: state, op: "==", value: battle, timeout_ms: 2000 }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - screenshot: grass_encounter
+  # Inline set/call/assert inside one input step (no time passes between them).
+  - input:
+      steps:
+        - call: { node: ., method: start_new_game }
+        - assert: { node: ., property: state, op: "==", value: field }
+        - set: { node: ., properties: { encounter_rate: 1 } }
+        - assert: { node: ., property: encounter_rate, op: "==", value: 1 }
+        - assert: { node: Actors/Player, property: position:x, op: "==", value: 120.0, tolerance: 0.001 }
+  # Holding a direction keeps walking: held for 20 frames = 3 tiles (one every 8 frames).
+  - call: { node: ., method: start_new_game }
+  - call: { node: ., method: warp, args: [castle, 7, 9] }
+  - set: { node: ., properties: { encounters_enabled: false } }
+  - input: { action: rpg_right, hold_frames: 20, wait_frames: 12 }
+  - assert: { node: ., property: tile, op: "==", value: [10, 9], message: "holding right walks 3 tiles" }
+  - assert_no_errors: true

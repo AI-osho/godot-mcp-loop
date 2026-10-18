@@ -73,7 +73,7 @@ agent to *"run `scenario_run` on `res://examples/platformer/scenarios/move_right
 
 ## Advanced samples
 
-Three complete games live in [`examples/`](examples/). Each was generated end to end by an AI agent through
+Four complete games live in [`examples/`](examples/). Each was generated end to end by an AI agent through
 godot-mcp-loop from a single prompt — code, NES-style pixel art (`image_write`), input actions, test hooks and
 regression scenarios — and then verified independently: every scenario passes and random-input runs log no errors.
 
@@ -82,6 +82,7 @@ regression scenarios — and then verified independently: every scenario passes 
 | <img src="docs/images/sample-tetris.png" width="200" alt="Tetris"> | [Tetris](examples/tetris/) — SRS rotation with wall kicks, ghost piece, levels and scoring, seeded piece order | Claude Opus 5.5 (Claude Code) | 381 lines | 4 |
 | <img src="docs/images/sample-shooter.png" width="200" alt="Vertical shooter"> | [Vertical shooter](examples/shooter/) — 4 enemy types over 5 waves, a boss with 3 attack patterns, explosions, scrolling starfield, 11 sprites | Claude Opus 5.5 (Claude Code) | 805 lines | 4 |
 | <img src="docs/images/sample-action.png" width="200" alt="Side-scroller"> | [Side-scroller](examples/action/) — acceleration and variable jump, 8-screen stage with pits and moving platforms, stompable enemies, coins, goal, 3-layer parallax, 12 sprites | DeepSeek V4.1 Flash (Claude Code) | 967 lines | 4 |
+| <img src="docs/images/sample-rpg.png" width="200" alt="NES-style RPG"> | [RPG "星剣のルカ"](examples/rpg/) — NES-style RPG with an original story and cast: title and prologue, grid movement, NPC dialogue, random encounters, front-view battles with spells, items, fleeing and level-ups, a boss and an ending (Japanese text) | DeepSeek V4.1 Flash (Claude Code) | 2,284 lines | 6 |
 
 Play one with `game_run {"scene": "res://examples/shooter/shooter.tscn"}` (or open the scene and press F6) and
 replay its checks with `scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}`. Controls and

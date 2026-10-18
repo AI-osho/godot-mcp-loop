@@ -63,6 +63,20 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
    ```
    Other clients: [docs/clients.md](docs/clients.md).
 4. Open your project in the Godot editor and ask the agent to call `godot_status`.
+5. **Agent skill** (recommended) — copy `.claude/skills/godot-mcp-loop` into your project's `.claude/skills/` (or
+   `~/.claude/skills/` for every project). It teaches the agent the loop, deterministic checks with `game_step`,
+   scenario patterns and pixel art. It follows the [Agent Skills](https://agentskills.io) format, so other agents
+   that read skills can use it too.
+
+### Start a new game project
+
+```bash
+scripts/new-game.sh ~/games/my-game --name "My Game" --register-claude
+```
+
+creates a Godot project with the addon enabled, the agent skill, short `AGENTS.md` / `CLAUDE.md` files, a
+`scenarios/` folder and an initial git commit, and registers the MCP server with Claude Code for that folder
+(`--claude-config DIR` for a separate Claude Code configuration). Then open it with `godot -e --path ~/games/my-game`.
 
 ### Try the demo
 

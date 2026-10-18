@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Agent skill `.claude/skills/godot-mcp-loop` (Agent Skills format): the edit → run → observe → judge loop,
+  deterministic checks, scenario patterns, test hooks and pixel art. Its YAML and JSON examples are validated
+  against the real schemas in the test suite.
+- `scripts/new-game.sh`: creates a new Godot project with the addon enabled, the agent skill, `AGENTS.md` /
+  `CLAUDE.md`, a `scenarios/` folder and an initial commit; optionally registers the MCP server with Claude Code.
+- `AGENTS.md` / `CLAUDE.md` for agents working on this repository.
+
 ## [0.5.0] - 2026-10-18
 
 Tool improvements from the RPG generation trial (#6–#9).

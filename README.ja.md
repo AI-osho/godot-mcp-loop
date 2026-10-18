@@ -62,6 +62,25 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
    ```
    その他のクライアント: [docs/clients.md](docs/clients.md)
 4. Godot エディタでプロジェクトを開き、エージェントに `godot_status` を呼ばせて接続を確認。
+5. **エージェント用スキル**（推奨） — `.claude/skills/godot-mcp-loop` を自分のプロジェクトの `.claude/skills/`
+   （全プロジェクトで使うなら `~/.claude/skills/`）にコピーします。
+   - 教える内容：ループの回し方、`game_step` を使った決定的な確認、シナリオの型、ドット絵の作り方
+   - [Agent Skills](https://agentskills.io) 形式なので、スキルを読める他のエージェントでも使えます。
+
+### 新しいゲームプロジェクトを作る
+
+```bash
+scripts/new-game.sh ~/games/my-game --name "My Game" --register-claude
+```
+
+このコマンドで、次のものがそろった Godot プロジェクトができます。
+- 有効化済みのアドオン
+- エージェント用スキル
+- 短い `AGENTS.md` / `CLAUDE.md`
+- `scenarios/` フォルダ
+- 最初の git コミット
+
+あわせて、そのフォルダ用に MCP サーバーを Claude Code へ登録します。別の Claude Code 設定に登録したいときは `--claude-config DIR` を指定してください。作成後は `godot -e --path ~/games/my-game` で開きます。
 
 ### デモを試す
 

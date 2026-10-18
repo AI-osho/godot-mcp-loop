@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-18
+
+Agent workflow and distribution, from reviewing Claude-Code-Game-Studios and Coding-Solo/godot-mcp (#13–#16).
+
 ### Added
 - Agent skill `.claude/skills/godot-mcp-loop` (Agent Skills format): the edit → run → observe → judge loop,
   deterministic checks, scenario patterns, test hooks and pixel art. Its YAML and JSON examples are validated

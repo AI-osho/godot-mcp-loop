@@ -84,6 +84,8 @@ describe("release automation", () => {
     const build = wf.indexOf("npm run build");
     expect(build, "release.yml must run npm run build").toBeGreaterThan(0);
     expect(build).toBeLessThan(wf.indexOf("npm test"));
+    // npm reads "release/x.tgz" as the GitHub repository release/x.tgz; a tarball path must start with ./
+    for (const m of wf.matchAll(/npm (?:stage )?publish\s+"?([^"\s]+)/g)) expect(m[1]).toMatch(/^\.\//);
     // Every action is pinned to a full commit SHA.
     for (const m of wf.matchAll(/uses:\s*([^\s#]+)/g)) expect(m[1]).toMatch(/@[0-9a-f]{40}$/);
   });

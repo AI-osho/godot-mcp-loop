@@ -63,7 +63,7 @@ jobs:
       - name: npm dry run of the exact tarball
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: npm publish "release/godot-mcp-loop-$VERSION.tgz" --dry-run --access public
+        run: npm publish "./release/godot-mcp-loop-$VERSION.tgz" --dry-run --access public
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -124,5 +124,5 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           (cd release && sha256sum -c SHA256SUMS.txt)
-          npm stage publish "release/godot-mcp-loop-$VERSION.tgz" --access public
+          npm stage publish "./release/godot-mcp-loop-$VERSION.tgz" --access public
           echo "Staged godot-mcp-loop@$VERSION. Approve it with 2FA: npm stage list godot-mcp-loop, then npm stage approve <id>" >> "$GITHUB_STEP_SUMMARY"

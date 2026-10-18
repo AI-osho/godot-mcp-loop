@@ -35,8 +35,10 @@ describe.skipIf(!hasDist)("scripts/new-game.sh", () => {
     expect(readFileSync(join(target, "CLAUDE.md"), "utf8").trim()).toBe("@AGENTS.md");
     expect(readFileSync(join(target, ".gitignore"), "utf8")).toContain(".godot/");
     expect(existsSync(join(target, "scenarios"))).toBe(true);
-    // The printed registration command quotes the path with a space.
-    expect(out).toContain("--project " + target.replace(/ /g, "\\ "));
+    // The printed registration command quotes the path with a space (same quoting as the script: printf %q).
+    const quoted = execFileSync("bash", ["-c", 'printf %q "$1"', "_", target], { encoding: "utf8" });
+    expect(quoted).not.toBe(target);
+    expect(out).toContain(`--project ${quoted}`);
   });
 
   it("refuses a non-empty directory and bad names", () => {

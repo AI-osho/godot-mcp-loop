@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { BridgeError } from "../errors.js";
 import { stepsDurationMs } from "../input-steps.js";
 import type { Scenario, ScenarioStep } from "./schema.js";
@@ -34,7 +35,7 @@ export interface ScenarioReport {
   setup_error?: string;
   failure_screenshot?: Shot;
   /** Movie Maker recording (scenario_run movie): the frame folder (dropped from saved evidence) and the rate. */
-  movie?: { dir?: string; fps: number; frames?: number; seconds?: number; files?: string[] };
+  movie?: { dir?: string; fps: number; frames?: number; seconds?: number; files?: string[]; step_frames?: number[] };
 }
 
 export interface RunOptions {
@@ -186,13 +187,17 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
     }
   };
 
+  let movieDir: string | undefined;
   try {
     const run = (await call(
       "game.run",
       { scene: s.scene ?? "main", restart: true, ...(opts.movie ? { movie: { fps: opts.movie.fps } } : {}) },
       { timeoutMs: 30_000 },
     )) as { movie?: { dir: string; fps: number } } | undefined;
-    if (opts.movie && run?.movie) report.movie = { dir: run.movie.dir, fps: run.movie.fps };
+    if (opts.movie && run?.movie) {
+      movieDir = run.movie.dir;
+      report.movie = { dir: run.movie.dir, fps: run.movie.fps };
+    }
   } catch (e) {
     report.setup_error = describeError(e);
     skipAll(0);
@@ -202,9 +207,13 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
 
   let failed = false;
   const slow = opts.movie ? MOVIE_SLOWDOWN : 1;
+  // Recording starts with the process, so a step range is cut afterwards: remember
+  // how many frames existed when each step started.
+  const stepFrames: number[] = [];
   try {
     for (let i = 0; i < s.steps.length; i++) {
       const step = s.steps[i]!;
+      if (movieDir) stepFrames.push(countFrames(movieDir));
       const t0 = Date.now();
       const res: StepResult = { index: i, kind: kindOf(step), status: "pass", duration_ms: 0 };
       const target = describeTarget(step);
@@ -225,6 +234,10 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
         break;
       }
     }
+    if (movieDir) {
+      stepFrames.push(countFrames(movieDir));
+      if (report.movie) report.movie.step_frames = stepFrames;
+    }
     report.errors = await readErrors(call);
   } finally {
     if (opts.movie) {
@@ -237,6 +250,15 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
   report.passed = !failed;
   report.duration_ms = Date.now() - started;
   return report;
+}
+
+/** Frames recorded so far (one directory listing per step; the folder is small). */
+function countFrames(dir: string): number {
+  try {
+    return readdirSync(dir).filter((n) => /^frame\d{8}\.png$/.test(n)).length;
+  } catch {
+    return 0;
+  }
 }
 
 async function readErrors(call: BridgeCall): Promise<unknown[]> {

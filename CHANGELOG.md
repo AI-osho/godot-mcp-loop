@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `project_setting_set`: change the main scene, viewport and window size, stretch mode/aspect, project name or
+  `max_fps` from a fixed list of keys (other keys are refused). Undoable; the editor window and a running game apply
+  them when they start.
 - `game_input` accepts `pause_at_end: true`: the game is left paused when the sequence finishes, so the next call
   reads the state the input produced instead of a later one (the game keeps running between calls).
 - `script_write` / `script_edit` report the `class_name` they registered and wait until the editor's global class

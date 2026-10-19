@@ -78,6 +78,29 @@ describe("e2e: safe editing tools", () => {
     expect(await fails("scene_create", { path: "res://x.tscn", root_type: "Resource" })).toContain("INVALID_PARAMS");
   });
 
+  it("project_setting_set changes the main scene undoably and refuses other keys", async () => {
+    const before = await ok("godot_status");
+    const r = await ok("project_setting_set", { key: "application/run/main_scene", value: "res://levels/test_level.tscn" });
+    expect(r.changed).toBe(true);
+    expect(r.after).toBe("res://levels/test_level.tscn");
+    expect((await ok("godot_status")).main_scene).toBe("res://levels/test_level.tscn");
+    expect(readFileSync(file("project.godot"), "utf8")).toContain('run/main_scene="res://levels/test_level.tscn"');
+    await ok("edit_undo");
+    expect((await ok("godot_status")).main_scene).toBe(before.main_scene);
+    // A scene that does not exist, a key outside the list and an out-of-range value are all refused.
+    expect(await fails("project_setting_set", { key: "application/run/main_scene", value: "res://nope.tscn" })).toContain(
+      "Scene not found",
+    );
+    expect(await fails("project_setting_set", { key: "application/config/features", value: "x" })).toContain(
+      "Invalid option",
+    );
+    expect(await fails("project_setting_set", { key: "display/window/size/viewport_width", value: 99999 })).toContain("between");
+    // dry_run reports the converted value and writes nothing; a string number is converted.
+    const dry = await ok("project_setting_set", { key: "display/window/size/viewport_width", value: "1280", dry_run: true });
+    expect(dry.after).toBe(1280);
+    expect(readFileSync(file("project.godot"), "utf8")).not.toContain("viewport_width=1280");
+  });
+
   it("node_add with properties, then node_get reads them back", async () => {
     const r = await ok("node_add", {
       type: "Sprite2D",

@@ -1,6 +1,6 @@
 # Tools reference
 
-35 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+36 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -75,6 +75,7 @@ until it is.
 | `file_write` | Text files `.yaml/.yml/.json/.md/.txt/.csv` by `content` or `edits`. YAML syntax is checked before writing; a YAML file with `steps` is validated as a scenario (warnings); JSON must parse. Not for `.gd`, `.tscn`, `.cfg`, `.tres`, or anything under `addons/` / `.godot/`. |
 | `image_write` | Pixel-art PNG from text: `palette` (single character → color) and `rows`, or `frames` for a horizontal sprite sheet; `scale` uses nearest neighbour; `mirror: x / y / xy` (+ `mirror_overlap`) completes symmetric sprites from a half or quarter. A palette entry of `null` or `"transparent"` is see-through. Imported immediately — use `{"res": path}` as a `Sprite2D` texture, `texture_filter: 1` (Nearest) for crisp pixels, `hframes`/`frame` to animate. |
 | `input_action_set` | Add/replace an input action in project.godot (`keys` by physical position, `mouse_buttons`, `joypad_buttons`, `deadzone`) or `remove: true`. Restart the game to apply. |
+| `project_setting_set` | One project setting from a fixed list: `application/run/main_scene`, `display/window/size/*`, `display/window/stretch/*`, `application/config/name`, `application/run/max_fps`. Values converted to the setting's type; other keys are refused. Undoable; the editor window and a running game apply most of them when they start. |
 
 ## Undo
 

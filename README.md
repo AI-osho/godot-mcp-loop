@@ -134,7 +134,7 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Scenes | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | Nodes | `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts | `script_read`, `script_write`, `script_edit`, `script_attach` |
-| Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set` |
+| Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set`, `project_setting_set` (main scene, viewport, stretch) |
 | Undo | `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | Judge | `scenario_run` (evidence folder, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4 unit tests) |

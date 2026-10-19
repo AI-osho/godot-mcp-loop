@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `game_ui_audit`: walk the Control tree of the running game and report layout problems (no size, outside the
+  viewport, extending beyond the parent panel, clipped text, overlapping labels) with rects, anchors and text — a HUD
+  can be checked without reading a screenshot.
 - `match_screenshot` scenario step: compare the screen with a baseline PNG kept in the project (written on the first
   run, `update: true` to refresh). On a mismatch the report carries a red diff image and the step fails; `region`,
   `ignore`, `tolerance` and `pixel_tolerance` tune the comparison.

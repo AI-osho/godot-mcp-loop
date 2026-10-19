@@ -30,6 +30,7 @@ func register(router: RefCounted) -> void:
 	router.register("game.run", _run)
 	router.register("game.stop", _stop)
 	router.register("game.query", _query)
+	router.register("game.ui_audit", _ui_audit)
 	router.register("game.input", _input)
 	router.register("game.wait_for", _wait_for)
 	router.register("game.set", _set_values)
@@ -175,6 +176,10 @@ func _slack(ms: int) -> int:
 
 func _query(p: Dictionary) -> Dictionary:
 	return await dbg.call_runtime(tree, "query", p, 10000)
+
+
+func _ui_audit(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "ui.audit", p, 10000)
 
 
 func _wait_for(p: Dictionary) -> Dictionary:

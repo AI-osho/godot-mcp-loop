@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `match_screenshot` scenario step: compare the screen with a baseline PNG kept in the project (written on the first
+  run, `update: true` to refresh). On a mismatch the report carries a red diff image and the step fails; `region`,
+  `ignore`, `tolerance` and `pixel_tolerance` tune the comparison.
 - Screenshots of the running game are scaled to the project's viewport size (`normalize: "none"` keeps the window
   size), and the result text gives the window size when it differed. Repeated captures of the same screen used to
   differ in size (1150×647 and 960×540 for one project), which made baseline comparisons impossible.

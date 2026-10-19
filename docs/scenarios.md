@@ -29,6 +29,7 @@ steps:
 | `input: <step>`, `[<step>, ...]` or `{steps, record?}` | Same steps as `game_input`, run inside the game in one call: `hold_frames`/`wait_frames` for frame-exact timing, inline `set`/`call`/`assert`/`wait_for`, and `record` with `expect` checks on min/max. | Unknown action/key, a failing inline step or record check. |
 | `query: {node, properties?}` | Record live values in the report. | Node/property missing. |
 | `screenshot: <label>` | Attach a screenshot. | Never — skipped when headless. |
+| `match_screenshot: {baseline, tolerance?, pixel_tolerance?, region?, ignore?, update?}` | Compare the screen with a baseline PNG kept in the project (written on the first run). On a mismatch the red diff image is attached and the step fails. | More than `tolerance` (default 0.5 %) of the compared pixels differ. |
 | `wait_ms: <n>` | Sleep. | Never. |
 | `assert_no_errors: true` | No error-level game log so far. | Any script/engine error was logged. |
 | `set: {node, properties}` | Change live state (same as `game_set`), e.g. fix the piece order or skip to a level. | Path/value invalid (nothing changed). |
@@ -37,6 +38,29 @@ steps:
 
 Operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`. Numbers compare with a 0.0001 tolerance; vectors compare
 element-wise (`[x, y]`); `>`/`<` need numbers — compare a component such as `position:x`.
+
+## Comparing screenshots
+
+`match_screenshot` keeps a baseline PNG in the project and fails the scenario when the screen drifts from it:
+
+```yaml
+steps:
+  - match_screenshot: {baseline: res://qa/baselines/title.png}
+  - input: {action: start, hold_frames: 1}
+  - match_screenshot:
+      baseline: res://qa/baselines/play.png
+      region: [0, 0, 1152, 648]      # optional: compare only this area
+      ignore: [[0, 16, 360, 60]]     # optional: skip the always-changing timer
+      tolerance: 0.005               # 0.5 % of the compared pixels may differ
+      pixel_tolerance: 12            # per-channel difference that counts as a change
+```
+
+- A missing baseline is written from this run and the step passes (the report says `created`); `update: true` accepts
+  a new look. The first run on a machine is therefore a baseline, not a check — commit the PNGs (`res://qa/baselines/…`).
+- The capture is taken at the project's viewport size; a capture of another size is rescaled to the baseline first.
+- On a mismatch the report attaches a diff image: red where the pixels differ, dim grey everywhere else.
+- Software rendering (CI) differs slightly from a real GPU — keep `tolerance` and `ignore` areas generous for
+  gradients, animations and timers.
 
 ## Running a folder
 

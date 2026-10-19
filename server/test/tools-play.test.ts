@@ -90,6 +90,12 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(text).toBe("game screenshot 1152x648 (window 960x540, scaled to the viewport)");
   });
 
+  it("game_ui_audit forwards node and include_hidden", async () => {
+    addon.handlers.set("game.ui_audit", (p) => ({ ok: true, result: { got: p } }));
+    const res = await client.callTool({ name: "game_ui_audit", arguments: { node: "HUD", include_hidden: true } });
+    expect(jsonOf(res)).toEqual({ got: { node: "HUD", include_hidden: true } });
+  });
+
   it("game_input's record description makes clear min/max use every frame, not just the 50 returned samples", async () => {
     const tool = (await client.listTools()).tools.find((t) => t.name === "game_input")!;
     const text = tool.description + JSON.stringify(tool.inputSchema);

@@ -1,6 +1,6 @@
 # Tools reference
 
-36 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
+37 tools, grouped by what they do in the loop: **inspect → edit → run → observe → judge**.
 
 Conventions
 
@@ -90,6 +90,7 @@ until it is.
 | `game_run` | Launch `main`, `current`, or a scene path; waits until the in-game runtime connects. `restart`, `pause_on_error`. |
 | `game_stop` | Stop the game. Game logs remain readable. |
 | `game_query` | Live values from the running game (`properties`), or an overview incl. script variables and children. |
+| `game_ui_audit` | Walk the Control tree of the running game: rect, size, anchors, text and issues (no size, outside the viewport, beyond its parent panel, clipped text, overlapping labels). Use it before judging a HUD by screenshot. |
 | `game_input` | Ordered input steps with real timing: `{action, hold_ms}`, `{action, press}`/`{action, release}`, `{key}`, `{mouse_move}`, `{mouse_click}`, `{wait_ms}`. Unknown actions/keys are rejected before anything runs. `hold_frames` / `wait_frames` count physics frames (deterministic for logic in `_physics_process`). Inline steps `{set}`, `{call}`, `{assert}`, `{wait_for}` run inside the game between inputs with no time passing; a failing one aborts and releases held input. Optional `record: {node, properties, interval_ms?, mode?, per?, expect?}` samples the properties every frame while the steps run (`per: "physics"` samples once per physics frame and adds the frame index — use it for fixed-step logic) and returns `summary` (`min`, `max`, `min_at_ms`, `max_at_ms`, `first`, `last`) computed over every recorded frame (up to 3000), plus `samples_total` and an evenly thinned list of at most 50 samples — keep `interval_ms` at 0 for exact min/max — use it for brief states such as the top of a jump (add a final `{wait_ms}` to keep recording after the input). `pause_at_end: true` leaves the game paused when the sequence finishes, so the next call measures what the input left behind (otherwise the game keeps running between calls). |
 | `game_wait_for` | Wait until `node.property <op> value` (`== != > >= < <= contains`), checked every frame. With `method` (and optional `args`) the method's return value is checked instead, and `property` becomes a path inside it — e.g. `{node: ".", method: "summary", property: "state", op: "==", value: "battle"}`; the method runs on every check, so it should only read state. `timeout_ms: 0` = one-shot assertion (`ASSERTION_FAILED` with the actual value). `op: changed / increased / decreased` waits for a change from the value seen when waiting starts. `tolerance` widens numeric comparisons (default 0.0001); `message` is prefixed to a failure. On timeout returns the last observed value. |
 | `game_set` | Change live state: `{properties: {"score": 300, "position:x": 40, "items:2": 5}}`. Paths may address members, array elements and dictionary keys; values are converted to the existing type; all-or-nothing; returns before/after. |

@@ -80,6 +80,21 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     timeoutFor: inputTimeoutMs,
   },
   {
+    name: "game_ui_audit",
+    method: "game.ui_audit",
+    title: "Audit UI layout",
+    description:
+      "Walk the Control nodes of the running game and report layout problems: Controls with no size, Controls outside " +
+      "the viewport or beyond their parent panel, text that needs more room than its rect (clipped) and overlapping " +
+      "labels. Returns the tree (path, class, rect, size, anchors, text) plus the issues, so a HUD can be checked " +
+      "without reading a screenshot.",
+    input: {
+      node: z.string().optional().describe(`${GAME_NODE} Default: the running scene root.`),
+      include_hidden: z.boolean().optional().describe("Also list hidden Controls (default false)."),
+    },
+    readOnly: true,
+  },
+  {
     name: "game_set",
     method: "game.set",
     title: "Set values in running game",

@@ -59,6 +59,8 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return _pause(p)
 		"step":
 			return await _step(p)
+		"ui.audit":
+			return _ui_audit(p)
 		"quit":
 			return _quit()
 	return Protocol.err(Protocol.UNKNOWN_METHOD, "Unknown runtime method '%s'." % method)
@@ -739,6 +741,124 @@ func _screenshot(p: Dictionary) -> Dictionary:
 		out["source_width"] = source_width
 		out["source_height"] = source_height
 	return Protocol.ok(out)
+
+
+const MAX_UI_ENTRIES := 200
+const MAX_UI_ISSUES := 50
+
+
+## Walks the Control tree of the running game and reports layout problems that a screenshot alone hides.
+func _ui_audit(p: Dictionary) -> Dictionary:
+	var path := String(p.get("node", "."))
+	var root := _resolve(path)
+	if root == null:
+		return _not_found(path)
+	var include_hidden: bool = p.get("include_hidden", false) == true
+	var viewport := _tree.root.get_visible_rect()
+	if DisplayServer.get_name() == "headless" or viewport.size.x < 1.0 or viewport.size.y < 1.0:
+		# Headless has no real window (a 64x64 stub); the project's viewport is what a window would show.
+		viewport = Rect2(Vector2.ZERO, Vector2(
+			int(ProjectSettings.get_setting("display/window/size/viewport_width", 1152)),
+			int(ProjectSettings.get_setting("display/window/size/viewport_height", 648))
+		))
+	var entries: Array = []
+	var issues: Array = []
+	var parent_rect: Variant = null
+	if root is Control:
+		_audit_control(root as Control, ".", entries, issues, viewport, include_hidden)
+		# A full-rect scene root fills the window; in headless the stub window is 64x64 while the
+		# project viewport is the size a player sees, so use that for the containment check.
+		var root_rect := (root as Control).get_global_rect()
+		parent_rect = viewport if root_rect.size.x < viewport.size.x or root_rect.size.y < viewport.size.y else root_rect
+	_walk_controls(root, ".", entries, issues, viewport, include_hidden, parent_rect)
+	var out := {
+		"viewport": [int(viewport.size.x), int(viewport.size.y)],
+		"controls": entries.size(),
+		"issues": issues.slice(0, MAX_UI_ISSUES),
+	}
+	if entries.size() > MAX_UI_ENTRIES:
+		out["truncated"] = true
+	out["tree"] = entries.slice(0, MAX_UI_ENTRIES)
+	var texts: Array = entries.filter(func(e: Dictionary) -> bool: return e.has("text") and e.visible)
+	out["overlaps"] = _label_overlaps(texts).slice(0, 20)
+	return Protocol.ok(out)
+
+
+func _walk_controls(node: Node, path: String, entries: Array, issues: Array, viewport: Rect2, include_hidden: bool, parent_rect: Variant = null) -> void:
+	for child in node.get_children():
+		var child_path := str(child.name) if path == "" or path == "." else path.path_join(str(child.name))
+		if child is Control:
+			var c := child as Control
+			_audit_control(c, child_path, entries, issues, viewport, include_hidden, parent_rect)
+			_walk_controls(c, child_path, entries, issues, viewport, include_hidden, c.get_global_rect())
+		elif child.get_child_count() > 0:
+			_walk_controls(child, child_path, entries, issues, viewport, include_hidden, parent_rect)
+
+
+func _audit_control(c: Control, path: String, entries: Array, issues: Array, viewport: Rect2, include_hidden: bool, parent_rect: Variant = null) -> void:
+	var visible := c.is_visible_in_tree()
+	if not visible and not include_hidden:
+		return
+	var rect := c.get_global_rect()
+	var entry := {
+		"path": path, "type": c.get_class(), "visible": visible,
+		"rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+		"size": [c.size.x, c.size.y],
+		"anchors": [c.anchor_left, c.anchor_top, c.anchor_right, c.anchor_bottom],
+	}
+	var text := _control_text(c)
+	if text != "":
+		entry["text"] = text
+		var minimum := c.get_combined_minimum_size()
+		entry["min_size"] = [minimum.x, minimum.y]
+		if minimum.x > c.size.x + 1.0 or minimum.y > c.size.y + 1.0:
+			issues.append({
+				"path": path, "issue": "text_overflow",
+				"min_size": [minimum.x, minimum.y], "size": [c.size.x, c.size.y],
+				"message": "The text needs more room than the rect, so it is clipped.",
+			})
+	if c.size.x < 1.0 or c.size.y < 1.0:
+		issues.append({"path": path, "issue": "zero_size", "size": [c.size.x, c.size.y],
+			"message": "The Control has no size, so nothing of it is visible."})
+	elif visible and not viewport.intersects(rect):
+		issues.append({"path": path, "issue": "outside",
+			"rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+			"message": "The rect does not overlap the viewport."})
+	if parent_rect != null and visible and c.size.x >= 1.0 and c.size.y >= 1.0 and viewport.intersects(rect):
+		var p: Rect2 = parent_rect
+		if p.size.x >= 1.0 and (rect.position.x < p.position.x - 1.0 or rect.position.y < p.position.y - 1.0
+				or rect.end.x > p.end.x + 1.0 or rect.end.y > p.end.y + 1.0):
+			issues.append({"path": path, "issue": "escapes_parent",
+				"rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+				"parent_rect": [p.position.x, p.position.y, p.size.x, p.size.y],
+				"message": "The rect extends beyond its parent Control, so text can cross a panel border."})
+	entries.append(entry)
+
+
+func _control_text(c: Control) -> String:
+	if c is Label:
+		return (c as Label).text
+	if c is Button:
+		return (c as Button).text
+	if c is RichTextLabel:
+		return (c as RichTextLabel).get_parsed_text()
+	if c is LineEdit:
+		return (c as LineEdit).text
+	return ""
+
+
+func _label_overlaps(texts: Array) -> Array:
+	var out: Array = []
+	for i in texts.size():
+		for j in range(i + 1, texts.size()):
+			var ra: Array = texts[i].rect
+			var rb: Array = texts[j].rect
+			var a := Rect2(ra[0], ra[1], ra[2], ra[3])
+			var b := Rect2(rb[0], rb[1], rb[2], rb[3])
+			var inter := a.intersection(b)
+			if inter.size.x > 1.0 and inter.size.y > 1.0:
+				out.append({"a": texts[i].path, "b": texts[j].path, "area": int(inter.size.x * inter.size.y)})
+	return out
 
 
 func _no_rendering() -> Dictionary:

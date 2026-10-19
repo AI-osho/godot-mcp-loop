@@ -1,0 +1,20 @@
+name: 3 coins are collected and disappear
+scene: res://examples/marble/main.tscn
+steps:
+  - call: { node: ., method: start_game }
+  - assert: { node: Course/Coin1, property: visible, op: "==", value: true }
+  - assert: { node: Course/Coin1, property: picked_up, op: "==", value: false }
+  - input:
+      steps:
+        - call: { node: ., method: teleport_ball, args: [0, 0.9, 0.5] }
+        - wait_frames: 5
+        - assert: { node: ., method: summary, property: coins, op: "==", value: 1, message: "touching Coin1 adds one" }
+        - assert: { node: Course/Coin1, property: picked_up, op: "==", value: true }
+        - assert: { node: Course/Coin1, property: visible, op: "==", value: false, message: "the collected coin disappears" }
+        - call: { node: ., method: teleport_ball, args: [0, 2.8, -24.5] }
+        - wait_frames: 5
+        - assert: { node: ., method: summary, property: coins, op: "==", value: 2 }
+        - assert: { node: Course/Coin7, property: visible, op: "==", value: false }
+        - assert: { node: HUD/Root/Bar/Coins, property: text, op: contains, value: "2 / 10", message: "HUD shows the coin count" }
+  - screenshot: coins
+  - assert_no_errors: true

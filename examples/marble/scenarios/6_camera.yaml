@@ -1,0 +1,23 @@
+name: 6 camera keeps the ball on screen
+scene: res://examples/marble/main.tscn
+steps:
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - wait_frames: 10
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true }
+        - { action: marble_forward, hold_frames: 40 }
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true, message: "ball visible while rolling forward" }
+  - screenshot: camera
+  - input:
+      steps:
+        - { action: marble_right, hold_frames: 15 }
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true, message: "ball visible while steering" }
+        - { action: marble_back, hold_frames: 15 }
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true }
+        - { action: marble_jump, hold_frames: 1 }
+        - wait_frames: 20
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true, message: "ball visible at the top of the jump" }
+        - wait_frames: 50
+        - assert: { node: ., method: ball_on_screen, op: "==", value: true, message: "ball visible after landing" }
+  - assert_no_errors: true

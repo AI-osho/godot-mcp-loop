@@ -1,0 +1,15 @@
+name: 1 title to play
+scene: res://examples/marble/main.tscn
+steps:
+  - wait_for: { node: ., method: summary, property: state, op: "==", value: title, timeout_ms: 5000 }
+  - assert: { node: ., method: summary, property: coins, op: "==", value: 0 }
+  - assert: { node: ., method: summary, property: lives, op: "==", value: 3 }
+  - screenshot: title
+  - input: { action: marble_start, hold_frames: 2 }
+  - wait_for: { node: ., method: summary, property: state, op: "==", value: playing, timeout_ms: 2000 }
+  - assert: { node: ., method: summary, property: coins, op: "==", value: 0 }
+  - assert: { node: ., method: summary, property: lives, op: "==", value: 3 }
+  - assert: { node: ., method: summary, property: time_frames, op: ">", value: 0, message: "the play timer is running" }
+  - assert: { node: ., method: ball_on_screen, op: "==", value: true }
+  - screenshot: playing
+  - assert_no_errors: true

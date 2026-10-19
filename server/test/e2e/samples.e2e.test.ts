@@ -17,6 +17,7 @@ const SAMPLES: Array<{ name: string; path: string; count: number }> = [
   { name: "shooter", path: "res://examples/shooter/scenarios", count: 4 },
   { name: "action", path: "res://examples/action/scenarios", count: 4 },
   { name: "rpg", path: "res://examples/rpg/scenarios", count: 6 },
+  { name: "marble", path: "res://examples/marble/scenarios", count: 7 },
 ];
 
 describe.skipIf(!ENABLED)("e2e: sample games' scenarios", () => {

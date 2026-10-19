@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://fflxaxnp06pv"]
+
+[ext_resource type="Script" uid="uid://bf4tsvlwnfqxl" path="res://examples/marble/scripts/goal.gd" id="1_6k3qi"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_6k3qi"]
+inner_radius = 0.65
+outer_radius = 0.85
+rings = 32
+ring_segments = 16
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_p20yd"]
+size = Vector3(2.2, 2.2, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_0qle8"]
+top_radius = 0.12
+bottom_radius = 0.12
+height = 2.4
+radial_segments = 16
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_p20yd"]
+top_radius = 0.12
+bottom_radius = 0.12
+height = 2.4
+radial_segments = 16
+
+[sub_resource type="BoxMesh" id="BoxMesh_gcynx"]
+size = Vector3(2.94, 0.24, 0.24)
+
+[node name="Goal" type="Area3D" unique_id=168851309]
+script = ExtResource("1_6k3qi")
+
+[node name="Ring" type="MeshInstance3D" parent="." unique_id=1627066612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("TorusMesh_6k3qi")
+
+[node name="Trigger" type="CollisionShape3D" parent="." unique_id=1917309209]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+shape = SubResource("BoxShape3D_p20yd")
+
+[node name="PostLeft" type="MeshInstance3D" parent="." unique_id=923038852]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 1.2, 0)
+mesh = SubResource("CylinderMesh_0qle8")
+
+[node name="PostRight" type="MeshInstance3D" parent="." unique_id=1899600928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.35, 1.2, 0)
+mesh = SubResource("CylinderMesh_p20yd")
+
+[node name="TopBar" type="MeshInstance3D" parent="." unique_id=1669083644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.52, 0)
+mesh = SubResource("BoxMesh_gcynx")

@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `examples/marble`: the first 3D sample — a marble that rolls down a ramp, jumps 3 m and 2 m gaps, crosses a beam and
+  reaches the goal with 10 coins, two checkpoints and three lives. Its course is a staircase (each landing 0.6 m higher),
+  so a gap cannot be crossed by rolling off the edge; `7_gap_needs_jump.yaml` checks both that forward alone falls and
+  that a jump at speed lands.
 - `game_in_view` (is a Node3D inside the camera's view, and where on screen), `game_ray` (cast a world-space ray:
   hit, position, normal, distance, collider, with `exclude` / `collision_mask` / areas) and `game_contacts` (a
   RigidBody3D's contact points and the bodies they touch) — the 3D observations that used to need a screenshot or a

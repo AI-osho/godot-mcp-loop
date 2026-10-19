@@ -1,0 +1,25 @@
+name: 2 roll and jump
+scene: res://examples/marble/main.tscn
+steps:
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - wait_frames: 20
+        - assert: { node: ., method: summary, property: "ball_pos:2", op: "==", value: 4.0, tolerance: 0.01, message: "ball starts at z=4" }
+        - { action: marble_forward, hold_frames: 60 }
+        - assert: { node: ., method: summary, property: "ball_pos:2", op: "<=", value: 2.0, message: "60 frames forward moves at least 2 m" }
+        - call: { node: ., method: start_game }
+        - wait_frames: 20
+        - assert: { node: ., method: summary, property: on_floor, op: "==", value: true, message: "grounded before jumping" }
+        - { action: marble_jump, hold_frames: 1 }
+        - wait_frames: 90
+      record:
+        node: Ball
+        properties: ["position:y"]
+        per: physics
+        expect:
+          - { property: "position:y", stat: max, op: ">=", value: 1.5 }
+          - { property: "position:y", stat: min, op: "<=", value: 0.55 }
+  - assert: { node: ., method: summary, property: on_floor, op: "==", value: true, message: "ball lands again" }
+  - screenshot: jump
+  - assert_no_errors: true

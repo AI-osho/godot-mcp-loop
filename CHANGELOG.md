@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 - A script that used a `class_name` declared by a just-written script failed with "Could not find type" until the
   editor was restarted. The tools now scan and wait for the class; when that does not help, the parse error hints at
   restarting the editor.
+- An argument a tool does not declare (for example `method` on `game_query`) is rejected with `Unrecognized key`
+  instead of being silently dropped.
+- `game_step` reports `stepped_frames`, and the reference says `physics_frame` is the engine's total counter — it
+  keeps increasing while the game is paused, so it is not the number of frames stepped.
 
 ## [0.7.0] - 2026-10-19
 

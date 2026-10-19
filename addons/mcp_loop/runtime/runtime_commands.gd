@@ -356,7 +356,7 @@ func _step(p: Dictionary) -> Dictionary:
 		Stepper.apply_input(input.press, input.release, input.tap)
 	await stepper.finished
 	stepper.queue_free()
-	return Protocol.ok({"paused": true, "frames": frames, "physics_frame": Engine.get_physics_frames()})
+	return Protocol.ok({"paused": true, "frames": frames, "stepped_frames": frames, "physics_frame": Engine.get_physics_frames()})
 
 
 # ------------------------------------------------------------------ input

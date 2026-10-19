@@ -47,7 +47,8 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     title: "Query running game",
     description:
       "Read live state from the running game. With 'properties' returns those values (supports 'position:x'); " +
-      "without, returns the node's class, children and common properties plus script variables.",
+      "without, returns the node's class, children and common properties plus script variables. " +
+      "It only reads properties: to call a method use game_call.",
     input: {
       node: z.string().optional().describe(`${GAME_NODE} Default: the running scene root.`),
       properties: z.array(z.string()).optional(),

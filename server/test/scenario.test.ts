@@ -76,7 +76,7 @@ describe("runScenario", () => {
     const s = parseScenario({ name: "m", keep_running: true, steps: [{ wait_ms: 1 }] });
     const report = await runScenario(s, call, { movie: { fps: 24 } });
     expect(calls[0]).toEqual(["game.run", { scene: "main", restart: true, movie: { fps: 24 } }]);
-    expect(report.movie).toEqual({ dir: "/proj/.godot/mcp_loop/movie", fps: 24 });
+    expect(report.movie).toEqual({ dir: "/proj/.godot/mcp_loop/movie", fps: 24, step_frames: [0, 0] });
     expect(calls.find(([m]) => m === "game.stop")?.[1]).toEqual({ graceful: true });
   });
 

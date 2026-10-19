@@ -59,6 +59,21 @@ describe("scenario_run tool", () => {
     expect(JSON.stringify(json)).not.toContain("QUJD"); // images are not duplicated in JSON
   });
 
+  it("checks the movie step range before starting the game", async () => {
+    write("tests/two.yaml", "name: two\nsteps:\n  - assert: { node: Player, property: x, op: '>', value: 0 }\n  - assert: { node: Player, property: x, op: '>', value: 1 }\n");
+    const res = await client.callTool({
+      name: "scenario_run",
+      arguments: { path: "res://tests/two.yaml", save_to: "res://qa/movie", movie: { from_step: 9 } },
+    });
+    expect(res.isError).toBe(true);
+    expect(textOf(res)).toContain("must be between 1 and 2");
+    const backwards = await client.callTool({
+      name: "scenario_run",
+      arguments: { path: "res://tests/two.yaml", save_to: "res://qa/movie", movie: { from_step: 2, to_step: 1 } },
+    });
+    expect(textOf(backwards)).toContain("must not be after");
+  });
+
   it("returns only the summary (and images) by default; the JSON report needs report: full", async () => {
     write("tests/move.yaml", "name: move\nsteps:\n  - assert: { node: Player, property: x, op: '>', value: 0 }\n  - screenshot: end\n");
     const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/move.yaml" } });

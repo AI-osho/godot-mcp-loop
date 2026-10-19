@@ -29,6 +29,22 @@ describe("movie frames → GIF and contact sheet", () => {
     writeFileSync(join(dir, "notes.txt"), "not a frame");
   };
 
+  it("keeps only the frames of a step range", () => {
+    write(30);
+    const out = makeMovie(dir, { fps: 30, range: { first: 10, last: 20 }, contactFrames: 4 });
+    expect(out.total).toBe(30);
+    expect(out.files).toHaveLength(10);
+    expect(out.files[0]).toMatch(/frame00000010\.png$/);
+    expect(out.seconds).toBeCloseTo(10 / 30, 3);
+    expect(out.gif?.frames).toBeGreaterThan(0);
+    expect(out.contact?.frames).toBe(4);
+  });
+
+  it("refuses a range with no frames", () => {
+    write(10);
+    expect(() => makeMovie(dir, { fps: 30, range: { first: 8, last: 8 } })).toThrow(/no frames between/);
+  });
+
   it("lists frame files in number order and ignores everything else", () => {
     write(12);
     const files = listFrames(dir);

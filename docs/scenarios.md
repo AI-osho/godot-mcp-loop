@@ -110,6 +110,18 @@ The contact sheet also comes back as an image in the tool result, so the agent s
 summary adds a line such as `Movie: 240 frames at 30 fps (8.00 s of game time) → movie.gif 480×270, 120 frames at 15 fps
 (812 KB); contact.png (12 frames)`.
 
+Keep only one section of the run with `from_step` / `to_step` (1-based step numbers, inclusive):
+
+```json
+{"path": "res://examples/marble/scenarios/5_goal.yaml", "save_to": "res://qa/goal",
+ "movie": {"fps": 30, "from_step": 5, "to_step": 7}}
+```
+
+The whole run is still recorded (Movie Maker starts with the game), but the server notes how many frames existed when
+each step started and cuts the GIF, contact sheet and `frames/` to that range. Contact labels keep the time from the
+start of the recording, so a trimmed frame still says when it happened. A range that covers no frames is reported and
+the whole recording is used.
+
 How it works: the editor starts the game with `--write-movie` and `--fixed-fps <fps>` (the Movie Maker settings are
 set only for that launch and restored at once), the game writes `res://.godot/mcp_loop/movie/frameNNNNNNNN.png`, and
 at the end the game is asked to quit by itself so the last frame is complete. The server then builds the GIF (one

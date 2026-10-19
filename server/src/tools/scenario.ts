@@ -99,7 +99,7 @@ export function summariseBatch(entries: BatchEntry[], ms: number): string {
   return lines.join("\n");
 }
 
-type MovieArgs = { fps?: number; gif?: boolean; gif_fps?: number; max_width?: number; contact_sheet?: number; frames?: boolean };
+type MovieArgs = { fps?: number; gif?: boolean; gif_fps?: number; max_width?: number; contact_sheet?: number; frames?: boolean; from_step?: number; to_step?: number };
 
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
@@ -171,6 +171,20 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
             max_width: z.number().int().min(64).max(1280).optional().describe("GIF width in pixels (default 480; never enlarged)."),
             contact_sheet: z.number().int().min(0).max(36).optional().describe("Frames in contact.png (default 12; 0 = none)."),
             frames: z.boolean().optional().describe("Also keep every recorded frame as frames/frameNNNNNNNN.png (default false)."),
+            from_step: z
+              .number()
+              .int()
+              .min(1)
+              .max(500)
+              .optional()
+              .describe("First scenario step to keep in the GIF/contact sheet (1-based; default 1). The whole run is still recorded — the frames are cut afterwards."),
+            to_step: z
+              .number()
+              .int()
+              .min(1)
+              .max(500)
+              .optional()
+              .describe("Last scenario step to keep (1-based, inclusive; default the last step)."),
           })
           .optional()
           .describe(
@@ -209,10 +223,35 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
       }
       const source = args.path !== undefined ? readFileSync(resolveProjectFile(conn.projectPath, args.path), "utf8") : args.scenario;
       const scenario = parseScenario(source);
+      if (args.movie) {
+        const total = scenario.steps.length;
+        const from = args.movie.from_step;
+        const to = args.movie.to_step;
+        if ((from !== undefined && from > total) || (to !== undefined && to > total)) {
+          throw new BridgeError("INVALID_PARAMS", `The scenario has ${total} steps; from_step/to_step must be between 1 and ${total}.`);
+        }
+        if (from !== undefined && to !== undefined && from > to) {
+          throw new BridgeError("INVALID_PARAMS", "movie.from_step must not be after movie.to_step.");
+        }
+      }
       const fps = args.movie?.fps ?? 30;
       const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), args.movie ? { movie: { fps } } : {});
       let movie: EvidenceMovie | undefined;
       let movieNote: string | undefined;
+      let range: { first: number; last: number } | undefined;
+      if (args.movie && (args.movie.from_step !== undefined || args.movie.to_step !== undefined)) {
+        const from = args.movie.from_step ?? 1;
+        const to = args.movie.to_step ?? scenario.steps.length;
+        const sf = report.movie?.step_frames;
+        if (sf !== undefined && sf.length > 0) {
+          const firstFrame = sf[from - 1] ?? 0;
+          const lastFrame = sf[to] ?? sf[sf.length - 1]!;
+          if (lastFrame > firstFrame) range = { first: firstFrame, last: lastFrame };
+          else movieNote = `Movie range: steps ${from}–${to} cover no frames (${firstFrame}..${lastFrame}); the whole recording is used.`;
+        } else {
+          movieNote = "Movie range ignored: the recording did not report step frame positions.";
+        }
+      }
       if (args.movie && report.movie?.dir) {
         try {
           const output = makeMovie(report.movie.dir, {
@@ -221,9 +260,15 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
             ...(args.movie.gif_fps !== undefined ? { gifFps: args.movie.gif_fps } : {}),
             ...(args.movie.max_width !== undefined ? { maxWidth: args.movie.max_width } : {}),
             ...(args.movie.contact_sheet !== undefined ? { contactFrames: args.movie.contact_sheet } : {}),
+            ...(range !== undefined ? { range } : {}),
           });
           const keepFrames = args.movie.frames === true;
           movie = { output, keepFrames, line: movieLine(output, keepFrames) };
+          if (range !== undefined) {
+            const from = args.movie.from_step ?? 1;
+            const to = args.movie.to_step ?? scenario.steps.length;
+            movie.line += ` — trimmed to steps ${from}–${to} (frames ${range.first}–${range.last - 1} of the recording)`;
+          }
           report.movie = { ...report.movie, frames: output.files.length, seconds: Math.round(output.seconds * 100) / 100 };
         } catch (e) {
           movieNote = `Movie not made: ${e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e)}`;

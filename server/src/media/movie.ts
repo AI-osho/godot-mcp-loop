@@ -58,6 +58,8 @@ export interface MovieOptions {
   maxWidth?: number;
   /** Frames in the contact sheet (default 12; 0 = none). */
   contactFrames?: number;
+  /** Keep only frames [first, last) of the recording (frame indices in the full recording). */
+  range?: { first: number; last: number };
 }
 
 export interface MovieOutput {
@@ -78,6 +80,17 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
   if (all.length === 0) {
     throw new BridgeError("NO_FRAMES", `The recording has no frames (${dir}).`, "The game may have ended at once or failed to start; check logs_read.");
   }
+  // A step range keeps only its frames; labels still show the frame's time in the whole recording.
+  const first = Math.max(0, Math.min(opts.range?.first ?? 0, all.length));
+  const last = Math.max(first, Math.min(opts.range?.last ?? all.length, all.length));
+  const kept = all.slice(first, last);
+  if (kept.length === 0) {
+    throw new BridgeError(
+      "NO_FRAMES",
+      `The recording has no frames between ${first} and ${last} (${all.length} frames in total).`,
+      "Check the step numbers: from_step is 1-based and to_step must not be before it.",
+    );
+  }
   const load = (file: string): RgbaImage | undefined => {
     try {
       return decodePng(readFileSync(file));
@@ -86,25 +99,25 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
     }
   };
   // A game that is stopped mid-frame can leave the last file cut off.
-  let usable = all.length;
+  let usable = kept.length;
   let unreadable = 0;
-  if (!load(all[usable - 1]!)) {
+  if (!load(kept[usable - 1]!)) {
     usable -= 1;
     unreadable += 1;
   }
   if (usable === 0) throw new BridgeError("NO_FRAMES", `No readable frames in ${dir}.`);
   const fps = opts.fps;
   const maxWidth = opts.maxWidth ?? 480;
-  const out: MovieOutput = { total: all.length, unreadable, fps, seconds: usable / fps, files: all.slice(0, usable) };
+  const out: MovieOutput = { total: all.length, unreadable, fps, seconds: usable / fps, files: kept.slice(0, usable) };
 
   const contactN = opts.contactFrames ?? 12;
   if (contactN > 0) {
     const picks = contactIndices(usable, contactN)
-      .map((i) => ({ i, image: load(all[i]!) }))
+      .map((i) => ({ i, image: load(kept[i]!) }))
       .filter((p): p is { i: number; image: RgbaImage } => p.image !== undefined);
     if (picks.length > 0) {
       const sheet = contactSheet(
-        picks.map((p) => ({ image: p.image, label: `${(p.i / fps).toFixed(2)}s (${p.i})` })),
+        picks.map((p) => ({ image: p.image, label: `${((first + p.i) / fps).toFixed(2)}s (${first + p.i})` })),
         { columns: 4, tileWidth: Math.min(320, maxWidth) },
       );
       out.contact = { data: encodePng(sheet), width: sheet.width, height: sheet.height, frames: picks.length };
@@ -115,7 +128,7 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
     const plan = gifPlan(usable, fps, Math.min(opts.gifFps ?? 15, fps));
     // Palette from a sample of the frames, then every frame is decoded, scaled and encoded one at a time.
     const sample = contactIndices(plan.indices.length, 24)
-      .map((k) => load(all[plan.indices[k]!]!))
+      .map((k) => load(kept[plan.indices[k]!]!))
       .filter((f): f is RgbaImage => f !== undefined)
       .map((f) => resize(f, maxWidth));
     const palette = quantize(sample);
@@ -125,7 +138,7 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
     let count = 0;
     function* frames(): Generator<RgbaImage> {
       for (let k = 0; k < plan.indices.length; k++) {
-        const f = load(all[plan.indices[k]!]!);
+        const f = load(kept[plan.indices[k]!]!);
         if (!f) {
           // Skip it; its time goes to the next frame.
           carried += plan.delaysCs[k]!;

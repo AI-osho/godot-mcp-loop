@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `scenario_run` `movie.from_step` / `movie.to_step`: keep only that section of the recording in the GIF, contact
+  sheet and `frames/`. The whole run is still recorded and the server cuts the frames afterwards; contact labels keep
+  the time from the start of the recording.
 - `project_setting_set`: change the main scene, viewport and window size, stretch mode/aspect, project name or
   `max_fps` from a fixed list of keys (other keys are refused). Undoable; the editor window and a running game apply
   them when they start.

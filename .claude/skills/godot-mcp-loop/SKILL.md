@@ -50,7 +50,8 @@ Rules:
 - `game_wait_for` instead of sleeping: `{node, property, op, value, timeout_ms}`; `timeout_ms: 0` is a one-shot
   assert. Ops: `== != > >= < <= contains`, and `changed / increased / decreased` (no value).
 - `game_input` sends real input: `{action, hold_ms}` or `hold_frames`, `{action, press: true}` / `release: true`,
-  `{key: "Space"}`, `{mouse_click: [x, y]}`, `{wait_ms}` / `{wait_frames}`.
+  `{key: "Space"}`, `{mouse_click: [x, y]}`, `{wait_ms}` / `{wait_frames}`. Add `pause_at_end: true` when the next
+  call should measure what the input left behind — otherwise the game keeps running between the two calls.
 - `logs_read {since}` after every run: script errors don't stop the game (it auto-continues), so they only show up
   here and in `godot_status.game.errors`.
 - `screenshot` and **look at it** — overlapping text, wrong colors, clipped UI and missing glyphs (□) are only
@@ -65,6 +66,8 @@ Wall-clock timing makes tests flaky. Prefer frame-exact tools — details and YA
 - `game_step {frames: 1, tap: [jump]}`: the press arrives in that frame, so `Input.is_action_just_pressed()` sees it.
   Pressing with `game_input` while paused does **not** count as a new press.
 - `hold_frames` / `wait_frames` in `game_input` count physics frames.
+- The game keeps running between tool calls. To read the state that an input left behind, finish the call with
+  `pause_at_end: true` (or use `game_pause` + `game_step` from a paused game).
 - `record: {node, properties, per: "physics", expect: [...]}` captures brief states (the top of a jump) and checks
   min/max/first/last in the same call.
 - Conditions can read a method's result: `{node: ".", method: "summary", property: "state", op: "==", value: "battle"}`.

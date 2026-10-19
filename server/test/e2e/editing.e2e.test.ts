@@ -159,6 +159,19 @@ describe("e2e: safe editing tools", () => {
     expect(readFileSync(file("scripts/hero.gd"), "utf8")).toBe(VALID_SCRIPT);
   });
 
+  it("script_write registers a new class_name so a later script can use the type", async () => {
+    const first = await ok("script_write", {
+      path: "res://scripts/e2e_badge.gd",
+      content: "class_name E2EBadge\nextends Node2D\n",
+    });
+    expect(first.created).toBe(true);
+    // The editor's global class cache is updated right away, so the type is usable now.
+    expect(first.class_name).toBe("E2EBadge");
+    const user = "extends Node2D\n\nvar badge: E2EBadge\n\n\nfunc make() -> E2EBadge:\n\treturn E2EBadge.new()\n";
+    const second = await ok("script_write", { path: "res://scripts/e2e_badge_user.gd", content: user });
+    expect(second.created).toBe(true);
+  });
+
   it("script_write rejects broken code with line numbers and leaves the file untouched", async () => {
     const msg = await fails("script_write", { path: "res://scripts/hero.gd", content: BROKEN_SCRIPT });
     expect(msg).toContain("SCRIPT_PARSE_ERROR");

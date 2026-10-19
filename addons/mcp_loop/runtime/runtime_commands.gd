@@ -415,6 +415,8 @@ func _input(p: Dictionary) -> Dictionary:
 	var steps: Variant = p.get("steps", [])
 	if typeof(steps) != TYPE_ARRAY or steps.is_empty():
 		return Protocol.err(Protocol.INVALID_PARAMS, "'steps' must be a non-empty array.")
+	if p.has("pause_at_end") and typeof(p.pause_at_end) != TYPE_BOOL:
+		return Protocol.err(Protocol.INVALID_PARAMS, "'pause_at_end' must be true or false.")
 	var problem := _validate_steps(steps)
 	if problem != "":
 		return Protocol.err(Protocol.INVALID_PARAMS, problem)
@@ -449,6 +451,11 @@ func _input(p: Dictionary) -> Dictionary:
 		if failed != "":
 			return Protocol.err(Protocol.ASSERTION_FAILED, "Recording check failed: " + failed,
 				"Summary: " + JSON.stringify(rec.summary).left(400))
+	if p.get("pause_at_end", false):
+		# Measurement after the call would otherwise include the seconds spent
+		# between calls, which made "input 60 frames then read" read a later state.
+		_tree.paused = true
+		out["paused"] = true
 	return Protocol.ok(out)
 
 

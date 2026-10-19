@@ -138,6 +138,16 @@ describe("e2e: run / observe loop", () => {
     expect(r.results).toHaveLength(2);
   });
 
+  it("game_input pause_at_end freezes the game so a later call measures the same state", async () => {
+    const r = await ok("game_input", { steps: [{ action: "move_right", hold_frames: 10 }], pause_at_end: true });
+    expect(r.paused).toBe(true);
+    const x0 = (await ok("game_query", { node: "Player", properties: ["position:x"] })).properties["position:x"];
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const x1 = (await ok("game_query", { node: "Player", properties: ["position:x"] })).properties["position:x"];
+    expect(x1).toBe(x0);
+    await ok("game_pause", { paused: false });
+  });
+
   it("game_step tap reaches is_action_just_pressed; method conditions; record per physics frame (#6, #7, #9)", async () => {
     await ok("game_wait_for", { node: "Player", method: "is_on_floor", op: "==", value: true, timeout_ms: 3000 });
     const j0 = (await ok("game_query", { node: "Player", properties: ["jumps"] })).properties.jumps;

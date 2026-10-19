@@ -53,7 +53,7 @@ func _write(p: Dictionary) -> Dictionary:
 	var content: Variant = p.get("content")
 	if typeof(content) != TYPE_STRING:
 		return Protocol.err(Protocol.INVALID_PARAMS, "'content' must be a string.")
-	return _apply_write(path, content, p.get("dry_run", false), "script_write")
+	return await _apply_write(path, content, p.get("dry_run", false), "script_write")
 
 
 func _edit(p: Dictionary) -> Dictionary:
@@ -67,7 +67,7 @@ func _edit(p: Dictionary) -> Dictionary:
 	var edited := TextEdits.apply(current, p.get("edits"))
 	if not edited.ok:
 		return Protocol.err(Protocol.INVALID_PARAMS, edited.error, edited.get("hint", "Nothing was written."))
-	var result := _apply_write(path, edited.content, p.get("dry_run", false), "script_edit")
+	var result := await _apply_write(path, edited.content, p.get("dry_run", false), "script_edit")
 	if result.get("ok", false):
 		result.result["replacements"] = edited.replacements
 	return result
@@ -81,8 +81,11 @@ func _apply_write(path: String, content: String, dry_run: bool, tool: String) ->
 	var errors := _validate(path, content)
 	if not errors.is_empty():
 		var lines: Array = errors.map(func(e: Dictionary) -> String: return "line %d: %s" % [e.line, e.message])
-		return Protocol.err(Protocol.SCRIPT_PARSE_ERROR, "GDScript does not compile: " + "; ".join(lines),
-			"Nothing was written. Fix the code and call %s again." % tool)
+		var detail := "; ".join(lines)
+		var hint := "Nothing was written. Fix the code and call %s again." % tool
+		if detail.contains("Could not find type"):
+			hint = "Nothing was written. If a class_name was just written, the editor may not have registered it yet: retry, or restart the editor (editor_quit then editor_launch). Otherwise fix the code and call %s again." % tool
+		return Protocol.err(Protocol.SCRIPT_PARSE_ERROR, "GDScript does not compile: " + detail, hint)
 
 	var exists := FileAccess.file_exists(path)
 	var old := FileAccess.get_file_as_string(path) if exists else ""
@@ -112,7 +115,51 @@ func _apply_write(path: String, content: String, dry_run: bool, tool: String) ->
 			ur.add_undo_method(ops, "write_text", path, old)
 		else:
 			ur.add_undo_method(ops, "remove_file", path))
+	result.merge(await _register_global_class(path, content))
 	return Protocol.ok(result)
+
+
+const CLASS_SCAN_TIMEOUT_MS := 4000
+
+
+## A new `class_name` only reaches ProjectSettings' global class list after the
+## editor scans the file system. Without this, a script written right after one
+## fails with "Could not find type" until the editor is restarted.
+func _register_global_class(path: String, content: String) -> Dictionary:
+	var m := _class_name_re.search(content)
+	if m == null:
+		return {}
+	var cls := m.get_string(2)
+	if _class_registered(cls, path):
+		return {"class_name": cls}
+	var fs := EditorInterface.get_resource_filesystem()
+	if fs == null:
+		return {}
+	fs.update_file(path)
+	fs.scan()
+	var tree := Engine.get_main_loop() as SceneTree
+	var deadline := Time.get_ticks_msec() + CLASS_SCAN_TIMEOUT_MS
+	var quiet := 0
+	while Time.get_ticks_msec() < deadline:
+		await tree.process_frame
+		if _class_registered(cls, path):
+			return {"class_name": cls, "rescanned": true}
+		if fs.is_scanning():
+			quiet = 0
+			continue
+		quiet += 1
+		if quiet > 30:
+			break
+	return {
+		"warning": "class_name '%s' is not in the editor's global class list yet. If a script that uses it fails with \"Could not find type\", restart the editor (editor_quit then editor_launch) and retry." % cls,
+	}
+
+
+func _class_registered(cls: String, path: String) -> bool:
+	for g in ProjectSettings.get_global_class_list():
+		if String(g["class"]) == cls:
+			return String(g["path"]) == path
+	return false
 
 
 ## Compiles `content` in isolation. Returns [{line, message}] (empty = OK).

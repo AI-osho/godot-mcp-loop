@@ -77,7 +77,13 @@ export const InputStepSchema = z
 export const RecordSchema = z
   .object({
     node: z.string().describe(GAME_NODE),
-    properties: z.array(z.string()).min(1).max(8).describe("Properties to sample, e.g. ['position:y']."),
+    method: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Sample a method's return value instead of node properties; 'properties' are then paths inside it (e.g. method 'summary', property 'ball_pos:2'). It runs on every sample, so it should only read state."),
+    args: z.array(JsonValue).max(16).optional().describe("Arguments for 'method' (converted to its declared parameter types)."),
+    properties: z.array(z.string()).min(1).max(8).describe("Properties to sample, e.g. ['position:y']; with 'method', paths inside its return value."),
     interval_ms: z
       .number()
       .int()

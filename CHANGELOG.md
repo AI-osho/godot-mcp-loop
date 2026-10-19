@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `Transform3D`, `Basis`, `Quaternion`, `AABB` and `Plane` read and write as JSON objects/arrays instead of Godot
+  literal strings: `{origin, basis: {x, y, z}}`, `{x, y, z}`, `[x, y, z, w]`, `{position, size}`, `{normal, d}` —
+  including sub-properties such as `transform:origin:y` and `aabb:size:z` in `game_query`, `game_set`, conditions and
+  records.
+- `record` takes `method` / `args` (`game_input` and scenario input), so a method's return value can be sampled:
+  `{node: ".", method: "summary", properties: ["ball_pos:2"]}`.
 - `game_ui_audit`: walk the Control tree of the running game and report layout problems (no size, outside the
   viewport, extending beyond the parent panel, clipped text, overlapping labels) with rects, anchors and text — a HUD
   can be checked without reading a screenshot.

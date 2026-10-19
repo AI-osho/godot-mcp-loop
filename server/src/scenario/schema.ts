@@ -148,7 +148,7 @@ export function parseScenario(input: unknown): Scenario {
     throw new BridgeError(
       "INVALID_PARAMS",
       `Invalid scenario: ${issues.join("; ")}`,
-      "Each step must be exactly one of: wait_for, assert, input, query, screenshot, wait_ms, assert_no_errors, set, call, repeat. See docs/scenarios.md.",
+      "Each step must be exactly one of: wait_for, assert, input, query, screenshot, match_screenshot, pause, step, wait_ms, assert_no_errors, set, call, repeat. See docs/scenarios.md.",
     );
   }
   const total = countSteps(r.data.steps);

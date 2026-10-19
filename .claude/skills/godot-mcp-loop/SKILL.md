@@ -74,6 +74,9 @@ Wall-clock timing makes tests flaky. Prefer frame-exact tools — details and YA
   the first run; `update: true` to accept a new look) and attaches a red diff image when it differs — use it for
   screens that must not change.
 - Conditions can read a method's result: `{node: ".", method: "summary", property: "state", op: "==", value: "battle"}`.
+- 3D values are JSON: `transform` reads as `{origin, basis: {x, y, z}}`, and `transform:origin:y`, `aabb:size:z`,
+  `plane:normal:y` work in queries, sets and conditions. `record: {node, method, properties}` samples a method's
+  return value (e.g. `{node: ".", method: "summary", properties: ["ball_pos:2"]}`).
 
 ## Make the game testable
 

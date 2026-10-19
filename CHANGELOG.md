@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `game_in_view` (is a Node3D inside the camera's view, and where on screen), `game_ray` (cast a world-space ray:
+  hit, position, normal, distance, collider, with `exclude` / `collision_mask` / areas) and `game_contacts` (a
+  RigidBody3D's contact points and the bodies they touch) — the 3D observations that used to need a screenshot or a
+  hand-written probe. A child RayCast3D rotates with its body; `game_ray` uses world axes.
 - `Transform3D`, `Basis`, `Quaternion`, `AABB` and `Plane` read and write as JSON objects/arrays instead of Godot
   literal strings: `{origin, basis: {x, y, z}}`, `{x, y, z}`, `[x, y, z, w]`, `{position, size}`, `{normal, d}` —
   including sub-properties such as `transform:origin:y` and `aabb:size:z` in `game_query`, `game_set`, conditions and

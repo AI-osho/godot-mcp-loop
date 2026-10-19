@@ -56,6 +56,9 @@ Rules:
   here and in `godot_status.game.errors`.
 - `screenshot` and **look at it** — overlapping text, wrong colors, clipped UI and missing glyphs (□) are only
   visible this way. Check small pixel-art screens closely.
+- 3D checks without a picture: `game_in_view {node}` (behind the camera? where on screen), `game_ray {from, to}`
+  (world axes — a child `RayCast3D` rotates with its body), `game_contacts {node}` (a RigidBody3D's contact points;
+  needs `contact_monitor`), `game_ui_audit` (HUD layout problems).
 
 ## Deterministic checks
 

@@ -235,7 +235,10 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         }
       }
       const fps = args.movie?.fps ?? 30;
-      const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), args.movie ? { movie: { fps } } : {});
+      const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), {
+        ...(args.movie ? { movie: { fps } } : {}),
+        projectPath: conn.projectPath,
+      });
       let movie: EvidenceMovie | undefined;
       let movieNote: string | undefined;
       let range: { first: number; last: number } | undefined;

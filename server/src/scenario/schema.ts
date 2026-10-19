@@ -55,12 +55,41 @@ const CallStep = z
   })
   .strict();
 
+const RectArea = z.tuple([
+  z.number().int().min(0),
+  z.number().int().min(0),
+  z.number().int().min(1),
+  z.number().int().min(1),
+]);
+
+const MatchScreenshotStep = z
+  .object({
+    match_screenshot: z
+      .object({
+        baseline: z.string().min(1).describe("res:// path of the baseline PNG; written from this capture when missing"),
+        tolerance: z.number().min(0).max(1).optional().describe("Allowed fraction of differing pixels (default 0.005)"),
+        pixel_tolerance: z
+          .number()
+          .int()
+          .min(0)
+          .max(255)
+          .optional()
+          .describe("Per-channel difference that counts as a change (default 12)"),
+        region: RectArea.optional().describe("[x, y, w, h] to compare (default the whole image)"),
+        ignore: z.array(RectArea).max(16).optional().describe("Areas to skip, e.g. a timer that always changes"),
+        update: z.boolean().optional().describe("Rewrite the baseline from this capture instead of comparing"),
+      })
+      .strict(),
+  })
+  .strict();
+
 const BaseStep = z.union([
   z.object({ wait_for: Condition.refine(hasTarget, NEEDS_TARGET) }).strict(),
   z.object({ assert: Condition.omit({ timeout_ms: true }).refine(hasTarget, NEEDS_TARGET) }).strict(),
   z.object({ input: InputSpec }).strict(),
   z.object({ query: z.object({ node: z.string(), properties: z.array(z.string()).optional() }) }).strict(),
   z.object({ screenshot: z.string().min(1) }).strict(),
+  MatchScreenshotStep,
   z.object({ pause: z.boolean() }).strict(),
   z.object({ step: z.union([z.number().int().min(1).max(3600), StepSpec]) }).strict(),
   z.object({ wait_ms: z.number().int().min(0).max(60_000) }).strict(),

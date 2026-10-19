@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { BridgeError } from "../errors.js";
 import { stepsDurationMs } from "../input-steps.js";
 import type { Scenario, ScenarioStep } from "./schema.js";
+import { matchScreenshot } from "./screenshot-match.js";
 
 export type BridgeCall = (method: string, params?: Record<string, unknown>, opt?: { timeoutMs?: number }) => Promise<unknown>;
 
@@ -41,6 +42,8 @@ export interface ScenarioReport {
 export interface RunOptions {
   /** Record every frame with Movie Maker at this fixed rate; the game is ended gracefully afterwards. */
   movie?: { fps: number };
+  /** Project root; steps that touch files (match_screenshot baselines) need it. */
+  projectPath?: string;
 }
 
 const GRACE_MS = 10_000;
@@ -136,6 +139,7 @@ export function describeTarget(step: ScenarioStep): string | undefined {
     return props && props.length > 0 ? `${step.query.node} [${props.join(", ")}]` : step.query.node;
   }
   if ("screenshot" in step) return `"${step.screenshot}"`;
+  if ("match_screenshot" in step) return step.match_screenshot.baseline;
   if ("wait_ms" in step) return `${step.wait_ms} ms`;
   if ("set" in step) {
     const props = Object.entries(step.set.properties).map(([k, v]) => `${k} = ${JSON.stringify(v)}`);
@@ -219,7 +223,7 @@ export async function runScenario(s: Scenario, call: BridgeCall, opts: RunOption
       const target = describeTarget(step);
       if (target !== undefined) res.target = target;
       try {
-        await runStep(step, call, res, report, slow);
+        await runStep(step, call, res, report, slow, opts);
       } catch (e) {
         const timeoutLike = e instanceof BridgeError && (e.code === "TIMEOUT" || e.code === "ASSERTION_FAILED");
         res.status = timeoutLike ? "fail" : "error";
@@ -271,7 +275,7 @@ async function readErrors(call: BridgeCall): Promise<unknown[]> {
 }
 
 /** `slow` > 1 while recording a movie: waits then happen in the game (game time) and timeouts get more room. */
-async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, report: ScenarioReport, slow: number): Promise<void> {
+async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, report: ScenarioReport, slow: number, opts: RunOptions): Promise<void> {
   if ("wait_for" in step) {
     const t = step.wait_for.timeout_ms ?? 5000;
     res.detail = await call("game.wait_for", { ...step.wait_for, timeout_ms: t }, { timeoutMs: t * slow + GRACE_MS });
@@ -301,6 +305,41 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
     } else {
       await new Promise((r) => setTimeout(r, step.wait_ms));
     }
+  } else if ("match_screenshot" in step) {
+    const m = step.match_screenshot;
+    if (opts.projectPath === undefined) {
+      throw new BridgeError("INTERNAL", "match_screenshot needs the project folder.");
+    }
+    const shot = (await call("screenshot", { max_width: 2560, normalize: "viewport" }, { timeoutMs: 20_000 })) as {
+      png_base64: string;
+    };
+    const result = matchScreenshot(opts.projectPath, Buffer.from(shot.png_base64, "base64"), {
+      baseline: m.baseline,
+      ...(m.tolerance !== undefined ? { tolerance: m.tolerance } : {}),
+      ...(m.pixel_tolerance !== undefined ? { pixelTolerance: m.pixel_tolerance } : {}),
+      ...(m.region !== undefined ? { region: m.region } : {}),
+      ...(m.ignore !== undefined ? { ignore: m.ignore } : {}),
+      ...(m.update !== undefined ? { update: m.update } : {}),
+    });
+    const { diff_png, ...detail } = result;
+    res.detail = detail;
+    if (result.created || result.updated) return;
+    if (diff_png !== undefined) {
+      report.screenshots.push({
+        label: `diff ${m.baseline.split("/").pop() ?? "baseline"}`,
+        png_base64: diff_png.toString("base64"),
+        width: result.size.width,
+        height: result.size.height,
+      });
+    }
+    if (!result.passed) {
+      throw new BridgeError(
+        "ASSERTION_FAILED",
+        `Screenshot differs from ${m.baseline}: ${(result.diff_ratio * 100).toFixed(2)}% of ${result.compared_pixels} pixels ` +
+          `(allowed ${((m.tolerance ?? 0.005) * 100).toFixed(2)}%).`,
+        "Fix the game, or accept the new look with update: true on the step.",
+      );
+    }
   } else if ("pause" in step) {
     res.detail = await call("game.pause", { paused: step.pause });
   } else if ("step" in step) {
@@ -318,7 +357,7 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
         const inner = steps[j]!;
         const innerRes: StepResult = { index: j, kind: kindOf(inner), status: "pass", duration_ms: 0 };
         try {
-          await runStep(inner, call, innerRes, report, slow);
+          await runStep(inner, call, innerRes, report, slow, opts);
         } catch (e) {
           const target = describeTarget(inner);
           const where = `iteration ${it}/${times}, step ${j + 1} (${kindOf(inner)}${target ? ` ${target}` : ""})`;

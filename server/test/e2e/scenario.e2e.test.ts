@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { connectClient } from "../helpers.js";
@@ -34,6 +36,26 @@ describe("e2e: scenario_run against the platformer", () => {
     expect(images).toBe(WINDOWED ? 1 : 0);
     expect((await h.conn.call("editor.status")) as any).toMatchObject({ playing: false });
   }, 60_000);
+
+  it.skipIf(!WINDOWED)("match_screenshot creates a baseline and fails when the screen changes", async () => {
+    const scenario = {
+      name: "match",
+      scene: "main",
+      steps: [
+        { match_screenshot: { baseline: "res://qa/baselines/start.png" } },
+        { set: { node: "Player", properties: { "position:x": 640 } } },
+        { match_screenshot: { baseline: "res://qa/baselines/start.png", tolerance: 0 } },
+      ],
+    };
+    const { summary, report } = await run({ scenario });
+    expect(summary).toMatch(/FAILED/);
+    expect(report.steps[0].status).toBe("pass");
+    expect(report.steps[0].detail.created).toBe(true);
+    expect(report.steps[2].status).toBe("fail");
+    expect(report.steps[2].message).toContain("Screenshot differs");
+    expect(report.screenshots.some((s: any) => s.label.startsWith("diff "))).toBe(true);
+    expect(existsSync(join(h.projectPath, "qa/baselines/start.png"))).toBe(true);
+  }, 120_000);
 
   it("a folder runs every scenario in name order with one summary (#8)", async () => {
     const res = await client.callTool({ name: "scenario_run", arguments: { path: "res://examples/platformer/scenarios" } });

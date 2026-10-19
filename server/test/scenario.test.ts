@@ -1,5 +1,9 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BridgeError } from "../src/errors.js";
+import { encodePng } from "../src/media/png.js";
 import { runScenario, type BridgeCall } from "../src/scenario/runner.js";
 import { parseScenario } from "../src/scenario/schema.js";
 
@@ -373,5 +377,37 @@ describe("runScenario", () => {
     const { call, calls } = fakeBridge({});
     await runScenario(parseScenario({ name: "s", keep_running: true, steps: [{ wait_ms: 1 }] }), call);
     expect(calls.map(([m]) => m)).not.toContain("game.stop");
+  });
+});
+
+describe("runScenario with match_screenshot", () => {
+  it("writes a missing baseline, then fails a changed screen and attaches the diff", async () => {
+    const project = mkdtempSync(join(tmpdir(), "gml-scn-match-"));
+    try {
+      const flat = (c: [number, number, number]): string => {
+        const data = new Uint8Array(4 * 4 * 4);
+        for (let i = 0; i < 16; i++) data.set([...c, 255], i * 4);
+        return encodePng({ width: 4, height: 4, data }).toString("base64");
+      };
+      const s = parseScenario({ name: "m", steps: [{ match_screenshot: { baseline: "res://qa/base/start.png" } }] });
+      const first = fakeBridge({
+        "game.run": () => ({ running: true }),
+        screenshot: () => ({ png_base64: flat([10, 20, 30]), width: 4, height: 4, target: "game" }),
+      });
+      const a = await runScenario(s, first.call, { projectPath: project });
+      expect(a.passed).toBe(true);
+      expect(a.steps[0]!.detail).toMatchObject({ created: true });
+      const second = fakeBridge({
+        "game.run": () => ({ running: true }),
+        screenshot: () => ({ png_base64: flat([200, 0, 0]), width: 4, height: 4, target: "game" }),
+      });
+      const b = await runScenario(s, second.call, { projectPath: project });
+      expect(b.passed).toBe(false);
+      expect(b.steps[0]!.status).toBe("fail");
+      expect(b.steps[0]!.message).toContain("Screenshot differs");
+      expect(b.screenshots.some((shot) => shot.label.startsWith("diff "))).toBe(true);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
   });
 });

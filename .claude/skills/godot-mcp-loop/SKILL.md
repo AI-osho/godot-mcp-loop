@@ -70,6 +70,9 @@ Wall-clock timing makes tests flaky. Prefer frame-exact tools — details and YA
   `pause_at_end: true` (or use `game_pause` + `game_step` from a paused game).
 - `record: {node, properties, per: "physics", expect: [...]}` captures brief states (the top of a jump) and checks
   min/max/first/last in the same call.
+- `match_screenshot: {baseline: "res://qa/baselines/x.png"}` compares the screen with a PNG in the project (written on
+  the first run; `update: true` to accept a new look) and attaches a red diff image when it differs — use it for
+  screens that must not change.
 - Conditions can read a method's result: `{node: ".", method: "summary", property: "state", op: "==", value: "battle"}`.
 
 ## Make the game testable

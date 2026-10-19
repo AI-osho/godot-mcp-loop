@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import type { ZodRawShape } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { jsonResult, safe } from "./helpers.js";
@@ -26,6 +27,15 @@ export function dropUndefined(args: Record<string, unknown>): Record<string, unk
   return Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
 }
 
+/**
+ * An argument the tool does not declare is an error, not something to drop:
+ * passing `method` to `game_query` (which takes `properties`) used to look like
+ * it worked while the value was ignored. A strict object makes the SDK reject it.
+ */
+function strictSchema(shape: ZodRawShape) {
+  return z.strictObject(shape);
+}
+
 /** Registers a tool whose arguments are forwarded verbatim to one bridge method. */
 export function registerForwardTool(server: McpServer, conn: GodotConnection, def: ForwardToolDef): void {
   server.registerTool(
@@ -33,7 +43,7 @@ export function registerForwardTool(server: McpServer, conn: GodotConnection, de
     {
       title: def.title,
       description: def.description,
-      inputSchema: def.input,
+      inputSchema: strictSchema(def.input),
       annotations: {
         readOnlyHint: def.readOnly ?? false,
         destructiveHint: def.destructive ?? false,

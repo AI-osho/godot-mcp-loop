@@ -70,6 +70,14 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(jsonOf(res)).toEqual({ got: args });
   });
 
+  it("rejects an argument the tool does not take instead of silently ignoring it", async () => {
+    const res = await client.callTool({ name: "game_query", arguments: { node: ".", method: "summary" } });
+    expect(res.isError).toBe(true);
+    const text = textOf(res);
+    expect(text).toContain("Unrecognized key");
+    expect(text).toContain("method");
+  });
+
   it("game_input's record description makes clear min/max use every frame, not just the 50 returned samples", async () => {
     const tool = (await client.listTools()).tools.find((t) => t.name === "game_input")!;
     const text = tool.description + JSON.stringify(tool.inputSchema);

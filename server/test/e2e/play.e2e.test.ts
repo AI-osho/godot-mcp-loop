@@ -120,7 +120,8 @@ describe("e2e: run / observe loop", () => {
     await new Promise((r) => setTimeout(r, 300));
     const x1 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
     expect(x1).toBe(x0); // nothing moves while paused, even with the action held
-    await ok("game_step", { frames: 30 });
+    const step1 = await ok("game_step", { frames: 30 });
+    expect(step1.stepped_frames).toBe(30);
     const x2 = (await ok("game_query", { node: "Player", properties: ["position"] })).properties.position[0];
     expect(x2).toBeGreaterThan(x0);
     await ok("game_step", { frames: 30 });

@@ -194,6 +194,11 @@ func _info(p: Dictionary) -> Dictionary:
 	var out := {
 		"name": ProjectSettings.get_setting("application/config/name", ""),
 		"main_scene": ProjectSettings.get_setting("application/run/main_scene", ""),
+		"viewport": {
+			"width": int(ProjectSettings.get_setting("display/window/size/viewport_width", 1152)),
+			"height": int(ProjectSettings.get_setting("display/window/size/viewport_height", 648)),
+			"stretch_mode": String(ProjectSettings.get_setting("display/window/stretch/mode", "disabled")),
+		},
 		"godot_version": Engine.get_version_info().get("string", ""),
 		"autoloads": autoloads,
 		"input_actions": actions,

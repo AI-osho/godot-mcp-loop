@@ -242,7 +242,11 @@ func _screenshot(p: Dictionary) -> Dictionary:
 	if not res.get("ok", false):
 		return res
 	var r: Dictionary = res.result
-	return Protocol.ok({"png_base64": Marshalls.raw_to_base64(r.png), "width": r.width, "height": r.height, "target": target})
+	var out := {"png_base64": Marshalls.raw_to_base64(r.png), "width": r.width, "height": r.height, "target": target}
+	if r.has("source_width"):
+		out["source_width"] = r.source_width
+		out["source_height"] = r.source_height
+	return Protocol.ok(out)
 
 
 func _editor_screenshot(p: Dictionary) -> Dictionary:

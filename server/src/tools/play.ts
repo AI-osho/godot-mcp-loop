@@ -186,10 +186,16 @@ export function registerPlayTools(server: McpServer, conn: GodotConnection): voi
       title: "Screenshot",
       description:
         "Capture an image of the running game (target='game', default) or of the editor's 2D/3D viewport (target='editor'). " +
+        "Game captures are scaled to the project's viewport size (normalize='viewport') so repeated screenshots compare like " +
+        "for like; pass normalize='none' to keep the window size. The text says the size and, when it differed, the window size. " +
         "Not available when running headless.",
       inputSchema: {
         target: z.enum(["game", "editor"]).optional(),
         max_width: z.number().int().min(64).max(2560).optional().describe("Downscale to at most this width (default 1280)."),
+        normalize: z
+          .enum(["viewport", "none"])
+          .optional()
+          .describe("Game only: scale to the project's viewport size (default) or keep the window size (editor captures are unchanged)."),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -199,11 +205,17 @@ export function registerPlayTools(server: McpServer, conn: GodotConnection): voi
         width: number;
         height: number;
         target: string;
+        source_width?: number;
+        source_height?: number;
       };
+      const fromWindow =
+        r.source_width !== undefined && r.source_height !== undefined
+          ? ` (window ${r.source_width}x${r.source_height}, scaled to the viewport)`
+          : "";
       return {
         content: [
           { type: "image" as const, data: r.png_base64, mimeType: "image/png" },
-          { type: "text" as const, text: `${r.target} screenshot ${r.width}x${r.height}` },
+          { type: "text" as const, text: `${r.target} screenshot ${r.width}x${r.height}${fromWindow}` },
         ],
       };
     }),

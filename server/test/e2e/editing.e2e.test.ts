@@ -53,6 +53,7 @@ describe("e2e: safe editing tools", () => {
   it("project_info lists name and files by glob", async () => {
     const info = await ok("project_info", { glob: "addons/mcp_loop/*.cfg" });
     expect(info.name).toBe("e2e");
+    expect(info.viewport).toEqual({ width: 1152, height: 648, stretch_mode: "disabled" });
     expect(info.files).toContain("res://addons/mcp_loop/plugin.cfg");
     expect(info.input_actions.map((a: any) => a.name)).toContain("move_right");
     // Godot's ~90 built-in ui_* actions are hidden unless asked for.

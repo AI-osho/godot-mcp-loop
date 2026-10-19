@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Screenshots of the running game are scaled to the project's viewport size (`normalize: "none"` keeps the window
+  size), and the result text gives the window size when it differed. Repeated captures of the same screen used to
+  differ in size (1150×647 and 960×540 for one project), which made baseline comparisons impossible.
+- `project_info` reports the viewport size and stretch mode.
 - `scenario_run` `movie.from_step` / `movie.to_step`: keep only that section of the recording in the GIF, contact
   sheet and `frames/`. The whole run is still recorded and the server cuts the frames afterwards; contact labels keep
   the time from the start of the recording.

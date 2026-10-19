@@ -22,7 +22,7 @@ Conventions
 | Tool | Purpose |
 |---|---|
 | `godot_status` | Connection, Godot version, project, edited scene, whether the game is running, game error count. Call first. |
-| `project_info` | Name, main scene, autoloads, input actions (built-in `ui_*` hidden unless `include_builtin_actions`); `glob` (e.g. `*.tscn`) lists matching files. |
+| `project_info` | Name, main scene, viewport size and stretch mode, autoloads, input actions (built-in `ui_*` hidden unless `include_builtin_actions`); `glob` (e.g. `*.tscn`) lists matching files. |
 | `project_list` | Godot projects the server may switch to: folders with `project.godot` up to 3 levels below each `--projects-root` (hidden folders, `node_modules`, `addons` and symbolic links skipped), with `name`, `addon_installed`, `editor_running` and `current`. |
 | `project_connect` | Point the running server at another project (`path`: absolute, `~/…`, or relative to a projects root) — one MCP registration for many games. Allowed only below `--projects-root` folders (resolved through symbolic links, never inside `.godot/` or `.git/`); without `--projects-root` it fails with `PROJECT_SWITCH_DISABLED`. Returns the new project's `godot_status` fields, or `editor_running: false` with how to open it. The previous editor and game keep running. |
 
@@ -97,7 +97,7 @@ until it is.
 | `game_step` | Run exactly `frames` physics frames, then stay paused. Every pausable node gets the same N `_physics_process` calls, independent of call latency. Actions held with `press: true` stay held. `press` / `release` / `tap` (lists of actions) are sent just before the first stepped frame, like real input, so the game sees them in that frame as `Input.is_action_just_pressed()` and as input events (`_unhandled_input`); `tap` is released after the first frame (a one-frame step works). Input sent with `game_input` while paused can't do this — the press belongs to an earlier frame. Returns `stepped_frames` (the N that just ran) and `physics_frame` (the engine's total physics counter — it keeps increasing while paused, so it is not the number of frames stepped). |
 | `game_call` | Call a method on a game node (e.g. a test hook `restart()` or `spawn_wave(3)`); arguments converted to the declared types; coroutines awaited; returns the result. |
 | `logs_read` | `print` output, errors and warnings with file/line/stack. `source: game` (default) or `editor`; use `since: <next>` to read incrementally. |
-| `screenshot` | PNG of the running game (`target: game`) or the editor viewport (`target: editor`). Unavailable when headless. |
+| `screenshot` | PNG of the running game (`target: game`) or the editor viewport (`target: editor`). Game captures are scaled to the project's viewport size so repeated screenshots compare like for like (`normalize: "none"` keeps the window size); the text gives the size and the window size when they differed. Unavailable when headless. |
 
 ## Judge
 

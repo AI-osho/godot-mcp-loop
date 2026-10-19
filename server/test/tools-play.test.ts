@@ -78,6 +78,18 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(text).toContain("method");
   });
 
+  it("screenshot forwards normalize and reports the window size when the capture was scaled", async () => {
+    let seen: Record<string, unknown> | undefined;
+    addon.handlers.set("screenshot", (p) => {
+      seen = p;
+      return { ok: true, result: { png_base64: "QUJD", width: 1152, height: 648, target: "game", source_width: 960, source_height: 540 } };
+    });
+    const res = await client.callTool({ name: "screenshot", arguments: { normalize: "none" } });
+    expect(seen).toEqual({ normalize: "none" });
+    const text = (res.content as Array<{ type: string; text?: string }>).find((c) => c.type === "text")!.text!;
+    expect(text).toBe("game screenshot 1152x648 (window 960x540, scaled to the viewport)");
+  });
+
   it("game_input's record description makes clear min/max use every frame, not just the 50 returned samples", async () => {
     const tool = (await client.listTools()).tools.find((t) => t.name === "game_input")!;
     const text = tool.description + JSON.stringify(tool.inputSchema);

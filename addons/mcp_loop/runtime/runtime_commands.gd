@@ -712,16 +712,33 @@ func _send_click(pos: Vector2, button: MouseButton, pressed: bool) -> void:
 func _screenshot(p: Dictionary) -> Dictionary:
 	if DisplayServer.get_name() == "headless":
 		return _no_rendering()
+	var normalize := String(p.get("normalize", "viewport"))
+	if normalize != "viewport" and normalize != "none":
+		return Protocol.err(Protocol.INVALID_PARAMS, "normalize must be 'viewport' or 'none'.")
 	await RenderingServer.frame_post_draw
 	var tex := _tree.root.get_texture()
 	var img: Image = tex.get_image() if tex != null else null
 	if img == null or img.is_empty():
 		return _no_rendering()
+	var source_width := img.get_width()
+	var source_height := img.get_height()
+	# The embedded game window can be smaller (or larger) than the project's viewport, which
+	# made repeated captures of the same screen differ in size. Normalizing here lets baseline
+	# comparisons line up; "source_width"/"source_height" still say what the window rendered.
+	if normalize == "viewport":
+		var vw := maxi(1, int(ProjectSettings.get_setting("display/window/size/viewport_width", 1152)))
+		var vh := maxi(1, int(ProjectSettings.get_setting("display/window/size/viewport_height", 648)))
+		if img.get_width() != vw or img.get_height() != vh:
+			img.resize(vw, vh, Image.INTERPOLATE_NEAREST)
 	var max_width := clampi(int(p.get("max_width", 1280)), 64, 2560)
 	if img.get_width() > max_width:
 		var h := int(round(img.get_height() * float(max_width) / img.get_width()))
 		img.resize(max_width, max(1, h), Image.INTERPOLATE_BILINEAR)
-	return Protocol.ok({"png": img.save_png_to_buffer(), "width": img.get_width(), "height": img.get_height()})
+	var out := {"png": img.save_png_to_buffer(), "width": img.get_width(), "height": img.get_height()}
+	if source_width != img.get_width() or source_height != img.get_height():
+		out["source_width"] = source_width
+		out["source_height"] = source_height
+	return Protocol.ok(out)
 
 
 func _no_rendering() -> Dictionary:

@@ -185,6 +185,9 @@ describe("e2e: run / observe loop", () => {
       const img = (res.content as Array<{ type: string; data?: string }>)[0]!;
       expect(img.type).toBe("image");
       expect(Buffer.from(img.data!, "base64").subarray(1, 4).toString()).toBe("PNG");
+      expect(textOf(res)).toContain("game screenshot 640x360"); // scaled to max_width
+      const full = await client.callTool({ name: "screenshot", arguments: {} });
+      expect(textOf(full)).toContain("game screenshot 1152x648"); // the project's viewport size
     } else {
       expect(textOf(res)).toContain("RENDERING_UNAVAILABLE");
     }

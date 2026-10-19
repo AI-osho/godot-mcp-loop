@@ -63,6 +63,13 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(bad.isError).toBe(true);
   });
 
+  it("game_input forwards pause_at_end", async () => {
+    addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
+    const args = { steps: [{ action: "move_right", hold_frames: 10 }], pause_at_end: true };
+    const res = await client.callTool({ name: "game_input", arguments: args });
+    expect(jsonOf(res)).toEqual({ got: args });
+  });
+
   it("game_input's record description makes clear min/max use every frame, not just the 50 returned samples", async () => {
     const tool = (await client.listTools()).tools.find((t) => t.name === "game_input")!;
     const text = tool.description + JSON.stringify(tool.inputSchema);

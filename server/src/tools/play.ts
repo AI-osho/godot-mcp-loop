@@ -65,10 +65,16 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       "Returns when the whole sequence has finished. To observe something brief (e.g. the top of a jump), pass " +
       "'record': the properties are sampled every frame while the steps run, and min/max (with times) are returned. " +
       "min/max are computed from every recorded frame (up to 3000 frames); only the returned sample list is thinned " +
-      "to 50 entries, so interval_ms is not needed for accuracy. Add a final {wait_ms} step to keep recording after the input ends.",
+      "to 50 entries, so interval_ms is not needed for accuracy. Add a final {wait_ms} step to keep recording after the input ends. " +
+      "Set pause_at_end to leave the game paused when the sequence finishes, so the next call measures the state the input " +
+      "left behind instead of a later one.",
     input: {
       steps: z.array(InputStepSchema).min(1).max(200),
       record: RecordSchema.optional(),
+      pause_at_end: z
+        .boolean()
+        .optional()
+        .describe("Pause the game when the sequence finishes (default false). The response says paused: true."),
     },
     timeoutFor: inputTimeoutMs,
   },

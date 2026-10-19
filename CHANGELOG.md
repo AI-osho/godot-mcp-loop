@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `game_input` accepts `pause_at_end: true`: the game is left paused when the sequence finishes, so the next call
+  reads the state the input produced instead of a later one (the game keeps running between calls).
+- `script_write` / `script_edit` report the `class_name` they registered and wait until the editor's global class
+  list contains it, so a script that uses a type written moments earlier compiles right away.
+
+### Fixed
+- A script that used a `class_name` declared by a just-written script failed with "Could not find type" until the
+  editor was restarted. The tools now scan and wait for the class; when that does not help, the parse error hints at
+  restarting the editor.
+
 ## [0.7.0] - 2026-10-19
 
 One registration for many projects, an agent that can open and close the editor, Movie Maker recordings with a GIF

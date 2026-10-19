@@ -61,6 +61,12 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return await _step(p)
 		"ui.audit":
 			return _ui_audit(p)
+		"in_view":
+			return _in_view(p)
+		"ray":
+			return _ray(p)
+		"contacts":
+			return _contacts(p)
 		"quit":
 			return _quit()
 	return Protocol.err(Protocol.UNKNOWN_METHOD, "Unknown runtime method '%s'." % method)
@@ -878,6 +884,122 @@ func _label_overlaps(texts: Array) -> Array:
 			if inter.size.x > 1.0 and inter.size.y > 1.0:
 				out.append({"a": texts[i].path, "b": texts[j].path, "area": int(inter.size.x * inter.size.y)})
 	return out
+
+
+## Is a node on screen for a camera? (The 3D trial had to write ball_on_screen() by hand.)
+func _in_view(p: Dictionary) -> Dictionary:
+	var target_path := String(p.get("node", "."))
+	var target := _resolve(target_path)
+	if target == null:
+		return _not_found(target_path)
+	if not (target is Node3D):
+		return Protocol.err(Protocol.INVALID_PARAMS, "%s is not a Node3D, so it has no position in 3D." % target_path)
+	var camera: Camera3D = null
+	var camera_path := String(p.get("camera", ""))
+	if camera_path != "":
+		var found := _resolve(camera_path)
+		if found == null:
+			return _not_found(camera_path)
+		if not (found is Camera3D):
+			return Protocol.err(Protocol.INVALID_PARAMS, "%s is not a Camera3D." % camera_path)
+		camera = found as Camera3D
+	else:
+		camera = _tree.root.get_camera_3d()
+	if camera == null:
+		return Protocol.err(Protocol.INVALID_PARAMS, "No Camera3D is active; pass 'camera'.", "For 2D games query position and the viewport size instead.")
+	var point: Vector3 = (target as Node3D).global_position
+	var behind := camera.is_position_behind(point)
+	var size := _viewport_size()
+	var screen := camera.unproject_position(point)
+	# A headless game renders into a 64x64 stub; report the position in the project
+	# viewport's pixels instead, which is what a player would see.
+	var actual := camera.get_viewport().get_visible_rect().size
+	if actual.x > 0.5 and actual.y > 0.5 and (absf(actual.x - size.x) > 0.5 or absf(actual.y - size.y) > 0.5):
+		screen = Vector2(screen.x * size.x / actual.x, screen.y * size.y / actual.y)
+	var on_screen := not behind and screen.x >= 0.0 and screen.y >= 0.0 and screen.x <= size.x and screen.y <= size.y
+	return Protocol.ok({
+		"node": target_path, "camera": str(camera.get_path()), "in_view": on_screen, "behind": behind,
+		"screen": [screen.x, screen.y], "viewport": [size.x, size.y],
+	})
+
+
+## Casts a ray between two world-space points. A child RayCast3D rotates with its
+## body (the 3D trial's jump bug); this one is always in world axes.
+func _ray(p: Dictionary) -> Dictionary:
+	var from := Codec.decode(p.get("from"), TYPE_VECTOR3)
+	if not from.ok:
+		return Protocol.err(Protocol.INVALID_PARAMS, "from: " + from.error)
+	var to := Codec.decode(p.get("to"), TYPE_VECTOR3)
+	if not to.ok:
+		return Protocol.err(Protocol.INVALID_PARAMS, "to: " + to.error)
+	var mask := int(p.get("collision_mask", 0xFFFFFFFF))
+	var exclude: Array[RID] = []
+	if p.get("exclude") != null:
+		var ex := _resolve(String(p.get("exclude")))
+		if ex == null:
+			return _not_found(String(p.get("exclude")))
+		if not (ex is CollisionObject3D):
+			return Protocol.err(Protocol.INVALID_PARAMS, "%s is not a CollisionObject3D, so it cannot be excluded." % p.get("exclude"))
+		exclude.append((ex as CollisionObject3D).get_rid())
+	var query := PhysicsRayQueryParameters3D.create(from.value, to.value, mask, exclude)
+	query.collide_with_areas = p.get("collide_with_areas", false) == true
+	query.collide_with_bodies = p.get("collide_with_bodies", true) == true
+	var hit := _tree.root.world_3d.direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return Protocol.ok({"hit": false, "from": [from.value.x, from.value.y, from.value.z],
+			"to": [to.value.x, to.value.y, to.value.z]})
+	var collider: Variant = hit.get("collider")
+	var at: Vector3 = hit.position
+	var normal: Vector3 = hit.normal
+	var out := {
+		"hit": true, "position": [at.x, at.y, at.z], "normal": [normal.x, normal.y, normal.z],
+		"distance": from.value.distance_to(at),
+	}
+	if collider is Node:
+		out["collider"] = str(collider.get_path())
+		out["collider_type"] = collider.get_class()
+	return Protocol.ok(out)
+
+
+## Contact points of a RigidBody3D with contact_monitor on, so grounding can be
+## read instead of guessed from a screenshot.
+func _contacts(p: Dictionary) -> Dictionary:
+	var path := String(p.get("node", ""))
+	var node := _resolve(path)
+	if node == null:
+		return _not_found(path)
+	if not (node is RigidBody3D):
+		return Protocol.err(Protocol.INVALID_PARAMS, "%s is not a RigidBody3D." % path)
+	var body := node as RigidBody3D
+	if not body.contact_monitor:
+		return Protocol.err(Protocol.INVALID_PARAMS, "%s has contact_monitor off, so it records no contacts." % path,
+			"Set contact_monitor = true and max_contacts_reported > 0 on the body.")
+	# Godot 4.7 keeps the contact details on the body's direct physics state; RigidBody3D
+	# itself only reports the count.
+	var state := PhysicsServer3D.body_get_direct_state(body.get_rid())
+	if state == null:
+		return Protocol.err(Protocol.INTERNAL, "The physics state of %s is not available right now." % path,
+			"Call again while the game is running.")
+	var list: Array = []
+	for i in state.get_contact_count():
+		var point: Vector3 = state.get_contact_local_position(i)
+		var normal: Vector3 = state.get_contact_local_normal(i)
+		var other: Variant = state.get_contact_collider_object(i)
+		var entry := {"position": [point.x, point.y, point.z], "normal": [normal.x, normal.y, normal.z]}
+		if other is Node:
+			entry["collider"] = str(other.get_path())
+		list.append(entry)
+	return Protocol.ok({"node": path, "contacts": list, "max_contacts_reported": body.max_contacts_reported})
+
+
+func _viewport_size() -> Vector2:
+	var size := _tree.root.get_visible_rect().size
+	if DisplayServer.get_name() == "headless" or size.x < 1.0 or size.y < 1.0:
+		return Vector2(
+			int(ProjectSettings.get_setting("display/window/size/viewport_width", 1152)),
+			int(ProjectSettings.get_setting("display/window/size/viewport_height", 648))
+		)
+	return size
 
 
 func _no_rendering() -> Dictionary:

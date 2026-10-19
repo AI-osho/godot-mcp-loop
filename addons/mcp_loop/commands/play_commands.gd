@@ -31,6 +31,9 @@ func register(router: RefCounted) -> void:
 	router.register("game.stop", _stop)
 	router.register("game.query", _query)
 	router.register("game.ui_audit", _ui_audit)
+	router.register("game.in_view", _in_view)
+	router.register("game.ray", _ray)
+	router.register("game.contacts", _contacts)
 	router.register("game.input", _input)
 	router.register("game.wait_for", _wait_for)
 	router.register("game.set", _set_values)
@@ -180,6 +183,18 @@ func _query(p: Dictionary) -> Dictionary:
 
 func _ui_audit(p: Dictionary) -> Dictionary:
 	return await dbg.call_runtime(tree, "ui.audit", p, 10000)
+
+
+func _in_view(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "in_view", p, 10000)
+
+
+func _ray(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "ray", p, 10000)
+
+
+func _contacts(p: Dictionary) -> Dictionary:
+	return await dbg.call_runtime(tree, "contacts", p, 10000)
 
 
 func _wait_for(p: Dictionary) -> Dictionary:

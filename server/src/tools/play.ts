@@ -95,6 +95,43 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
     readOnly: true,
   },
   {
+    name: "game_in_view",
+    method: "game.in_view",
+    title: "Is a node on screen",
+    description:
+      "Check whether a Node3D is inside the camera's view (not behind it, projected inside the viewport) and where it lands on screen — the 3D judgement that otherwise needs a screenshot.",
+    input: {
+      node: z.string().optional().describe(`${GAME_NODE} Default: the running scene root (must be a Node3D).`),
+      camera: z.string().optional().describe("Camera3D to use; default the active 3D camera."),
+    },
+    readOnly: true,
+  },
+  {
+    name: "game_ray",
+    method: "game.ray",
+    title: "Cast a ray in the running game",
+    description:
+      "Cast a ray between two world-space points and return the hit position, normal, distance and collider (or hit: false). World axes do not follow a body's rotation, unlike a child RayCast3D.",
+    input: {
+      from: JsonValue.describe("World start point [x, y, z]."),
+      to: JsonValue.describe("World end point [x, y, z]."),
+      exclude: z.string().optional().describe("CollisionObject3D to ignore (e.g. the body casting the ray)."),
+      collision_mask: z.number().int().min(0).max(0xffffffff).optional().describe("Physics layers to hit (default all)."),
+      collide_with_areas: z.boolean().optional().describe("Include Area3D (default false)."),
+      collide_with_bodies: z.boolean().optional().describe("Include bodies (default true)."),
+    },
+    readOnly: true,
+  },
+  {
+    name: "game_contacts",
+    method: "game.contacts",
+    title: "Contact points of a rigid body",
+    description:
+      "List a RigidBody3D's contact points, normals and the bodies they touch (contact_monitor must be on), so grounding can be read instead of inferred from a picture.",
+    input: { node: z.string().describe(`${GAME_NODE} A RigidBody3D.`) },
+    readOnly: true,
+  },
+  {
     name: "game_set",
     method: "game.set",
     title: "Set values in running game",

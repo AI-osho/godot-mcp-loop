@@ -51,7 +51,7 @@ To update, run step 1 again with `--force` and change the version in step 3.
 | Editor | `editor_launch` (finds Godot 4.5+ and opens the project, optionally headless), `editor_quit` |
 | Scenes & nodes | `scene_open`, `scene_create`, `scene_save`, `scene_tree`, `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts & files | `script_read`, `script_write`, `script_edit`, `script_attach`, `file_write`, `image_write`, `input_action_set`, `project_setting_set`, `edit_undo` |
-| Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
+| Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | Judge | `scenario_run` (YAML play-tests, evidence saved with `save_to`, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4) |
 
 Security: the addon listens on localhost only, with a per-session token; file access is limited to the project (never

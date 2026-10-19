@@ -6,6 +6,7 @@ import { BridgeError } from "../errors.js";
 import { parseScenario } from "../scenario/schema.js";
 import type { ForwardToolDef } from "./forward.js";
 import { resolveProjectFile } from "./scenario.js";
+import { JsonValue } from "./schemas.js";
 
 const isYaml = (path: unknown): boolean => typeof path === "string" && /\.ya?ml$/i.test(path);
 
@@ -122,6 +123,33 @@ export const FILE_TOOLS: ForwardToolDef[] = [
       deadzone: z.number().min(0).max(1).optional().describe("Default 0.2."),
       remove: z.boolean().optional().describe("Remove the action instead."),
       dry_run: z.boolean().optional(),
+    },
+  },
+  {
+    name: "project_setting_set",
+    method: "project.setting.set",
+    title: "Set project setting",
+    description:
+      "Change one project setting from a fixed list: the main scene, the viewport size, the window size override, " +
+      "the stretch mode/aspect, the project name and max_fps. Anything else (rendering, physics, autoloads, input " +
+      "map) is refused — use the editor. Values may be sent as strings. Undoable with edit_undo; the editor window and " +
+      "a running game pick most settings up when they start.",
+    input: {
+      key: z
+        .enum([
+          "application/config/name",
+          "application/run/main_scene",
+          "application/run/max_fps",
+          "display/window/size/viewport_width",
+          "display/window/size/viewport_height",
+          "display/window/size/window_width_override",
+          "display/window/size/window_height_override",
+          "display/window/stretch/mode",
+          "display/window/stretch/aspect",
+        ])
+        .describe("Setting key."),
+      value: JsonValue.describe("New value; converted to the setting's type."),
+      dry_run: z.boolean().optional().describe("Return before/after without writing."),
     },
   },
 ];

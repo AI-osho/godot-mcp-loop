@@ -16,8 +16,100 @@ func _init(context: RefCounted) -> void:
 
 func register(router: RefCounted) -> void:
 	router.register("project.info", _info)
+	router.register("project.setting.set", _setting_set)
 	router.register("input.action_set", _action_set)
 	router.register("edit.undo", _undo)
+
+
+## Settings a tool may change. Everything else (rendering, physics, input map,
+## autoloads, environment) stays with the editor: a wrong value there breaks the
+## project in ways an agent cannot see.
+const SETTINGS := {
+	"application/config/name": {"kind": "string", "max_length": 120},
+	"application/run/main_scene": {"kind": "scene"},
+	"application/run/max_fps": {"kind": "int", "min": 0, "max": 1000},
+	"display/window/size/viewport_width": {"kind": "int", "min": 1, "max": 7680},
+	"display/window/size/viewport_height": {"kind": "int", "min": 1, "max": 4320},
+	"display/window/size/window_width_override": {"kind": "int", "min": 0, "max": 7680},
+	"display/window/size/window_height_override": {"kind": "int", "min": 0, "max": 4320},
+	"display/window/stretch/mode": {"kind": "choice", "choices": ["disabled", "canvas_items", "viewport"]},
+	"display/window/stretch/aspect": {"kind": "choice", "choices": ["ignore", "keep", "keep_width", "keep_height", "expand"]},
+}
+
+
+## Changes one project setting from the list above (undoable).
+func _setting_set(p: Dictionary) -> Dictionary:
+	var key := String(p.get("key", ""))
+	if not SETTINGS.has(key):
+		return Protocol.err(Protocol.INVALID_PARAMS, "'%s' is not a setting this tool may change." % key,
+			"Allowed: " + ", ".join(SETTINGS.keys()))
+	var converted := _convert_setting(SETTINGS[key], p.get("value"))
+	if not converted.ok:
+		return Protocol.err(Protocol.INVALID_PARAMS, converted.error)
+	var value: Variant = converted.value
+	var existed := ProjectSettings.has_setting(key)
+	var old: Variant = ProjectSettings.get_setting(key) if existed else null
+	var result := {
+		"key": key, "before": old, "after": value, "changed": old != value,
+		"note": "The editor window and a running game read most settings when they start: reopen the project or restart the game to apply.",
+	}
+	if p.get("dry_run", false):
+		result["dry_run"] = true
+		return Protocol.ok(result)
+	if old == value:
+		return Protocol.ok(result)
+	var ops: RefCounted = ctx.file_ops
+	ctx.commit("project setting %s" % key, null, func(ur: EditorUndoRedoManager) -> void:
+		ur.add_do_method(ops, "set_project_setting", key, value)
+		ur.add_undo_method(ops, "set_project_setting", key, old))
+	return Protocol.ok(result)
+
+
+## Returns {ok, value} or {ok: false, error}. Values may be sent as strings
+## ("1280"), like every other editing tool accepts.
+func _convert_setting(spec: Dictionary, raw: Variant) -> Dictionary:
+	if raw == null:
+		return {"ok": false, "error": "Give a 'value'."}
+	match String(spec.kind):
+		"int":
+			var n: int
+			if typeof(raw) == TYPE_INT:
+				n = raw
+			elif typeof(raw) == TYPE_FLOAT and float(raw) == floorf(raw):
+				n = int(raw)
+			elif typeof(raw) == TYPE_STRING and String(raw).strip_edges().is_valid_int():
+				n = String(raw).strip_edges().to_int()
+			else:
+				return {"ok": false, "error": "Value must be a whole number (got %s)." % str(raw)}
+			if n < int(spec.min) or n > int(spec.max):
+				return {"ok": false, "error": "Value must be between %d and %d (got %d)." % [spec.min, spec.max, n]}
+			return {"ok": true, "value": n}
+		"string":
+			if typeof(raw) != TYPE_STRING:
+				return {"ok": false, "error": "Value must be a string (got %s)." % str(raw)}
+			var s := String(raw).strip_edges()
+			if s.is_empty():
+				return {"ok": false, "error": "Value must not be empty."}
+			if s.length() > int(spec.max_length):
+				return {"ok": false, "error": "Value is longer than %d characters." % int(spec.max_length)}
+			return {"ok": true, "value": s}
+		"choice":
+			if typeof(raw) != TYPE_STRING or not spec.choices.has(String(raw)):
+				return {"ok": false, "error": "Value must be one of: %s." % ", ".join(spec.choices)}
+			return {"ok": true, "value": String(raw)}
+		"scene":
+			if typeof(raw) != TYPE_STRING:
+				return {"ok": false, "error": "Value must be a res:// path to a .tscn scene."}
+			var path := String(raw).strip_edges()
+			if not path.begins_with("res://") or not path.ends_with(".tscn"):
+				return {"ok": false, "error": "Value must be a res:// path to a .tscn scene (got '%s')." % path}
+			var reason := PathGuard.check_read(path)
+			if reason != "":
+				return {"ok": false, "error": reason}
+			if not FileAccess.file_exists(path):
+				return {"ok": false, "error": "Scene not found: %s (use project_info with glob '*.tscn')." % path}
+			return {"ok": true, "value": path}
+	return {"ok": false, "error": "Unsupported setting type."}
 
 
 const MOUSE_BUTTONS := {"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE}

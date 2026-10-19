@@ -265,3 +265,57 @@ func test_plain_godot_literals_still_decode() -> void:
 	assert_eq(pv.value.size(), 2)
 	var ps := Codec.decode('PackedStringArray("a", "b")', TYPE_PACKED_STRING_ARRAY)
 	assert_true(ps.ok, str(ps.get("error", "")))
+
+
+# ---- 3D values: Transform3D / Basis / Quaternion / AABB / Plane ----
+
+func test_encode_3d_values_as_json() -> void:
+	var t := Transform3D(Basis.IDENTITY, Vector3(1, 2, 3))
+	assert_eq(Codec.encode(t), {
+		"origin": [1.0, 2.0, 3.0],
+		"basis": {"x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0], "z": [0.0, 0.0, 1.0]},
+	})
+	assert_eq(Codec.encode(Basis.IDENTITY), {"x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0], "z": [0.0, 0.0, 1.0]})
+	assert_eq(Codec.encode(Quaternion(0, 0, 0, 1)), [0.0, 0.0, 0.0, 1.0])
+	assert_eq(Codec.encode(AABB(Vector3(1, 2, 3), Vector3(4, 5, 6))),
+		{"position": [1.0, 2.0, 3.0], "size": [4.0, 5.0, 6.0]})
+	assert_eq(Codec.encode(Plane(Vector3(0, 1, 0), 2.0)), {"normal": [0.0, 1.0, 0.0], "d": 2.0})
+
+
+func test_3d_values_round_trip_through_json() -> void:
+	var t := Transform3D(
+		Basis(Vector3(0.8, 0.6, 0.0), Vector3(-0.6, 0.8, 0.0), Vector3(0.0, 0.0, 1.0)),
+		Vector3(1, 2, 3))
+	var back: Transform3D = _dec(Codec.encode(t), TYPE_TRANSFORM3D)
+	assert_true(back.is_equal_approx(t), "Transform3D round trip")
+	var q := Quaternion(0.2, 0.3, 0.4, 0.5)
+	var q_back: Quaternion = _dec(Codec.encode(q), TYPE_QUATERNION)
+	assert_true(q_back.is_equal_approx(q))
+	assert_eq(_dec(Codec.encode(AABB(Vector3(1, 2, 3), Vector3(4, 5, 6))), TYPE_AABB),
+		AABB(Vector3(1, 2, 3), Vector3(4, 5, 6)))
+	assert_eq(_dec(Codec.encode(Plane(Vector3(0, 1, 0), 2.5)), TYPE_PLANE), Plane(Vector3(0, 1, 0), 2.5))
+
+
+func test_decode_3d_values_accepts_short_forms() -> void:
+	# basis directly on the object, and 9 numbers meaning the columns x, y, z
+	var flat: Transform3D = _dec({"origin": [0, 1, 0], "x": [1, 0, 0], "y": [0, 1, 0], "z": [0, 0, 1]}, TYPE_TRANSFORM3D)
+	assert_eq(flat.origin, Vector3(0, 1, 0))
+	assert_eq(_dec([1, 0, 0, 0, 1, 0, 0, 0, 1], TYPE_BASIS), Basis.IDENTITY)
+	assert_eq(_dec({"x": 0, "y": 0, "z": 0, "w": 1}, TYPE_QUATERNION), Quaternion(0, 0, 0, 1))
+	assert_eq(_dec([1, 2, 3, 4, 5, 6], TYPE_AABB), AABB(Vector3(1, 2, 3), Vector3(4, 5, 6)))
+	assert_eq(_dec([0, 1, 0, 2.5], TYPE_PLANE), Plane(Vector3(0, 1, 0), 2.5))
+
+
+func test_decode_3d_values_explain_what_is_missing() -> void:
+	var t := Codec.decode({"origin": [1, 2]}, TYPE_TRANSFORM3D)
+	assert_false(t.ok)
+	assert_string_contains(t.error, "Transform3D.origin")
+	var b := Codec.decode({"x": [1, 0, 0]}, TYPE_BASIS)
+	assert_false(b.ok)
+	assert_string_contains(b.error, "Basis")
+	var q := Codec.decode([1, 2, 3], TYPE_QUATERNION)
+	assert_false(q.ok)
+	assert_string_contains(q.error, "Quaternion")
+	var box := Codec.decode({"position": [1, 2, 3]}, TYPE_AABB)
+	assert_false(box.ok)
+	assert_string_contains(box.error, "AABB.size")

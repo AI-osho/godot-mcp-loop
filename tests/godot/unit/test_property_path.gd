@@ -117,6 +117,20 @@ func test_null_in_the_middle_fails_cleanly() -> void:
 	assert_string_contains(_error("res:size"), "null")
 
 
+func test_transform_and_3d_value_members_are_read_and_written() -> void:
+	var n := Node3D.new()
+	n.transform = Transform3D(Basis.IDENTITY, Vector3(1, 2, 3))
+	assert_eq(PropertyPath.read(n, "transform:origin:y").value, 2.0)
+	assert_eq(PropertyPath.read(n, "transform:basis:x").value, Vector3(1, 0, 0))
+	var w := PropertyPath.prepare_write(n, "transform:origin:y", 5)
+	assert_true(w.ok, str(w.get("error", "")))
+	w.apply.call()
+	assert_eq(n.transform.origin, Vector3(1, 5, 3))
+	assert_eq(PropertyPath.read_value(AABB(Vector3(1, 2, 3), Vector3(4, 5, 6)), "size:z", "box").value, 6.0)
+	assert_eq(PropertyPath.read_value(Plane(Vector3(0, 1, 0), 2), "d", "plane").value, 2.0)
+	n.free()
+
+
 func test_head_exists_helper() -> void:
 	_holder()
 	assert_true(PropertyPath.has_head(_node, "items:9"))

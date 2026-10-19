@@ -63,6 +63,16 @@ describe("play/observe tools (forwarding layer)", () => {
     expect(bad.isError).toBe(true);
   });
 
+  it("game_input record can sample a method's return value", async () => {
+    addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
+    const args = {
+      steps: [{ wait_frames: 5 }],
+      record: { node: ".", method: "summary", properties: ["ball_pos:2"], per: "physics" },
+    };
+    const res = await client.callTool({ name: "game_input", arguments: args });
+    expect(jsonOf(res)).toEqual({ got: args });
+  });
+
   it("game_input forwards pause_at_end", async () => {
     addon.handlers.set("game.input", (p) => ({ ok: true, result: { got: p } }));
     const args = { steps: [{ action: "move_right", hold_frames: 10 }], pause_at_end: true };

@@ -424,7 +424,7 @@ func _input(p: Dictionary) -> Dictionary:
 		return Protocol.err(Protocol.INVALID_PARAMS, problem)
 	var recorder: Dictionary = {}
 	if p.get("record") != null:
-		var made := _make_recorder(p.record)
+		var made := await _make_recorder(p.record)
 		if not made.ok:
 			return made
 		recorder = made.result
@@ -501,10 +501,26 @@ func _make_recorder(spec: Variant) -> Dictionary:
 	var node := _resolve(path)
 	if node == null:
 		return _not_found(path)
-	for prop in props:
-		var got := PropertyPath.read(node, String(prop))
-		if not got.ok:
-			return Protocol.err(Protocol.INVALID_PARAMS, got.error)
+	var method := String(spec.get("method", ""))
+	var args: Variant = spec.get("args", [])
+	if typeof(args) != TYPE_ARRAY or args.size() > 16:
+		return Protocol.err(Protocol.INVALID_PARAMS, "record.args must be a list of up to 16 values.")
+	if method != "":
+		var prepared := _prepare_call(node, method, args)
+		if not prepared.ok:
+			return prepared
+		args = prepared.result
+		# Validate the paths against one real call (the method runs on every sample too).
+		var returned: Variant = await node.callv(method, args)
+		for prop in props:
+			var got := PropertyPath.read_value(returned, String(prop), method + "()")
+			if not got.ok:
+				return Protocol.err(Protocol.INVALID_PARAMS, got.error)
+	else:
+		for prop in props:
+			var got := PropertyPath.read(node, String(prop))
+			if not got.ok:
+				return Protocol.err(Protocol.INVALID_PARAMS, got.error)
 	var mode := String(spec.get("mode", "all"))
 	if mode != "all" and mode != "changes":
 		return Protocol.err(Protocol.INVALID_PARAMS, "record.mode must be 'all' (every frame) or 'changes' (only when a value changes).")
@@ -525,7 +541,7 @@ func _make_recorder(spec: Variant) -> Dictionary:
 		"node": node, "path": path, "properties": props.map(func(x: Variant) -> String: return String(x)),
 		"interval": clampi(int(spec.get("interval_ms", 0)), 0, 1000), "changes_only": mode == "changes",
 		"samples": [], "total": 0, "frames": 0, "last_t": -1000000, "start": 0, "expect": expect,
-		"per": per, "start_frame": Engine.get_physics_frames(),
+		"per": per, "start_frame": Engine.get_physics_frames(), "method": method, "args": args,
 	}
 	return Protocol.ok(rec)
 
@@ -539,8 +555,11 @@ func _record_sample(rec: Dictionary, force: bool = false) -> void:
 	var sample := {"t_ms": t}
 	if rec.per == "physics":
 		sample["frame"] = Engine.get_physics_frames() - rec.start_frame
+	var returned: Variant = null
+	if rec.method != "":
+		returned = rec.node.callv(rec.method, rec.args)
 	for prop in rec.properties:
-		var got := PropertyPath.read(rec.node, prop)
+		var got := PropertyPath.read_value(returned, prop, rec.method + "()") if rec.method != "" else PropertyPath.read(rec.node, prop)
 		sample[prop] = Codec.encode(got.value) if got.ok else null
 	rec.frames += 1
 	rec.last_t = t

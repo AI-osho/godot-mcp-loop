@@ -93,6 +93,24 @@ static func decode(v: Variant, target_type: int, depth: int = 0) -> Dictionary:
 			return _ok(Vector4(a[0], a[1], a[2], a[3]))
 		TYPE_COLOR:
 			return _decode_color(v)
+		TYPE_TRANSFORM3D:
+			return _decode_transform3d(v)
+		TYPE_BASIS:
+			return _decode_basis(v)
+		TYPE_QUATERNION:
+			return _decode_quaternion(v)
+		TYPE_AABB:
+			var box := _decode_aabb_parts(v)
+			if not box.ok:
+				return box
+			var b: Array = box.value
+			return _ok(AABB(Vector3(b[0], b[1], b[2]), Vector3(b[3], b[4], b[5])))
+		TYPE_PLANE:
+			var plane := _decode_plane_parts(v)
+			if not plane.ok:
+				return plane
+			var pl: Array = plane.value
+			return _ok(Plane(Vector3(pl[0], pl[1], pl[2]), pl[3]))
 		TYPE_RECT2, TYPE_RECT2I:
 			var nums: Array = []
 			if typeof(v) == TYPE_ARRAY and v.size() == 4:
@@ -140,6 +158,83 @@ static func _is_plain_literal(s: String, target_type: int) -> bool:
 		return false
 	var inner := s.substr(name.length() + 1, s.length() - name.length() - 2)
 	return not inner.contains("(") and not inner.contains(")")
+
+
+## Transform3D: {origin: [x, y, z], basis: {x: [...], y: [...], z: [...]}}; the
+## basis may also sit at the top level or be 9 numbers (columns x, y, z).
+static func _decode_transform3d(v: Variant) -> Dictionary:
+	if typeof(v) != TYPE_DICTIONARY:
+		return _fail("Transform3D expects {origin: [x, y, z], basis: {x: [...], y: [...], z: [...]}} (or a Godot literal).")
+	var origin := _components(v.get("origin"), ["x", "y", "z"], "Transform3D.origin")
+	if not origin.ok:
+		return origin
+	var basis := _decode_basis(v.get("basis", v))
+	if not basis.ok:
+		return basis
+	var o: Array = origin.value
+	return _ok(Transform3D(basis.value, Vector3(o[0], o[1], o[2])))
+
+
+static func _decode_basis(v: Variant) -> Dictionary:
+	if typeof(v) == TYPE_ARRAY:
+		if v.size() != 9:
+			return _fail("Basis expects 9 numbers (columns x, y, z) or {x, y, z} arrays.")
+		for n in v:
+			if not _is_num(n):
+				return _fail("Basis components must be numbers.")
+		return _ok(Basis(Vector3(v[0], v[1], v[2]), Vector3(v[3], v[4], v[5]), Vector3(v[6], v[7], v[8])))
+	if typeof(v) != TYPE_DICTIONARY:
+		return _fail("Basis expects {x: [..], y: [..], z: [..]} (columns) or 9 numbers.")
+	var axes: Array = []
+	for k in ["x", "y", "z"]:
+		var c := _components(v.get(k), ["x", "y", "z"], "Basis.%s" % k)
+		if not c.ok:
+			return c
+		axes.append(Vector3(c.value[0], c.value[1], c.value[2]))
+	return _ok(Basis(axes[0], axes[1], axes[2]))
+
+
+static func _decode_quaternion(v: Variant) -> Dictionary:
+	var c := _components(v, ["x", "y", "z", "w"], "Quaternion")
+	if not c.ok:
+		return c
+	var q: Array = c.value
+	return _ok(Quaternion(q[0], q[1], q[2], q[3]))
+
+
+## [px, py, pz, sx, sy, sz] or {position: [x, y, z], size: [x, y, z]}.
+static func _decode_aabb_parts(v: Variant) -> Dictionary:
+	if typeof(v) == TYPE_ARRAY and v.size() == 6:
+		for n in v:
+			if not _is_num(n):
+				return _fail("AABB components must be numbers.")
+		return _ok([v[0], v[1], v[2], v[3], v[4], v[5]])
+	if typeof(v) == TYPE_DICTIONARY:
+		var p := _components(v.get("position"), ["x", "y", "z"], "AABB.position")
+		if not p.ok:
+			return p
+		var s := _components(v.get("size"), ["x", "y", "z"], "AABB.size")
+		if not s.ok:
+			return s
+		return _ok(p.value + s.value)
+	return _fail("AABB expects {position: [x, y, z], size: [x, y, z]} or [px, py, pz, sx, sy, sz].")
+
+
+## [nx, ny, nz, d] or {normal: [x, y, z], d: number}.
+static func _decode_plane_parts(v: Variant) -> Dictionary:
+	if typeof(v) == TYPE_ARRAY and v.size() == 4:
+		for n in v:
+			if not _is_num(n):
+				return _fail("Plane components must be numbers.")
+		return _ok([v[0], v[1], v[2], v[3]])
+	if typeof(v) == TYPE_DICTIONARY:
+		var n := _components(v.get("normal"), ["x", "y", "z"], "Plane.normal")
+		if not n.ok:
+			return n
+		if not _is_num(v.get("d")):
+			return _fail("Plane expects a number 'd'.")
+		return _ok(n.value + [v["d"]])
+	return _fail("Plane expects {normal: [x, y, z], d: number} or [nx, ny, nz, d].")
 
 
 static func _decode_color(v: Variant) -> Dictionary:
@@ -275,6 +370,16 @@ static func encode(v: Variant, depth: int = 0) -> Variant:
 			return "#" + v.to_html(true)
 		TYPE_RECT2, TYPE_RECT2I:
 			return {"position": encode(v.position), "size": encode(v.size)}
+		TYPE_TRANSFORM3D:
+			return {"origin": encode(v.origin, depth + 1), "basis": encode(v.basis, depth + 1)}
+		TYPE_BASIS:
+			return {"x": encode(v.x, depth + 1), "y": encode(v.y, depth + 1), "z": encode(v.z, depth + 1)}
+		TYPE_QUATERNION:
+			return [v.x, v.y, v.z, v.w]
+		TYPE_AABB:
+			return {"position": encode(v.position, depth + 1), "size": encode(v.size, depth + 1)}
+		TYPE_PLANE:
+			return {"normal": encode(v.normal, depth + 1), "d": v.d}
 		TYPE_OBJECT:
 			if v == null or not is_instance_valid(v):
 				return null

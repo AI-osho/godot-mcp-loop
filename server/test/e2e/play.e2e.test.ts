@@ -101,6 +101,17 @@ describe("e2e: run / observe loop", () => {
     expect(r.record.samples.length).toBeLessThanOrEqual(50);
   });
 
+  it("record can sample a method's return value with a path inside it", async () => {
+    const r = await ok("game_input", {
+      steps: [{ wait_frames: 12 }],
+      record: { node: "Player", method: "get_position", properties: ["y"], per: "physics" },
+    });
+    const y = r.record.summary["y"];
+    expect(y).toBeDefined();
+    expect(r.record.samples_total).toBeGreaterThanOrEqual(12);
+    expect(y.first).toBeGreaterThan(300); // standing on the floor
+  });
+
   it("game_set changes live state and game_call calls methods with converted arguments", async () => {
     const set = await ok("game_set", { node: "Player", properties: { "position:x": 300 } });
     expect(set.changes["position:x"].after).toBeCloseTo(300, 0);

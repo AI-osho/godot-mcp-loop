@@ -6,7 +6,7 @@ import type { GodotConnection } from "../connection.js";
 import type { EditorLauncher } from "../editor-launcher.js";
 import { editorRunning } from "../projects.js";
 import { buildStatus } from "./status.js";
-import { jsonResult, safe } from "./helpers.js";
+import { jsonResult, safe, strict } from "./helpers.js";
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
@@ -26,7 +26,7 @@ export function registerEditorTools(server: McpServer, conn: GodotConnection, la
         "server's --godot / GODOT_BIN, else PATH and the usual install folders (4.5+ required). The project needs the " +
         "MCP Loop addon installed and enabled. headless: true opens it without a window (no screenshots; for servers " +
         "and CI). The editor keeps running after the server stops; editor_quit closes editors opened here.",
-      inputSchema: {
+      inputSchema: strict({
         headless: z.boolean().optional().describe("Start the editor without a window (default false)."),
         timeout_ms: z
           .number()
@@ -35,7 +35,7 @@ export function registerEditorTools(server: McpServer, conn: GodotConnection, la
           .max(600_000)
           .optional()
           .describe("How long to wait for the bridge (default 120000; the first open of a project imports every asset)."),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     safe(async (args: { headless?: boolean; timeout_ms?: number }, extra: Extra) => {
@@ -74,10 +74,10 @@ export function registerEditorTools(server: McpServer, conn: GodotConnection, la
         "Close the Godot editor of the current project — only one this server opened with editor_launch (an editor the " +
         "user opened is refused with EDITOR_NOT_LAUNCHED). Stops a running game, saves the open scenes unless save: false, " +
         "quits, and waits for the process to end (stopped with SIGTERM after timeout_ms).",
-      inputSchema: {
+      inputSchema: strict({
         save: z.boolean().optional().describe("Save all open scenes first (default true)."),
         timeout_ms: z.number().int().min(1000).max(120_000).optional().describe("How long to wait for the editor to exit (default 20000)."),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     safe(async (args: { save?: boolean; timeout_ms?: number }) =>

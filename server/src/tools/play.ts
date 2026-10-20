@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { dropUndefined, registerForwardTool, type ForwardToolDef } from "./forward.js";
-import { safe } from "./helpers.js";
+import { safe, strict } from "./helpers.js";
 import { checkConditionTarget, ConditionSchema, InputStepSchema, RecordSchema, stepsDurationMs } from "../input-steps.js";
 import { JsonValue, PropertyMap } from "./schemas.js";
 
@@ -241,14 +241,14 @@ export function registerPlayTools(server: McpServer, conn: GodotConnection): voi
         "Game captures are scaled to the project's viewport size (normalize='viewport') so repeated screenshots compare like " +
         "for like; pass normalize='none' to keep the window size. The text says the size and, when it differed, the window size. " +
         "Not available when running headless.",
-      inputSchema: {
+      inputSchema: strict({
         target: z.enum(["game", "editor"]).optional(),
         max_width: z.number().int().min(64).max(2560).optional().describe("Downscale to at most this width (default 1280)."),
         normalize: z
           .enum(["viewport", "none"])
           .optional()
           .describe("Game only: scale to the project's viewport size (default) or keep the window size (editor captures are unchanged)."),
-      },
+      }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     safe(async (args: Record<string, unknown>) => {

@@ -1,4 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+import type { ZodRawShape } from "zod";
 import { toToolError } from "../errors.js";
 
 export function jsonResult(data: unknown): CallToolResult {
@@ -16,4 +18,9 @@ export function safe<A, E = unknown>(
       return toToolError(e) as CallToolResult;
     }
   };
+}
+
+/** A tool schema that rejects undeclared arguments instead of dropping them. */
+export function strict<T extends ZodRawShape>(shape: T) {
+  return z.strictObject(shape);
 }

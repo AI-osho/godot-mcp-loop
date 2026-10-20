@@ -5,7 +5,7 @@ import type { GodotConnection } from "../connection.js";
 import { BridgeError } from "../errors.js";
 import { addonInstalled, editorRunning, listProjects, readProjectName, resolveProjectTarget } from "../projects.js";
 import { buildStatus } from "./status.js";
-import { jsonResult, safe } from "./helpers.js";
+import { jsonResult, safe, strict } from "./helpers.js";
 
 const shq = (s: string): string => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`);
 
@@ -37,7 +37,7 @@ export function registerProjectTools(server: McpServer, conn: GodotConnection): 
         "List the Godot projects this server may switch to: folders with project.godot below the --projects-root folders " +
         "(up to 3 levels down, hidden folders skipped), each with its name, whether the MCP Loop addon is installed, whether " +
         "an editor is running for it, and which one is current. Use project_connect to switch.",
-      inputSchema: {},
+      inputSchema: strict({}),
       annotations: { readOnlyHint: true },
     },
     safe(async () => {
@@ -69,11 +69,11 @@ export function registerProjectTools(server: McpServer, conn: GodotConnection): 
         "for many games. Only projects below the folders given with --projects-root are allowed (without it the server " +
         "stays on its --project). Returns the new project's status like godot_status, or, when no editor is open for it, " +
         "how to open one. The previous project's editor and game keep running. Don't switch while another tool call runs.",
-      inputSchema: {
+      inputSchema: strict({
         path: z
           .string()
           .describe("Project folder (the one with project.godot): absolute, ~/..., or relative to a projects root, e.g. 'games/shooter'."),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     safe(async (args: { path: string }) => {

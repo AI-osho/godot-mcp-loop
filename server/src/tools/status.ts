@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { GodotConnection } from "../connection.js";
 import { SERVER_VERSION } from "../version.js";
-import { jsonResult, safe } from "./helpers.js";
+import { jsonResult, safe, strict } from "./helpers.js";
 
 /** What godot_status reports; project_connect returns the same fields for the new project. */
 export async function buildStatus(conn: GodotConnection): Promise<Record<string, unknown>> {
@@ -36,7 +36,7 @@ export function registerStatusTools(server: McpServer, conn: GodotConnection): v
       description:
         "Check the connection to the Godot editor and get basic state: Godot version, project name, " +
         "currently edited scene and whether the game is running. Call this first.",
-      inputSchema: {},
+      inputSchema: strict({}),
       annotations: { readOnlyHint: true },
     },
     safe(async () => jsonResult(await buildStatus(conn))),

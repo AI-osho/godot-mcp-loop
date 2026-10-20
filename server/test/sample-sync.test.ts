@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -27,6 +28,12 @@ describe("the 3D sample and its in-repo copy", () => {
     const example = scripts("examples/marble");
     expect([...example.keys()].sort()).toEqual([...sample.keys()].sort());
     for (const [name, hash] of sample) expect(example.get(name), name).toBe(hash);
+  });
+
+  it("keeps examples/marble generated from the sample", () => {
+    expect(() =>
+      execFileSync(process.execPath, [join(repo, "scripts", "sync-marble-example.mjs"), "--check"], { stdio: "pipe" }),
+    ).not.toThrow();
   });
 
   it("ships the samples in the npm package", () => {

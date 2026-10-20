@@ -1,0 +1,18 @@
+name: 5 goal leads to the clear screen
+scene: res://examples/marble/main.tscn
+steps:
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - call: { node: ., method: teleport_ball, args: [0, 3.4, -43] }
+        - wait_frames: 10
+        - assert: { node: ., method: summary, property: state, op: "==", value: playing }
+        - { action: marble_forward, hold_frames: 60 }
+        - wait_for: { node: ., method: summary, property: state, op: "==", value: clear, timeout_ms: 3000 }
+        - assert: { node: ., method: summary, property: time_frames, op: ">", value: 0, message: "the clear time is recorded" }
+        - assert: { node: ., method: summary, property: "ball_pos:2", op: "<", value: -44.0, message: "the ball rolled into the goal" }
+  - screenshot: clear
+  - input: { wait_frames: 35 }
+  - input: { action: marble_start, hold_frames: 2 }
+  - wait_for: { node: ., method: summary, property: state, op: "==", value: title, timeout_ms: 2000 }
+  - assert_no_errors: true

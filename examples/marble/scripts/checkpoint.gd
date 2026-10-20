@@ -1,6 +1,9 @@
 class_name MarbleCheckpoint
 extends Area3D
 ## A checkpoint pad. The main script remembers the highest index the marble touched.
+##
+## Each pad carries its own `index` (1 or 2) instead of inferring one from its position, so moving a pad in the
+## scene cannot silently renumber the course. main.gd only ever raises the checkpoint, never lowers it.
 
 signal checkpoint_entered(index: int)
 

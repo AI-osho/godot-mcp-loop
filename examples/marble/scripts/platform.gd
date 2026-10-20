@@ -2,6 +2,10 @@ class_name MarblePlatform
 extends StaticBody3D
 ## A resizable floating platform. Size and color are applied in _ready so every
 ## instance owns its mesh and shape (the .tscn subresources are shared otherwise).
+##
+## Instanced scenes share the Mesh and Shape resources declared in platform.tscn, so writing `size` on one
+## instance would resize every platform. Duplicating before touching them keeps one scene reusable for the whole
+## course, which is how the seven platforms differ only by platform_size and color.
 
 @export var platform_size: Vector3 = Vector3(4.0, 0.5, 4.0)
 @export var color: Color = Color(0.42, 0.52, 0.68)

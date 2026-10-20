@@ -77,3 +77,7 @@ and a timed clear. This is the sample the 3D tools were hardened against (`game_
   `summary()` → `{state, coins, lives, time_frames, ball_pos, ball_speed, on_floor, checkpoint}`.
 - The course is a staircase: each landing is 0.6 m higher than the one before, so a gap cannot be crossed by rolling off
   the edge — `7_gap_needs_jump.yaml` proves both halves (forward alone falls, a jump at speed lands on the far platform).
+
+This copy is generated from [`samples/marble-3d`](../samples/marble-3d/) (the standalone project that ships with
+`npx godot-mcp-loop sample marble-3d`); `node scripts/sync-marble-example.mjs` rewrites its `res://` paths, and a test
+fails when the two drift apart. The design reasons live in [`samples/marble-3d/DESIGN.md`](../samples/marble-3d/DESIGN.md).

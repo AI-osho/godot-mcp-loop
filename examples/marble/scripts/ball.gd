@@ -2,6 +2,11 @@ class_name MarbleBall
 extends RigidBody3D
 ## The player marble. The main script applies camera-relative rolling forces;
 ## this script reports grounding and handles jumping / respawning.
+##
+## Grounding is a downward ray rather than a contact check: the marble is a sphere on flat platforms, and a ray
+## is cheap and stable. 0.75 m is a little more than the radius (0.5) plus the small gap that a resting rigid
+## body keeps in Godot, so a grounded marble always reports true. The ball excludes its own RID, or the ray would
+## hit the marble itself.
 
 const GROUND_RAY_LENGTH := 0.75
 
@@ -40,6 +45,8 @@ func is_grounded() -> bool:
 	return grounded
 
 
+## An impulse in m/s, not a velocity assignment: the marble keeps whatever horizontal speed it had, which is what
+## makes a running jump cross a gap.
 func jump(strength: float) -> bool:
 	if not grounded:
 		return false
@@ -48,6 +55,7 @@ func jump(strength: float) -> bool:
 	return true
 
 
+## Freeze while moving, then unfreeze, so the physics engine does not carry the old velocity into the new spot.
 func respawn(pos: Vector3) -> void:
 	freeze = true
 	global_position = pos

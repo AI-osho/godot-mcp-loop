@@ -13,6 +13,9 @@ _Nothing yet._
 - Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`): one-step install
   (`/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop`) that registers the `godot-loop` MCP server
   (asking for the project path once) and ships the agent skill. `claude plugin validate` passes.
+- The 3D sample now ships with the package: `godot-mcp-loop sample marble-3d <dir>` copies the standalone Marble Run
+  project (scenes, scripts, seven scenarios, its own project.godot and input actions) into a folder, and `sample` alone
+  lists what is bundled.
 - `server.json` and `mcpName` prepare the package for the official MCP Registry (name `io.github.AI-osho/godot-mcp-loop`);
   a test keeps the manifest's version and name in step with `server/package.json`.
 - README (en/ja): a five-minute tour (install → connect → one change and one check → record with `movie`) and the

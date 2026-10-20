@@ -373,6 +373,25 @@ const MAX_STEP_FRAMES := 3600
 const INLINE_KINDS := ["set", "call", "assert", "wait_for"]
 
 
+const TIME_FREE_KINDS := ["call", "set", "assert"]
+
+
+## Steps that only read or write live state run fine while the game is paused; everything
+## else (actions, waits, wait_for) needs physics frames, which a paused tree never ticks.
+func _steps_need_frames(steps: Array) -> bool:
+	for s in steps:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
+		var time_free := false
+		for k in TIME_FREE_KINDS:
+			if s.has(k):
+				time_free = true
+				break
+		if not time_free:
+			return true
+	return false
+
+
 func _validate_steps(steps: Array) -> String:
 	if steps.size() > MAX_STEPS:
 		return "At most %d steps per call (got %d)." % [MAX_STEPS, steps.size()]
@@ -428,6 +447,10 @@ func _input(p: Dictionary) -> Dictionary:
 	var problem := _validate_steps(steps)
 	if problem != "":
 		return Protocol.err(Protocol.INVALID_PARAMS, problem)
+	if _tree.paused and _steps_need_frames(steps):
+		return Protocol.err(Protocol.INVALID_PARAMS,
+			"The game is paused, so these steps would wait without advancing a single physics frame.",
+			"Resume with game_pause {paused: false}, or advance frame by frame with game_step {frames: n} (scenarios: the 'step' step).")
 	var recorder: Dictionary = {}
 	if p.get("record") != null:
 		var made := await _make_recorder(p.record)

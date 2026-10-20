@@ -170,6 +170,17 @@ describe("scenario_run tool", () => {
       expect(images).toHaveLength(1);
     });
 
+    it("runs a numbered folder in natural order (2_ before 10_)", async () => {
+      const okStep = (n: string) => `name: ${n}\nsteps:\n  - assert: { node: P, property: x, op: '>', value: 0 }\n`;
+      write("tests/nat/1_first.yaml", okStep("first"));
+      write("tests/nat/2_second.yaml", okStep("second"));
+      write("tests/nat/10_tenth.yaml", okStep("tenth"));
+      const text = textOf(await client.callTool({ name: "scenario_run", arguments: { path: "res://tests/nat" } }));
+      expect(text.split("\n")[0]).toMatch(/^Scenarios: 3\/3 passed/);
+      expect(text.indexOf("1_first")).toBeLessThan(text.indexOf("2_second"));
+      expect(text.indexOf("2_second")).toBeLessThan(text.indexOf("10_tenth"));
+    });
+
     it("stop_on_failure leaves the rest unrun; paths keeps the given order", async () => {
       write("tests/s/0_bad.yaml", "name: first\nsteps:\n  - assert: { node: P, property: bad, op: '>', value: 9 }\n");
       const stopped = textOf(await client.callTool({ name: "scenario_run", arguments: { path: "tests/s", stop_on_failure: true } }));

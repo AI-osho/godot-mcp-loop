@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.8.0] - 2026-10-20
+
+### Fixed
+- `game_input` refuses steps that need physics frames while the game is paused (it used to wait the real time and change
+  nothing), pointing at `game_step` instead.
+- `scenario_run` runs a numbered folder in natural order (`2_movement.yaml` before `10_chaos.yaml`); it sorted names as
+  plain strings before.
+- `input_action_set` reports an action that already matches as `unchanged` and leaves project.godot alone; when it does
+  write, the result says that Godot rewrites the file in its canonical form (blank lines between actions are dropped).
+
 ### Added
 - `examples/marble`: the first 3D sample — a marble that rolls down a ramp, jumps 3 m and 2 m gaps, crosses a beam and
   reaches the goal with 10 coins, two checkpoints and three lives. Its course is a staircase (each landing 0.6 m higher),

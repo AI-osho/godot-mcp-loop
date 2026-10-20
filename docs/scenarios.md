@@ -65,7 +65,7 @@ steps:
 ## Running a folder
 
 `scenario_run {path: "res://tests/scenarios"}` runs every `.yaml` / `.yml` / `.json` file directly in the folder, in
-name order (number them: `1_title.yaml`, `2_movement.yaml`, ...). `paths: [...]` runs a list in the given order. The
+natural name order (`2_movement.yaml` runs before `10_chaos.yaml`; zero-padding still keeps the report tidy). `paths: [...]` runs a list in the given order. The
 result starts with one line such as `Scenarios: 5/6 passed (41.2 s)`, lists each file, then shows the full report of
 each failure. A file that can't be read or parsed is reported as a failure and the rest still run;
 `stop_on_failure: true` stops at the first one. Only failure screenshots are attached unless `include_screenshots: true`.

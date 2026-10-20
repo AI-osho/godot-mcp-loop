@@ -64,14 +64,15 @@ export function summarise(r: ScenarioReport): string {
 const SCENARIO_EXT = /\.(ya?ml|json)$/i;
 const MAX_BATCH = 50;
 
-/** Scenario files directly inside a folder (not recursive), in name order. */
+/** Scenario files directly inside a folder (not recursive), in natural name order (2_ before 10_). */
 export function listScenarioFolder(projectPath: string, path: string): string[] {
   const dir = resolveProjectFile(projectPath, path);
   const base = path.replace(/\/+$/, "");
   const names = readdirSync(dir, { withFileTypes: true })
     .filter((e) => (e.isFile() || e.isSymbolicLink()) && SCENARIO_EXT.test(e.name))
     .map((e) => e.name)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    // Natural order: 2_ before 10_, so a numbered folder runs in the order its author sees.
+    .sort((a, b) => a.localeCompare(b, "en", { numeric: true }) || (a < b ? -1 : a > b ? 1 : 0));
   if (names.length === 0) throw new BridgeError("INVALID_PARAMS", `No scenario files (.yaml, .yml, .json) in ${path}.`);
   if (names.length > MAX_BATCH) throw new BridgeError("INVALID_PARAMS", `${path} has ${names.length} scenario files; the limit is ${MAX_BATCH}.`);
   return names.map((n) => `${base}/${n}`);
@@ -143,7 +144,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         path: z
           .string()
           .optional()
-          .describe("Scenario file, e.g. 'res://tests/scenarios/move.yaml', or a folder to run every .yaml/.yml/.json file in it (name order)."),
+          .describe("Scenario file, e.g. 'res://tests/scenarios/move.yaml', or a folder to run every .yaml/.yml/.json file in it (natural name order, so 2_ runs before 10_)."),
         paths: z.array(z.string()).min(1).max(MAX_BATCH).optional().describe("Several scenario files, run in the given order."),
         stop_on_failure: z.boolean().optional().describe("With a folder or paths: stop after the first scenario that does not pass."),
         scenario: z

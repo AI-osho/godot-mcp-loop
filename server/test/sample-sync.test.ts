@@ -39,6 +39,10 @@ describe("the 3D sample and its in-repo copy", () => {
   it("ships the samples in the npm package", () => {
     const pkg = JSON.parse(read("server/package.json")) as { files?: string[] };
     expect(pkg.files).toContain("samples");
+    // `files` is relative to server/, so the bundler has to copy the samples there before packing — 0.9.1 shipped
+    // without them because only `files` was updated.
+    const bundler = read("server/scripts/bundle-assets.mjs");
+    expect(bundler).toContain('["samples", "samples"]');
   });
 
   it("keeps the standalone project free of addon wiring", () => {

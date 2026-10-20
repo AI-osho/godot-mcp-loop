@@ -10,6 +10,7 @@ const repo = resolve(server, "..");
 const ASSETS = [
   ["addons/mcp_loop", "addon/mcp_loop"],
   [".claude/skills/godot-mcp-loop", "skill/godot-mcp-loop"],
+  ["samples", "samples"],
 ];
 
 for (const [from, to] of ASSETS) {

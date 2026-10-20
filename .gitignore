@@ -7,6 +7,7 @@ node_modules/
 server/dist/
 # Copied into the npm package by server/scripts/bundle-assets.mjs
 server/addon/
+server/samples/
 server/skill/
 coverage/
 

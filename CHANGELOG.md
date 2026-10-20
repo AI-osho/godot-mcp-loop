@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 _Nothing yet._
 
+## [0.9.2] - 2026-10-20
+
+### Fixed
+- The 3D sample is actually inside the npm package now. 0.9.1 added `samples` to `files`, but `files` is relative to
+  `server/`, and the bundler did not copy the folder there — so `godot-mcp-loop sample` had nothing to list. The
+  bundler now copies `samples/` like the addon and the skill, and a test follows both halves of the rule.
+
 ## [0.9.1] - 2026-10-20
 
 ### Added

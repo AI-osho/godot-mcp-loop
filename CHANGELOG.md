@@ -5,7 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- `project_export`: build the project with one of its `export_presets.cfg` presets (`--export-release`, headless, fixed
+  argument list, no shell). The output is confined to `res://build/` — `res://build/<preset>/` by default, `index.html`
+  for Web — so an export can never overwrite the project. Reports the files written with their sizes and the log tail;
+  `dry_run` shows the command; a missing template set fails with `TEMPLATES_MISSING` and the menu path to install them.
 
 ## [0.8.1] - 2026-10-20
 

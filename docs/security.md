@@ -128,6 +128,16 @@ test framework, and `scenario_run` executes `call` steps in the game. Point the 
 `project.godot` and `addons/` first. The same applies to `--projects-root`: it limits which folders the agent can
 switch to, not what the code inside them does.
 
+## Tools added in 0.9
+
+- `project_export` starts one process: the same verified Godot executable the launcher uses (never a path from the
+  agent), with a fixed argument list (`--headless --path <project> --export-release <preset> <output>`), no shell, a
+  10-minute default timeout and the output kept in memory. The preset must exist in `export_presets.cfg`; the output
+  must lie under `res://build/` (an absolute path, `..`, backslashes and any other project folder are refused), so the
+  export cannot overwrite the project. It creates the output folder, writes nothing else, and reports the files and
+  sizes it produced. Export templates must be installed for the running Godot version; the error names the folder and
+  the menu entry. Like `game_run`, an export runs the project's own resources through Godot's exporter.
+
 ## Known limitations
 
 - A local process running as **your own user** can read the session file and connect — same-user isolation is out

@@ -7,6 +7,17 @@ All notable changes to this project are documented here. The format follows
 
 _Nothing yet._
 
+## [0.9.1] - 2026-10-20
+
+### Added
+- The 3D sample ships with the package: `godot-mcp-loop sample marble-3d <dir>` copies the standalone Marble Run project
+  (its own `project.godot`, scenes, scripts, seven scenarios, `README.md` and `DESIGN.md`), and `sample` alone lists
+  what is bundled. `examples/marble` is generated from `samples/marble-3d` by `scripts/sync-marble-example.mjs`, with a
+  test that fails when the copy drifts.
+- Reason-focused comments in every Marble Run script, and `DESIGN.md`: why the course is a staircase (0.54 m drop over
+  3 m versus a 1.6 m jump), grounded-only braking, the total-velocity speed cap, the `exp` camera smoothing, the wall
+  ray's exclusion, the input lock, and why the coin, goal and checkpoint only report.
+
 ## [0.9.0] - 2026-10-20
 
 ### Added

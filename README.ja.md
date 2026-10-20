@@ -142,6 +142,7 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 | ファイル・素材 | `file_write`（YAML/JSON/テキスト）, `image_write`（ドット絵 PNG）, `input_action_set`, `project_setting_set`（メインシーン・画面サイズ・ストレッチ） |
 | 取り消し | `edit_undo` |
 | 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
+| ビルド | `project_export`（書き出し。出力は `res://build/` のみ、プリセット必須、シェルなし） |
 | 判定 | `scenario_run`（証拠フォルダ、`movie` で GIF とコンタクトシート）、`test_run`(GUT / GdUnit4 の単体テスト) |
 
 詳細: [docs/tools.md](docs/tools.md)（英語）

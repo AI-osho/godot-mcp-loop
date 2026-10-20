@@ -138,6 +138,7 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set`, `project_setting_set` (main scene, viewport, stretch) |
 | Undo | `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
+| Build | `project_export` (release export from a preset into `res://build/` only, no shell) |
 | Judge | `scenario_run` (evidence folder, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4 unit tests) |
 
 Full reference: [docs/tools.md](docs/tools.md).

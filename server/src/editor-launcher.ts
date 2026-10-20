@@ -205,6 +205,11 @@ export class EditorLauncher {
   private readonly findFn: () => Promise<FoundGodot>;
   private readonly spawnFn: SpawnFn;
   private readonly pollMs: number;
+  /** The verified Godot executable this server uses (project_export starts its own process with it). */
+  executable(): Promise<FoundGodot> {
+    return this.findFn();
+  }
+
   /** Editors started by this server process, by real project path. */
   private readonly launched = new Map<string, Launched>();
 

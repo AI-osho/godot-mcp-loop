@@ -3,6 +3,7 @@ import type { GodotConnection } from "./connection.js";
 import { EditorLauncher } from "./editor-launcher.js";
 import { registerEditingTools } from "./tools/editing.js";
 import { registerEditorTools } from "./tools/editor.js";
+import { registerExportTools } from "./tools/export.js";
 import { registerPlayTools } from "./tools/play.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerScenarioTools } from "./tools/scenario.js";
@@ -16,7 +17,7 @@ export { SERVER_VERSION } from "./version.js";
 const INSTRUCTIONS = `godot-mcp-loop drives a live Godot 4 editor.
 Workflow: godot_status -> inspect (scene_tree, node_get, script_read) -> edit (node_*, script_write/script_edit, file_write, image_write, input_action_set) -> verify (game_run, game_input with record, game_set/game_call for test setup, game_pause/game_step for frame-exact checks, game_query, game_wait_for, screenshot, logs_read) -> scenario_run; test_run runs GUT/GdUnit4 unit tests.
 All edits go through the editor's undo history; use dry_run=true to preview and edit_undo to revert.
-If no editor is running, editor_launch opens one (editor_quit closes it). With --projects-root, project_list and project_connect switch the server to another Godot project.`;
+If no editor is running, editor_launch opens one (editor_quit closes it). project_export builds a release export under res://build/ with one of the project's presets. With --projects-root, project_list and project_connect switch the server to another Godot project.`;
 
 export interface ServerOptions {
   launcher?: EditorLauncher;
@@ -24,9 +25,11 @@ export interface ServerOptions {
 
 export function createServer(conn: GodotConnection, opts: ServerOptions = {}): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: INSTRUCTIONS });
+  const launcher = opts.launcher ?? new EditorLauncher();
   registerStatusTools(server, conn);
   registerProjectTools(server, conn);
-  registerEditorTools(server, conn, opts.launcher ?? new EditorLauncher());
+  registerEditorTools(server, conn, launcher);
+  registerExportTools(server, conn, launcher);
   registerEditingTools(server, conn);
   registerPlayTools(server, conn);
   registerScenarioTools(server, conn);

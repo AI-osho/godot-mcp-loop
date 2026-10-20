@@ -48,6 +48,16 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 
 ## インストール
 
+**Claude Code プラグインとして**（Claude Code 2.1.275 以上。Godot プロジェクトのパスを 1 回だけ聞かれます）:
+
+```bash
+/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop
+```
+
+プラグインは `godot-loop` の MCP サーバーとエージェント用スキルを登録します。npm のパッケージを実行するので、
+プロジェクトに入れるアドオンと版を揃えてください（アドオンとサーバーは同じ版が必要です）。
+
+**npm で入れる場合**(Node.js 20 以上):
 **npm で入れる場合**(Node.js 20 以上):
 
 > MCP 公式レジストリに

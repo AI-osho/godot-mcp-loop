@@ -10,6 +10,9 @@ _Nothing yet._
 ## [0.9.0] - 2026-10-20
 
 ### Added
+- Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`): one-step install
+  (`/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop`) that registers the `godot-loop` MCP server
+  (asking for the project path once) and ships the agent skill. `claude plugin validate` passes.
 - `server.json` and `mcpName` prepare the package for the official MCP Registry (name `io.github.AI-osho/godot-mcp-loop`);
   a test keeps the manifest's version and name in step with `server/package.json`.
 - README (en/ja): a five-minute tour (install → connect → one change and one check → record with `movie`) and the

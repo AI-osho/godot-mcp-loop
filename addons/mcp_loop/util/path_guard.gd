@@ -29,6 +29,55 @@ static func normalize(path: String) -> String:
 	return "res://" + "/".join(parts)
 
 
+## macOS and Windows ignore case (and Unicode normalization) in file names, so `res://.GIT/config`
+## reaches `.git/`, and `res://Addons/mcp_loop/x.gd` reaches the addon. Rebuild the path with the
+## real on-disk spelling of every existing segment before any prefix check.
+static func canonical(path: String) -> String:
+	var norm := normalize(path)
+	var rest := norm.substr("res://".length())
+	if rest == "":
+		return norm
+	var parts := rest.split("/")
+	var dir := DirAccess.open("res://")
+	if dir == null:
+		return norm
+	var out: Array[String] = []
+	for i in parts.size():
+		var actual := _real_name(dir, parts[i])
+		if actual == "":
+			out.append(parts[i])
+		else:
+			out.append(actual)
+		if i == parts.size() - 1:
+			break
+		if actual == "" or not dir.dir_exists(actual) or dir.change_dir(actual) != OK:
+			out.append_array(Array(parts.slice(i + 1)))
+			break
+	return "res://" + "/".join(out)
+
+
+## The name a segment has on disk, or "" when nothing matches (a new file or folder).
+## Only the directory listing is trusted: `dir_exists()` ignores case, so asking it about
+## "Addons" would happily answer yes and keep the caller's spelling.
+static func _real_name(dir: DirAccess, seg: String) -> String:
+	var dirs := dir.get_directories()
+	var files := dir.get_files()
+	for d in dirs:
+		if d == seg:
+			return seg
+	for f in files:
+		if f == seg:
+			return seg
+	var low := seg.to_lower()
+	for d in dirs:
+		if d.to_lower() == low:
+			return d
+	for f in files:
+		if f.to_lower() == low:
+			return f
+	return ""
+
+
 static func _has_control_chars(s: String) -> bool:
 	for i in s.length():
 		var c := s.unicode_at(i)
@@ -47,9 +96,9 @@ static func check_read(path: String) -> String:
 	for seg in path.substr("res://".length()).split("/"):
 		if seg == "..":
 			return "Parent directory segments ('..') are not allowed: %s" % path
-	var norm := normalize(path)
+	var norm := canonical(path)
 	for prefix in PROTECTED_READ_PREFIXES:
-		if norm.begins_with(prefix):
+		if norm.to_lower().begins_with(prefix.to_lower()):
 			return "Access under %s is not allowed." % prefix
 	return _symlink_reason(norm)
 
@@ -77,9 +126,9 @@ static func check_write(path: String, allowed_extensions: Array) -> String:
 	var r := check_read(path)
 	if r != "":
 		return r
-	var norm := normalize(path)
+	var norm := canonical(path)
 	for prefix in PROTECTED_WRITE_PREFIXES:
-		if norm.begins_with(prefix):
+		if norm.to_lower().begins_with(prefix.to_lower()):
 			return "Writing under %s is not allowed." % prefix
 	var ext := norm.get_extension().to_lower()
 	if not allowed_extensions.has(ext):

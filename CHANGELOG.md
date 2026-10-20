@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.9.0] - 2026-10-20
+
 ### Added
 - `server.json` and `mcpName` prepare the package for the official MCP Registry (name `io.github.AI-osho/godot-mcp-loop`);
   a test keeps the manifest's version and name in step with `server/package.json`.

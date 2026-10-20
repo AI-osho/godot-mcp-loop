@@ -158,7 +158,17 @@ func _action_set(p: Dictionary) -> Dictionary:
 		value = {"deadzone": float(p.get("deadzone", 0.2)), "events": events}
 		shown = events.map(func(e: InputEvent) -> String: return e.as_text())
 	var result := {"action": name, "created": not existed, "removed": value == null, "events": shown,
-		"note": "Running games read input actions at start: use game_run with restart: true to apply."}
+		"note": "Running games read input actions at start: use game_run with restart: true to apply. Godot rewrites "
+			+ "project.godot in its canonical form when any setting is saved (blank lines between actions are dropped)."}
+	if not p.get("remove", false) and existed and typeof(old) == TYPE_DICTIONARY:
+		var old_events: Array = old.get("events", [])
+		var old_text: Array = old_events.map(func(e: Variant) -> String: return (e as InputEvent).as_text() if e is InputEvent else "")
+		if is_equal_approx(float(old.get("deadzone", 0.2)), float(value.get("deadzone", 0.2))) and old_text == shown:
+			result["unchanged"] = true
+			result["note"] = "The action already matches; project.godot was not rewritten."
+			if p.get("dry_run", false):
+				result["dry_run"] = true
+			return Protocol.ok(result)
 	if p.get("dry_run", false):
 		result["dry_run"] = true
 		return Protocol.ok(result)

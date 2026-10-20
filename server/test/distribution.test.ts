@@ -14,6 +14,7 @@ describe("distribution manifests", () => {
   const pkg = JSON.parse(read("server/package.json")) as { version: string; mcpName?: string };
   const server = JSON.parse(read("server.json")) as {
     name: string;
+    description?: string;
     version: string;
     packages: Array<{ registryType: string; identifier: string; version: string }>;
   };
@@ -21,6 +22,10 @@ describe("distribution manifests", () => {
   it("uses the package's mcpName as the registry name", () => {
     expect(pkg.mcpName).toBe("io.github.AI-osho/godot-mcp-loop");
     expect(server.name).toBe(pkg.mcpName);
+  });
+
+  it("keeps the description short enough for the registry", () => {
+    expect((server as { description?: string }).description!.length).toBeLessThanOrEqual(100);
   });
 
   it("names the version the package will be published with", () => {

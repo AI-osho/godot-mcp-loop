@@ -7,6 +7,19 @@ All notable changes to this project are documented here. The format follows
 
 _Nothing yet._
 
+## [0.9.3] - 2026-10-20
+
+### Security
+- The Claude Code plugin launched the MCP server as `godot-mcp-loop@latest`, so every editor session re-resolved npm
+  and would run whatever had been published most recently — including a bad or compromised release. It now pins this
+  plugin's exact version, and a test fails if `@latest` comes back.
+- `godot-mcp-loop sample` refuses a destination inside the installed package (it would have written into
+  `node_modules`, where the next install would delete it, and could overwrite the package's own files).
+
+### Changed
+- `SECURITY-AUDIT.md` gains a re-audit of everything added since 0.8.0: export invocation, release workflow, plugin
+  launch, `sample`, the bundled sample's contents, and the 0.8.0 path fixes re-checked at HEAD.
+
 ## [0.9.2] - 2026-10-20
 
 ### Fixed

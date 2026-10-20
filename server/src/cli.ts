@@ -1,5 +1,5 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SERVER_VERSION } from "./version.js";
 
@@ -60,6 +60,11 @@ export function copySample(name: string, dest: string): { name: string; project:
   }
   const source = join(samplesDir(), name);
   const target = resolve(dest);
+  // Copying into the installed package would leave a folder inside node_modules that npm removes on the next install,
+  // and writing over the package's own files is never what the caller meant.
+  if (target === pkgRoot || target.startsWith(pkgRoot + sep)) {
+    throw new CliError(`${target} is inside the installed package; pick a folder outside it.`);
+  }
   if (existsSync(target) && readdirSync(target).length > 0) {
     throw new CliError(`${target} is not empty; pass a new folder for the sample.`);
   }

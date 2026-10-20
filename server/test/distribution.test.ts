@@ -32,6 +32,16 @@ describe("Claude Code plugin manifests", () => {
     expect(marketplace.plugins.find((p) => p.name === plugin.name)?.source).toBe("./");
   });
 
+  it("pins the MCP server to this plugin's version instead of @latest", () => {
+    for (const server of Object.values(plugin.mcpServers ?? {})) {
+      const pkg = server.args.find((a) => a.startsWith("godot-mcp-loop@"));
+      expect(pkg, "the server launches the package by name").toBeDefined();
+      // A user who installed 0.9.x should keep running 0.9.x: @latest would make every editor session execute
+      // whatever npm published most recently, including a bad or compromised release.
+      expect(pkg).toBe(`godot-mcp-loop@${plugin.version}`);
+    }
+  });
+
   it("only references userConfig options it declares", () => {
     const declared = new Set(Object.keys(plugin.userConfig ?? {}));
     for (const server of Object.values(plugin.mcpServers ?? {})) {

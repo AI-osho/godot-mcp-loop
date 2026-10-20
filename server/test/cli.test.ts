@@ -36,6 +36,14 @@ describe("sample projects", () => {
     expect(existsSync(join(dest, "scenarios", "7_gap_needs_jump.yaml"))).toBe(true);
   });
 
+  it("refuses a destination inside the installed package", () => {
+    const lines: string[] = [];
+    const insidePackage = join(dirname(fileURLToPath(import.meta.url)), "..", "inside-sample");
+    expect(runCli(["sample", "marble-3d", insidePackage], (l) => lines.push(l))).toBe(1);
+    expect(lines.join("\n")).toContain("inside the installed package");
+    expect(existsSync(insidePackage)).toBe(false);
+  });
+
   it("refuses an unknown sample and a folder that is not empty", () => {
     const lines: string[] = [];
     expect(runCli(["sample", "nope", join(out, "x")], (l) => lines.push(l))).toBe(1);

@@ -22,8 +22,9 @@ export function resolveProjectFile(projectPath: string, path: string): string {
   if (r.startsWith("..") || isAbsolute(r)) {
     throw new BridgeError("PATH_FORBIDDEN", `${path} is outside the project.`);
   }
-  // Same rule as the addon's PathGuard: .godot/ holds the session token, .git/ the history.
-  const protectedDir = (p: string) => [".godot", ".git"].includes(p.split(sep)[0] ?? "");
+  // Same rule as the addon's PathGuard: .godot/ holds the session token, .git/ the history. Compare without case:
+  // macOS and Windows resolve ".GODOT" to ".godot", and realpath() keeps the spelling it was given.
+  const protectedDir = (p: string) => [".godot", ".git"].includes((p.split(sep)[0] ?? "").toLowerCase());
   if (protectedDir(r)) throw new BridgeError("PATH_FORBIDDEN", `Access under ${r.split(sep)[0]}/ is not allowed.`);
   if (!existsSync(full)) throw new BridgeError("FILE_NOT_FOUND", `Scenario file not found: ${path}`);
   // Re-check after resolving symlinks: a link inside the project may point outside it.

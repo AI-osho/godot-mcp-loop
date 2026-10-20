@@ -7,17 +7,25 @@ All notable changes to this project are documented here. The format follows
 
 _Nothing yet._
 
+## [0.8.1] - 2026-10-20
+
+### Fixed
+- Scenario evidence can no longer be written into `addons/mcp_loop/`: `save_to: "res://addons/mcp_loop/…"` used to write
+  PNGs and reports into the addon, where a script runs in the editor. Found by the new mutation test; other addons stay
+  writable, matching the addon's own rule.
+
+### Security
+- Two property tests generate spellings of protected paths (case flips, doubled slashes, `./`) — about 1,400 per run —
+  and require every one that still resolves to be refused. They fail against the pre-fix code by design, and found the
+  evidence hole above.
+
 ## [0.8.0] - 2026-10-20
 
 ### Security
-- Property tests generate spellings of protected paths (case flips, doubled slashes, `./`) — ~1,400 per run — and
-  require every one that still resolves to be refused; they fail against the pre-fix code by design.
 - Path sandbox: letter-case variants of protected folders are refused. `res://.GIT/config` used to read `.git/config`
   and `res://Addons/mcp_loop/x.gd` used to write into the addon on macOS and Windows, which resolve names
   case-insensitively (audit finding 1, [SECURITY-AUDIT.md](SECURITY-AUDIT.md)).
 - Every tool rejects undeclared arguments, not only the forwarded ones (audit finding 2).
-- Scenario evidence can no longer be written into `addons/mcp_loop/` (found by the new mutation test): a script there
-  runs in the editor.
 - Server-side path resolution applies the same case-insensitive rule (scenario evidence and scenario files), so
   `save_to: "res://.GODOT/…"` can no longer write into the real `.godot/`.
 - A version mismatch between the addon and the server is logged when the connection opens, not only reported by

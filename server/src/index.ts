@@ -9,7 +9,7 @@ import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  if (argv[0] === "install-addon") process.exit(runCli(argv));
+  if (argv[0] === "install-addon" || argv[0] === "sample") process.exit(runCli(argv));
   const args = parseServerArgs(argv);
   if (args.version) {
     process.stdout.write(`${SERVER_NAME} ${SERVER_VERSION}\n`);

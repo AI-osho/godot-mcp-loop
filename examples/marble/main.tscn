@@ -1,12 +1,12 @@
 [gd_scene format=3 uid="uid://oyytij0s04k"]
 
-[ext_resource type="Script" uid="uid://b8swy5w5qjigh" path="res://scripts/main.gd" id="1_272bh"]
-[ext_resource type="PackedScene" uid="uid://m7a3plgek1eq" path="res://platform.tscn" id="2_5vw27"]
-[ext_resource type="PackedScene" uid="uid://fflxaxnp06pv" path="res://goal.tscn" id="3_kek77"]
-[ext_resource type="PackedScene" uid="uid://q0e3f4mmexyi" path="res://checkpoint.tscn" id="4_4c57u"]
-[ext_resource type="PackedScene" uid="uid://dbaat1o36fair" path="res://coin.tscn" id="5_efxa6"]
-[ext_resource type="PackedScene" uid="uid://bq2o4rnm56g86" path="res://ball.tscn" id="6_dg77c"]
-[ext_resource type="Script" uid="uid://km3jk1v3si08" path="res://scripts/hud.gd" id="7_ycdy4"]
+[ext_resource type="Script" uid="uid://b8swy5w5qjigh" path="res://examples/marble/scripts/main.gd" id="1_272bh"]
+[ext_resource type="PackedScene" uid="uid://m7a3plgek1eq" path="res://examples/marble/platform.tscn" id="2_5vw27"]
+[ext_resource type="PackedScene" uid="uid://fflxaxnp06pv" path="res://examples/marble/goal.tscn" id="3_kek77"]
+[ext_resource type="PackedScene" uid="uid://q0e3f4mmexyi" path="res://examples/marble/checkpoint.tscn" id="4_4c57u"]
+[ext_resource type="PackedScene" uid="uid://dbaat1o36fair" path="res://examples/marble/coin.tscn" id="5_efxa6"]
+[ext_resource type="PackedScene" uid="uid://bq2o4rnm56g86" path="res://examples/marble/ball.tscn" id="6_dg77c"]
+[ext_resource type="Script" uid="uid://km3jk1v3si08" path="res://examples/marble/scripts/hud.gd" id="7_ycdy4"]
 
 [node name="Main" type="Node3D" unique_id=1802565919]
 script = ExtResource("1_272bh")

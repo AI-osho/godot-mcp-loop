@@ -1,4 +1,4 @@
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SERVER_VERSION } from "./version.js";
@@ -23,6 +23,8 @@ export const USAGE = `Usage:
       --skill       also add the agent skill to <dir>/.claude/skills/godot-mcp-loop
       --force       replace an addon of another version (or an existing skill)
       --no-enable   do not edit project.godot (enable it in Project Settings > Plugins)
+  godot-mcp-loop sample                                 list the bundled sample projects
+  godot-mcp-loop sample <name> <dir>                    copy a sample project (e.g. marble-3d) into <dir>
   godot-mcp-loop --version`;
 
 /** In a checkout of the repository the addon and skill come from it; in the npm package from the bundled copies. */
@@ -32,6 +34,40 @@ export function assetDirs(): { addon: string; skill: string } {
     return { addon: join(repo, "addons", "mcp_loop"), skill: join(repo, ".claude", "skills", "godot-mcp-loop") };
   }
   return { addon: join(pkgRoot, "addon", "mcp_loop"), skill: join(pkgRoot, "skill", "godot-mcp-loop") };
+}
+
+/** Where the bundled sample projects live (the repository's samples/, or the package's copy). */
+export function samplesDir(): string {
+  const repo = resolve(pkgRoot, "..");
+  if (basename(pkgRoot) === "server" && existsSync(join(repo, "samples"))) return join(repo, "samples");
+  return join(pkgRoot, "samples");
+}
+
+export function listSamples(): string[] {
+  const dir = samplesDir();
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+}
+
+/** Copies a sample project into an empty or missing folder. */
+export function copySample(name: string, dest: string): { name: string; project: string; files: number } {
+  const available = listSamples();
+  if (!available.includes(name)) {
+    throw new CliError(`No sample called "${name}". Available: ${available.join(", ") || "(none)"}.`);
+  }
+  const source = join(samplesDir(), name);
+  const target = resolve(dest);
+  if (existsSync(target) && readdirSync(target).length > 0) {
+    throw new CliError(`${target} is not empty; pass a new folder for the sample.`);
+  }
+  cpSync(source, target, { recursive: true });
+  const count = (function walk(dir: string): number {
+    return readdirSync(dir, { withFileTypes: true }).reduce((n: number, e) => n + (e.isDirectory() ? walk(join(dir, e.name)) : 1), 0);
+  })(target);
+  return { name, project: target, files: count };
 }
 
 function addonVersion(dir: string): string | undefined {
@@ -139,6 +175,38 @@ const shq = (s: string): string => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'$
 /** Runs a subcommand; returns the process exit code (2 = usage error, 1 = refused). */
 export function runCli(argv: string[], log: (line: string) => void = (l) => process.stdout.write(`${l}\n`)): number {
   const [cmd, ...rest] = argv;
+  if (cmd === "sample") {
+    const [name, dir] = rest;
+    if (name === undefined || name === "--help" || name === "-h") {
+      const available = listSamples();
+      log(available.length > 0 ? `Samples:\n${available.map((s) => `  ${s}`).join("\n")}` : "No samples are bundled.");
+      if (name === undefined) log("\nCopy one with: godot-mcp-loop sample <name> <dir>");
+      return name === undefined ? 0 : 0;
+    }
+    if (dir === undefined) {
+      log(`Copy a sample with: godot-mcp-loop sample ${name} <dir>\n\n${USAGE}`);
+      return 2;
+    }
+    try {
+      const r = copySample(name, dir);
+      log(
+        [
+          `Copied ${r.name} (${r.files} files) to ${r.project}`,
+          "",
+          "Next:",
+          `  cd ${shq(r.project)} && npx -y godot-mcp-loop@${SERVER_VERSION} install-addon . --skill`,
+          `  godot -e --path ${shq(r.project)}`,
+        ].join("\n"),
+      );
+      return 0;
+    } catch (e) {
+      if (e instanceof CliError) {
+        log(`Error: ${e.message}`);
+        return 1;
+      }
+      throw e;
+    }
+  }
   if (cmd !== "install-addon") {
     log(USAGE);
     return 2;

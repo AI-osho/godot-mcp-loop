@@ -1,6 +1,10 @@
 class_name MarbleHUD
 extends CanvasLayer
 ## Builds and updates the HUD and the title / clear / game over overlays in code.
+##
+## Built in code rather than as a .tscn so the sample has no hand-authored UI nodes to keep in sync, and so every
+## label has a stable name (Coins, Time, Lives, ClearTime, ...). Scenarios assert those names, and game_ui_audit
+## reports layout problems by name - an unnamed label is invisible to both.
 
 const OVERLAY_COLOR := Color(0.02, 0.03, 0.08, 0.62)
 const GOLD := Color(1.0, 0.86, 0.35)

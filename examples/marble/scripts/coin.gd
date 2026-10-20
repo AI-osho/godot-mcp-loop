@@ -1,6 +1,10 @@
 class_name MarbleCoin
 extends Area3D
 ## A spinning collectible coin. Touching it hides it and emits `collected`.
+##
+## The coin never counts anything: it reports, and main.gd owns the score. That split is what lets a scenario
+## reset the coins between runs (`reset()`) without touching the HUD or the run state.
+## It joins the "coins" group so the main script can find and reset every coin without a hard-coded list.
 
 signal collected(coin: MarbleCoin)
 

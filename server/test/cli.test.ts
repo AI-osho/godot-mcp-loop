@@ -10,6 +10,44 @@ import { SERVER_VERSION } from "../src/version.js";
 const serverDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PLUGIN = 'res://addons/mcp_loop/plugin.cfg';
 
+describe("sample projects", () => {
+  let out: string;
+  beforeEach(() => {
+    out = mkdtempSync(join(tmpdir(), "gml-sample-"));
+  });
+  afterEach(() => {
+    rmSync(out, { recursive: true, force: true });
+  });
+
+  it("lists the bundled samples", () => {
+    const lines: string[] = [];
+    expect(runCli(["sample"], (l) => lines.push(l))).toBe(0);
+    expect(lines.join("\n")).toContain("marble-3d");
+  });
+
+  it("copies a sample into a new folder with its project.godot and scenarios", () => {
+    const lines: string[] = [];
+    const dest = join(out, "my-marble");
+    expect(runCli(["sample", "marble-3d", dest], (l) => lines.push(l))).toBe(0);
+    expect(lines.join("\n")).toContain("Copied marble-3d");
+    expect(existsSync(join(dest, "project.godot"))).toBe(true);
+    expect(existsSync(join(dest, "main.tscn"))).toBe(true);
+    expect(readFileSync(join(dest, "project.godot"), "utf8")).toContain("marble_jump");
+    expect(existsSync(join(dest, "scenarios", "7_gap_needs_jump.yaml"))).toBe(true);
+  });
+
+  it("refuses an unknown sample and a folder that is not empty", () => {
+    const lines: string[] = [];
+    expect(runCli(["sample", "nope", join(out, "x")], (l) => lines.push(l))).toBe(1);
+    expect(lines.join("\n")).toContain("No sample called");
+    const busy = join(out, "busy");
+    mkdirSync(busy);
+    writeFileSync(join(busy, "keep.txt"), "x");
+    expect(runCli(["sample", "marble-3d", busy], (l) => lines.push(l))).toBe(1);
+    expect(lines.join("\n")).toContain("is not empty");
+  });
+});
+
 describe("install-addon (#16)", () => {
   let project: string;
   let outside: string;

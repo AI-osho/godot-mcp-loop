@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://q0e3f4mmexyi"]
+
+[ext_resource type="Script" uid="uid://s3csftevfm2o" path="res://scripts/checkpoint.gd" id="1_luqgl"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_r6hke"]
+inner_radius = 0.8
+rings = 32
+ring_segments = 16
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tnhlw"]
+size = Vector3(5, 1.6, 5)
+
+[node name="Checkpoint" type="Area3D" unique_id=1005155612]
+script = ExtResource("1_luqgl")
+
+[node name="Ring" type="MeshInstance3D" parent="." unique_id=2068424355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("TorusMesh_r6hke")
+
+[node name="Trigger" type="CollisionShape3D" parent="." unique_id=1888694378]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BoxShape3D_tnhlw")

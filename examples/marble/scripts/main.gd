@@ -1,17 +1,29 @@
 class_name MarbleMain
 extends Node3D
 ## MARBLE RUN - game flow, camera-relative marble control and test hooks.
+##
+## The course is a staircase: every landing is 0.6 m higher than the one before. That is what makes the two gaps
+## real - a marble rolling off an edge drops only ~0.54 m over 3 m at full speed, so level platforms would let it
+## land on the far side without jumping, while a 0.6 m step meets the side of the next platform instead. A jump
+## reaches ~1.6 m, so it still clears. See DESIGN.md; scenario 7 proves both halves.
 
 const TOTAL_COINS_EXPECTED := 10
 const START_LIVES := 3
 const FALL_Y := -10.0
+## Pushing (not teleporting) keeps rolling and bouncing in the physics engine's hands.
 const MOVE_FORCE := 18.0
+## Braking only applies while grounded: air control that also slows the marble would make the gaps unjumpable.
 const BRAKE_FORCE := 6.0
+## Compared against the total velocity, so a falling marble may pass 9 m/s downwards while its horizontal speed
+## stays at 9 - that horizontal cap is what the course distances were tuned against.
 const MAX_SPEED := 9.0
+## An impulse in m/s; with the project's gravity it peaks around 1.6 m, comfortably over the 0.6 m steps.
 const JUMP_STRENGTH := 6.0
 const TIME_SCALE := 60.0
+## After a clear or a game over the state is held this long (0.5 s) so a held Enter cannot skip the result screen.
 const STATE_LOCK_FRAMES := 30
 
+## Spawn points sit a little above their landing's top, so a respawn drops onto it instead of inside it.
 const CHECKPOINT_SPAWNS: Array[Vector3] = [
 	Vector3(0.0, 0.55, 4.0),
 	Vector3(0.0, 2.1, -10.0),
@@ -19,6 +31,7 @@ const CHECKPOINT_SPAWNS: Array[Vector3] = [
 ]
 
 const CAMERA_OFFSET := Vector3(0.0, 3.6, 6.4)
+## Aim slightly above the marble's centre so the road ahead stays in frame.
 const CAMERA_LOOK_OFFSET := Vector3(0.0, 0.6, 0.0)
 
 @onready var ball: MarbleBall = $Ball
@@ -45,6 +58,8 @@ func _ready() -> void:
 	print("MAIN ready coins_total=%d" % coins_total)
 
 
+## Everything runs at the fixed physics rate, and the timer counts frames rather than seconds so a slow machine
+## cannot change the score. The input lock is decremented first so it expires on time.
 func _physics_process(_delta: float) -> void:
 	if input_lock_frames > 0:
 		input_lock_frames -= 1
@@ -62,6 +77,7 @@ func _physics_process(_delta: float) -> void:
 
 # --- public test hooks -------------------------------------------------------
 
+## Test hook (scenarios call this): a full reset, so every run starts from the same state.
 func start_game() -> void:
 	state = "playing"
 	coins = 0
@@ -81,6 +97,7 @@ func start_game() -> void:
 	print("STATE playing")
 
 
+## Test hook: move the marble without waking it up (a teleport during the title must not un-freeze it).
 func teleport_ball(x: float, y: float, z: float) -> void:
 	var was_frozen := ball.freeze
 	ball.respawn(Vector3(x, y, z))
@@ -94,6 +111,7 @@ func set_checkpoint(index: int) -> void:
 	print("CHECKPOINT %d" % checkpoint)
 
 
+## Test hook: everything a scenario needs to judge the run, in JSON-friendly types (no Vector3).
 func summary() -> Dictionary:
 	var pos := ball.global_position
 	return {
@@ -108,6 +126,8 @@ func summary() -> Dictionary:
 	}
 
 
+## Test hook, kept as an example of what agents used to write by hand: the generic game_in_view tool now answers
+## the same question (behind the camera, and where on screen) without project code.
 func ball_on_screen() -> bool:
 	var pos := ball.global_position
 	if camera.is_position_behind(pos):
@@ -173,6 +193,8 @@ func _tick_playing() -> void:
 	hud.set_hud(coins, coins_total, lives, float(time_frames) / TIME_SCALE)
 
 
+## Camera-relative movement: "forward" is always away from the camera, flattened to the ground plane so looking
+## down does not push the marble into the floor.
 func _apply_movement() -> void:
 	var input_x := 0.0
 	var input_y := 0.0
@@ -184,6 +206,7 @@ func _apply_movement() -> void:
 		input_y += 1.0
 	if Input.is_action_pressed("marble_back"):
 		input_y -= 1.0
+	# No input: bleed off horizontal speed, but only on the ground (see BRAKE_FORCE).
 	if input_x == 0.0 and input_y == 0.0:
 		if ball.is_grounded():
 			var horizontal := Vector3(ball.linear_velocity.x, 0.0, ball.linear_velocity.z)
@@ -217,6 +240,7 @@ func _on_checkpoint_entered(index: int) -> void:
 		set_checkpoint(index)
 
 
+## The goal only reports; scoring and the state change live here so one place decides what a clear means.
 func _on_goal_reached() -> void:
 	if state != "playing":
 		return
@@ -229,6 +253,8 @@ func _on_goal_reached() -> void:
 	print("STATE clear time_frames=%d coins=%d" % [final_time_frames, coins])
 
 
+## A fall costs a life and returns the marble to the last checkpoint reached, not to the start: the two hard
+## sections (the gaps) stay retryable. The last life freezes the marble and shows the game-over panel.
 func _on_fall() -> void:
 	fall_count += 1
 	lives -= 1
@@ -278,6 +304,7 @@ func _reset_coins() -> void:
 
 # --- camera -----------------------------------------------------------------
 
+## exp() rather than a fixed lerp factor: the same smoothing at 30, 60 or 144 fps.
 func _update_camera(delta: float) -> void:
 	var center := ball.global_position
 	var desired := center + CAMERA_OFFSET
@@ -294,6 +321,8 @@ func _snap_camera() -> void:
 	camera.look_at(center + CAMERA_LOOK_OFFSET, Vector3.UP)
 
 
+## Pull the camera in when something sits between it and the marble. The marble is excluded from the ray so it
+## cannot push its own camera; physics layer 1 only, because that is where the course lives.
 func _avoid_wall(from: Vector3, to: Vector3) -> Vector3:
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [ball.get_rid()])

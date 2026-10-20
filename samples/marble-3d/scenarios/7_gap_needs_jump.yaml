@@ -1,0 +1,22 @@
+name: 7 the gaps need a jump
+scene: res://examples/marble/main.tscn
+steps:
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - wait_frames: 20
+        - { action: marble_forward, hold_frames: 1500 }
+  - assert: { node: ., method: summary, property: state, op: "!=", value: clear, message: "forward alone must not reach the goal" }
+  - assert: { node: ., method: summary, property: lives, op: "<", value: 3, message: "the first gap costs a life without a jump" }
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - call: { node: ., method: teleport_ball, args: [0, 2.2, -12.5] }
+        - wait_frames: 15
+        - set: { node: Ball, properties: { linear_velocity: [0, 0, -9] } }
+        - { action: marble_jump, hold_frames: 1 }
+        - wait_frames: 40
+        - assert: { node: ., method: summary, property: "ball_pos:2", op: "<=", value: -17.5, message: "a jump crosses the 3 m gap" }
+        - assert: { node: ., method: summary, property: "ball_pos:1", op: ">", value: 1.9, message: "the ball lands on the far platform" }
+        - assert: { node: ., method: summary, property: lives, op: "==", value: 3, message: "no life lost when jumping" }
+  - assert_no_errors: true

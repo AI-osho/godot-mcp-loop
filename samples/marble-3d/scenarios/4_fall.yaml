@@ -1,0 +1,25 @@
+name: 4 falling respawns at the checkpoint then game over
+scene: res://examples/marble/main.tscn
+steps:
+  - input:
+      steps:
+        - call: { node: ., method: start_game }
+        - call: { node: ., method: set_checkpoint, args: [1] }
+        - call: { node: ., method: teleport_ball, args: [0, -11, -10] }
+        - wait_frames: 5
+        - assert: { node: ., method: summary, property: lives, op: "==", value: 2, message: "a fall costs one life" }
+        - assert: { node: ., method: summary, property: checkpoint, op: "==", value: 1 }
+        - assert: { node: ., method: summary, property: "ball_pos:1", op: ">", value: 1.5, message: "respawn above checkpoint 1" }
+        - assert: { node: ., method: summary, property: "ball_pos:2", op: "<", value: -5.0, message: "respawn near checkpoint 1" }
+        - call: { node: ., method: teleport_ball, args: [0, -11, -10] }
+        - wait_frames: 5
+        - assert: { node: ., method: summary, property: lives, op: "==", value: 1 }
+        - call: { node: ., method: teleport_ball, args: [0, -11, -10] }
+        - wait_frames: 5
+        - assert: { node: ., method: summary, property: lives, op: "==", value: 0 }
+        - assert: { node: ., method: summary, property: state, op: "==", value: game_over, message: "the last life ends the game" }
+  - screenshot: game_over
+  - input: { wait_frames: 35 }
+  - input: { action: marble_start, hold_frames: 2 }
+  - wait_for: { node: ., method: summary, property: state, op: "==", value: title, timeout_ms: 2000 }
+  - assert_no_errors: true

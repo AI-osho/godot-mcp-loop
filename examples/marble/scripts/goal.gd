@@ -1,6 +1,9 @@
 class_name MarbleGoal
 extends Area3D
 ## The finish gate. Emits `reached` once when the marble rolls through it.
+##
+## `triggered` makes the signal fire once per run; main.gd resets it in start_game() and _enter_title(). The gate
+## only reports - the clear state, the timer and the panel belong to main.gd.
 
 signal reached
 

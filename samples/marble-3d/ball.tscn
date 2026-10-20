@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://bq2o4rnm56g86"]
+
+[ext_resource type="Script" uid="uid://dw00fq2mdhxmt" path="res://scripts/ball.gd" id="1_x8fbi"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_41u45"]
+radial_segments = 32
+rings = 16
+
+[sub_resource type="TorusMesh" id="TorusMesh_ktgx5"]
+inner_radius = 0.4
+outer_radius = 0.49
+rings = 32
+ring_segments = 12
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hgol0"]
+
+[node name="Ball" type="RigidBody3D" unique_id=342074104]
+continuous_cd = true
+linear_damp = 0.15
+angular_damp = 0.35
+script = ExtResource("1_x8fbi")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1679767607]
+mesh = SubResource("SphereMesh_41u45")
+
+[node name="Stripe" type="MeshInstance3D" parent="." unique_id=2086956193]
+mesh = SubResource("TorusMesh_ktgx5")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1740316799]
+shape = SubResource("SphereShape3D_hgol0")

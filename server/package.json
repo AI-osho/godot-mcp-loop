@@ -33,7 +33,8 @@
   "files": [
     "dist",
     "addon",
-    "skill"
+    "skill",
+    "samples"
   ],
   "engines": {
     "node": ">=20"

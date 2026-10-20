@@ -51,6 +51,10 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
 
 **With npm** (Node.js 20+):
 
+> Listed in the official MCP Registry as
+> [`io.github.AI-osho/godot-mcp-loop`](https://registry.modelcontextprotocol.io/v0/servers?search=godot-mcp-loop) —
+> clients that browse the registry can add it from there; the steps below are the same.
+
 1. **Addon** — the addon must match the server's version, so let the server copy it into your project and enable it:
    ```bash
    npx -y godot-mcp-loop@latest install-addon /ABS/my-game --skill

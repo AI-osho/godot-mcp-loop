@@ -50,6 +50,10 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 
 **npm で入れる場合**(Node.js 20 以上):
 
+> MCP 公式レジストリに
+> [`io.github.AI-osho/godot-mcp-loop`](https://registry.modelcontextprotocol.io/v0/servers?search=godot-mcp-loop)
+> として掲載されています。レジストリ対応のクライアントからは一覧に出ます（手順は下と同じです）。
+
 1. **アドオン** — アドオンはサーバーと同じバージョンが必要です。サーバー自身にコピーと有効化をさせます。
    ```bash
    npx -y godot-mcp-loop@latest install-addon /絶対パス/my-game --skill

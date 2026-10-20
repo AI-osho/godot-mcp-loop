@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.AI-osho/godot-mcp-loop",
+  "description": "Drive a live Godot 4 editor: inspect and edit scenes and scripts, run the game, send input, read state, take screenshots, record GIFs and replay YAML play-tests \u2014 all over a localhost bridge.",
+  "title": "Godot MCP Loop",
+  "websiteUrl": "https://github.com/AI-osho/godot-mcp-loop",
+  "repository": {
+    "url": "https://github.com/AI-osho/godot-mcp-loop",
+    "source": "github"
+  },
+  "version": "0.8.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "godot-mcp-loop",
+      "version": "0.8.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

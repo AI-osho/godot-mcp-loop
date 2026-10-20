@@ -1,6 +1,7 @@
 import { BridgeClient, type HelloResult } from "./bridge-client.js";
 import { BridgeError } from "./errors.js";
 import { readSession as defaultReadSession, type SessionInfo } from "./session.js";
+import { SERVER_VERSION } from "./version.js";
 
 type EventListener = (event: string, data: unknown) => void;
 
@@ -122,6 +123,15 @@ export class GodotConnection {
         "DISCONNECTED",
         `The server was switched from ${project} to ${this.currentProject} while connecting.`,
         "Call the tool again; it now talks to the new project.",
+      );
+    }
+    // Say it once, where the log is, not only in godot_status: a trial once spent an hour on a tool the addon had
+    // and the server did not, because both sides carried the same old version number.
+    if (info.addon_version !== SERVER_VERSION) {
+      console.error(
+        `[godot-mcp-loop] version mismatch: the Godot addon is ${info.addon_version}, this MCP server is ${SERVER_VERSION}. ` +
+          "Tools may be missing or behave differently — update the older side and restart the server " +
+          "(Claude Code: /mcp -> godot-loop -> Reconnect).",
       );
     }
     this.info = info;

@@ -9,7 +9,7 @@
       "name": "godot-mcp-loop",
       "source": "./",
       "description": "Drive a live Godot 4 editor: edit scenes and scripts, run and test the game, record GIFs.",
-      "version": "0.9.0"
+      "version": "0.9.1"
     }
   ],
   "description": "Plugins for driving Godot 4 from Claude Code."

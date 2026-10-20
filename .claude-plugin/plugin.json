@@ -1,6 +1,6 @@
 {
   "name": "godot-mcp-loop",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Drive a live Godot 4 editor: edit scenes and scripts, run and test the game, record GIFs.",
   "author": {
     "name": "OSHO",
@@ -9,12 +9,25 @@
   "homepage": "https://github.com/AI-osho/godot-mcp-loop",
   "repository": "https://github.com/AI-osho/godot-mcp-loop",
   "license": "MIT",
-  "keywords": ["godot", "godot4", "gamedev", "mcp", "scenario-tests"],
-  "skills": ["./.claude/skills/godot-mcp-loop"],
+  "keywords": [
+    "godot",
+    "godot4",
+    "gamedev",
+    "mcp",
+    "scenario-tests"
+  ],
+  "skills": [
+    "./.claude/skills/godot-mcp-loop"
+  ],
   "mcpServers": {
     "godot-loop": {
       "command": "npx",
-      "args": ["-y", "godot-mcp-loop@latest", "--project", "${user_config.project_path}"]
+      "args": [
+        "-y",
+        "godot-mcp-loop@latest",
+        "--project",
+        "${user_config.project_path}"
+      ]
     }
   },
   "userConfig": {

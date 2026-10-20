@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -10,8 +10,48 @@ import { describe, expect, it } from "vitest";
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (rel: string): string => readFileSync(join(repo, rel), "utf8");
 
+
+describe("Claude Code plugin manifests", () => {
+  const pkg = JSON.parse(read("server/package.json")) as { name?: string; version: string };
+  const plugin = JSON.parse(read(".claude-plugin/plugin.json")) as {
+    name: string;
+    version: string;
+    skills?: string[];
+    mcpServers?: Record<string, { command: string; args: string[] }>;
+    userConfig?: Record<string, unknown>;
+  };
+  const marketplace = JSON.parse(read(".claude-plugin/marketplace.json")) as {
+    name: string;
+    plugins: Array<{ name: string; source: string }>;
+  };
+
+  it("ships the same version and name as the package", () => {
+    expect(plugin.name).toBe(pkg.name ?? "godot-mcp-loop");
+    expect(plugin.version).toBe(pkg.version);
+    expect(marketplace.plugins.map((p) => p.name)).toContain(plugin.name);
+    expect(marketplace.plugins.find((p) => p.name === plugin.name)?.source).toBe("./");
+  });
+
+  it("only references userConfig options it declares", () => {
+    const declared = new Set(Object.keys(plugin.userConfig ?? {}));
+    for (const server of Object.values(plugin.mcpServers ?? {})) {
+      for (const arg of server.args) {
+        for (const m of arg.matchAll(/\$\{user_config\.([A-Za-z0-9_]+)\}/g)) {
+          expect(declared.has(m[1]!), m[1]).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("points the skill at a folder that exists", () => {
+    for (const dir of plugin.skills ?? []) {
+      expect(existsSync(join(repo, dir)), dir).toBe(true);
+    }
+  });
+});
+
 describe("distribution manifests", () => {
-  const pkg = JSON.parse(read("server/package.json")) as { version: string; mcpName?: string };
+  const pkg = JSON.parse(read("server/package.json")) as { name?: string; version: string; mcpName?: string };
   const server = JSON.parse(read("server.json")) as {
     name: string;
     description?: string;

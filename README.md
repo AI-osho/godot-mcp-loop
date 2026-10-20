@@ -49,6 +49,16 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
 
 ## Install
 
+**As a Claude Code plugin** (Claude Code 2.1.275+; asks for your Godot project path once):
+
+```bash
+/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop
+```
+
+The plugin registers the `godot-loop` MCP server and the agent skill; it runs the npm package, so keep the addon it
+copies into your project in step (the addon and server must share a version).
+
+**With npm** (Node.js 20+):
 **With npm** (Node.js 20+):
 
 > Listed in the official MCP Registry as

@@ -10,7 +10,7 @@ import { makeMovie, type MovieOutput } from "../media/movie.js";
 import { type EvidenceMovie, resolveEvidenceFolder, saveBatchEvidence, saveScenarioEvidence, type SavedEvidence, withoutImages } from "../scenario/evidence.js";
 import { runScenario, type ScenarioReport } from "../scenario/runner.js";
 import { parseScenario } from "../scenario/schema.js";
-import { safe } from "./helpers.js";
+import { safe, strict } from "./helpers.js";
 
 /** Resolves a res:// or project-relative path, refusing anything outside the project. */
 export function resolveProjectFile(projectPath: string, path: string): string {
@@ -139,7 +139,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         "or an inline scenario. save_to keeps the screenshots and a report as files in the project. movie records every frame " +
         "with Godot's Movie Maker (fixed frame rate, needs a game window) and saves movie.gif plus contact.png — a grid of " +
         "evenly spaced frames, also returned as an image so you can see the motion.",
-      inputSchema: {
+      inputSchema: strict({
         path: z
           .string()
           .optional()
@@ -191,7 +191,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
             "Record the run with Movie Maker (one scenario; needs save_to and a game window — not with --headless in Main Run Args). " +
               "Waits in the scenario are game time, so prefer frame-based steps for exact timing.",
           ),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     safe(async (args: {

@@ -42,6 +42,9 @@ All notable changes to this project are documented here. The format follows
   list contains it, so a script that uses a type written moments earlier compiles right away.
 
 ### Fixed
+- Every tool now rejects an undeclared argument. Only the forwarded tools did (they share one registration helper);
+  `godot_status`, `project_list`, `project_connect`, `editor_launch`, `editor_quit`, `screenshot`, `scenario_run` and
+  `test_run` used plain shapes, so the SDK silently dropped unknown keys.
 - A script that used a `class_name` declared by a just-written script failed with "Could not find type" until the
   editor was restarted. The tools now scan and wait for the class; when that does not help, the parse error hints at
   restarting the editor.

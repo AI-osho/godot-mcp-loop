@@ -9,6 +9,14 @@ _Nothing yet._
 
 ## [0.8.0] - 2026-10-20
 
+### Security
+- Path sandbox: letter-case variants of protected folders are refused. `res://.GIT/config` used to read `.git/config`
+  and `res://Addons/mcp_loop/x.gd` used to write into the addon on macOS and Windows, which resolve names
+  case-insensitively (audit finding 1, [SECURITY-AUDIT.md](SECURITY-AUDIT.md)).
+- Every tool rejects undeclared arguments, not only the forwarded ones (audit finding 2).
+- Release tags `v*` are protected against deletion and force-updates by the `protect-release-tags` ruleset (finding 3).
+- `docs/security.md` documents the canonicalisation rule and the trust boundary for projects you did not write.
+
 ### Fixed
 - `game_input` refuses steps that need physics frames while the game is paused (it used to wait the real time and change
   nothing), pointing at `game_step` instead.

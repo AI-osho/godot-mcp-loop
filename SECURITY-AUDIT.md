@@ -11,7 +11,7 @@
 
 | # | Severity | Finding | Status |
 |---|---|---|---|
-| 1 | **High** | Path sandbox bypass via letter case: `res://.GIT/config` read `.git/config`, and `res://Addons/mcp_loop/probe.gd` **wrote a script into the addon**. macOS and Windows resolve names case-insensitively; the prefix check compared bytes. A script in `addons/` runs in the editor on the next reload — arbitrary code with the user's rights, and `.git/hooks` is the same class. | **Fixed** (#35): segments are canonicalised against the directory listing, prefixes compared case-insensitively; verified live (all three probes now `PATH_FORBIDDEN`) and by `test_rejects_case_variants_of_protected_dirs` |
+| 1 | **High** | Path sandbox bypass via letter case (addon **and** server): `res://.GIT/config` read `.git/config`, and `res://Addons/mcp_loop/probe.gd` **wrote a script into the addon**. macOS and Windows resolve names case-insensitively; the prefix check compared bytes. A script in `addons/` runs in the editor on the next reload — arbitrary code with the user's rights, and `.git/hooks` is the same class. | **Fixed** (#35 addon, #39 server): the addon canonicalises segments against the directory listing and compares prefixes case-insensitively; the server's `resolveProjectFile` / `resolveEvidenceFolder` compare the first segment case-insensitively. A second pass found the server side still open — `scenario_run {save_to: "res://.GODOT/evil"}` wrote evidence into the real `.godot/` and `{path: "res://.GIT/config"}` read the git config; both now return `PATH_FORBIDDEN`, verified live. Tests: `test_rejects_case_variants_of_protected_dirs`, `refuses case variants of protected folders` |
 | 2 | Medium | Eight tools accepted undeclared arguments and silently dropped them: `godot_status`, `project_list`, `project_connect`, `editor_launch`, `editor_quit`, `screenshot`, `scenario_run`, `test_run`. The #26 strict-schema fix only covered `registerForwardTool`, so an argument typo looked like it worked. | **Fixed** (#36): all eight use `strict()`; `tool-strictness.test.ts` calls every tool with `{__undeclared__: 1}` and requires a validation error (verified red on the previous build) |
 | 3 | Low | Release tags were unprotected: a `v*` tag could be deleted or force-moved, so a published release could be repointed. `main` already had a ruleset. | **Fixed**: ruleset `protect-release-tags` (target `tag`, `refs/tags/v*`, blocks deletion and non-fast-forward, no bypass actors) |
 | 4 | Info | Untrusted project code is not sandboxed: opening a project runs its plugins/`@tool` scripts and running it runs its autoloads. Same for `test_run` and scenario `call` steps. | Documented in `docs/security.md` → "Projects you did not write" |
@@ -128,6 +128,19 @@ game's main thread; the tool times out, the game process must be stopped. Inhere
 `docs/security.md` now covers: threat model and trust boundary, bridge numbers (above), path rules including the
 canonicalisation fix, the scene sandbox, undo/validation, `@tool` semantics, the in-game runtime, per-version tool
 notes, projects you did not write, known limitations, and private reporting via `SECURITY.md`.
+
+## Follow-up round (after the first audit pass)
+
+- Server-side path resolution was still vulnerable to the case trick (#39). Found by deliberately re-running the probes
+  against the server's own code paths rather than the addon's, fixed and verified.
+- The version-mismatch confusion that started all of this now logs a warning on connect (#40) as well as in
+  `godot_status`.
+- A2's remaining "partial" items were re-measured: side-step invincibility confirmed (a punch that deals 6 damage
+  normally deals 0 when the side step starts 3-6 frames into its startup); the KO recording covers the KO and the
+  knockdown but stops before the result screen (recording range, not a defect); the +2/-6 frame advantage remains the
+  game's own counter — the defender's guard stun is not exposed as a move, so it was not independently re-derived.
+- The fighting game's 13 scenarios were re-run against 0.8.0 (43.4 s, 13/13) to prove the paused-input change did not
+  break scenario playback.
 
 ## Release gate
 

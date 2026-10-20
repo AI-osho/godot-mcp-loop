@@ -1,6 +1,6 @@
 {
   "name": "godot-mcp-loop",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Drive a live Godot 4 editor: edit scenes and scripts, run and test the game, record GIFs.",
   "author": {
     "name": "OSHO",
@@ -24,7 +24,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "godot-mcp-loop@latest",
+        "godot-mcp-loop@0.9.3",
         "--project",
         "${user_config.project_path}"
       ]

@@ -165,6 +165,24 @@ everything.
 - The fighting game's 13 scenarios were re-run against 0.8.0 (43.4 s, 13/13) to prove the paused-input change did not
   break scenario playback.
 
+## Re-audit: 0.9.0 – 0.9.3 (2026-10-20)
+
+Scope: the surfaces that did not exist at the 0.8.0 audit — `project_export`, the Claude Code plugin, the `sample`
+command and the bundled Marble Run project — plus a check that the 0.8.0 path fixes still hold at HEAD.
+
+| # | Check | Result |
+|---|---|---|
+| R1 | Dependencies (`npm audit`, prod and all) | 0 vulnerabilities |
+| R2 | `project_export` invocation | `spawn(..., { shell: false })` with a fixed argument list; the preset must exist in `export_presets.cfg`; the output must resolve under `res://build/` (absolute paths, `..` and backslashes are refused) |
+| R3 | Release workflow | `contents: read` by default; the publish job adds only `id-token: write` for npm trusted publishing, under `environment: npm`; no stored npm token |
+| R4 | Claude Code plugin | MCP server launched with a fixed argument list; `--project` is a user-supplied path, never a shell string. **Changed:** the server was launched as `godot-mcp-loop@latest`, which re-resolves npm on every editor session — one bad or compromised publish would run everywhere. It now pins this plugin's exact version, and a test fails if `@latest` returns |
+| R5 | `sample` command | Copies from inside the package; refuses a non-empty destination and (new) a destination inside the installed package; no writes outside the folder the user names |
+| R6 | Bundled sample content | No `OS.`, `DirAccess`, `FileAccess` or absolute paths in the Marble Run scripts — it is game code only |
+| R7 | 0.8.0 path fixes at HEAD | `test_path_guard.gd` (236 assertions incl. case variants), `path-fuzz.test.ts` and `tool-scenario.test.ts` still pass; `.git`, `.godot` and `addons/mcp_loop` remain protected in both readers |
+
+Residual risk added by this scope: a user who copies the sample into a project and runs it executes code that came from
+the npm package (expected for a sample), and the plugin's pinned version only moves when the user updates the plugin.
+
 ## Release gate
 
 All High/Medium findings are fixed in 0.8.0 with regression tests. Remaining risks are documented and accepted:

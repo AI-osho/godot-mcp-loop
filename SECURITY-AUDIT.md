@@ -14,6 +14,7 @@
 | 1 | **High** | Path sandbox bypass via letter case (addon **and** server): `res://.GIT/config` read `.git/config`, and `res://Addons/mcp_loop/probe.gd` **wrote a script into the addon**. macOS and Windows resolve names case-insensitively; the prefix check compared bytes. A script in `addons/` runs in the editor on the next reload — arbitrary code with the user's rights, and `.git/hooks` is the same class. | **Fixed** (#35 addon, #39 server): the addon canonicalises segments against the directory listing and compares prefixes case-insensitively; the server's `resolveProjectFile` / `resolveEvidenceFolder` compare the first segment case-insensitively. A second pass found the server side still open — `scenario_run {save_to: "res://.GODOT/evil"}` wrote evidence into the real `.godot/` and `{path: "res://.GIT/config"}` read the git config; both now return `PATH_FORBIDDEN`, verified live. Tests: `test_rejects_case_variants_of_protected_dirs`, `refuses case variants of protected folders` |
 | 2 | Medium | Eight tools accepted undeclared arguments and silently dropped them: `godot_status`, `project_list`, `project_connect`, `editor_launch`, `editor_quit`, `screenshot`, `scenario_run`, `test_run`. The #26 strict-schema fix only covered `registerForwardTool`, so an argument typo looked like it worked. | **Fixed** (#36): all eight use `strict()`; `tool-strictness.test.ts` calls every tool with `{__undeclared__: 1}` and requires a validation error (verified red on the previous build) |
 | 3 | Low | Release tags were unprotected: a `v*` tag could be deleted or force-moved, so a published release could be repointed. `main` already had a ruleset. | **Fixed**: ruleset `protect-release-tags` (target `tag`, `refs/tags/v*`, blocks deletion and non-fast-forward, no bypass actors) |
+| 5 | Medium | Scenario evidence could be written **into our own addon**: `scenario_run {save_to: "res://addons/mcp_loop/evil"}` created `01-title.png`, `report.json` … inside `addons/mcp_loop/`. The server's write rule only protected `.godot/` and `.git/`. Found by the new mutation test (#42). | **Fixed** (#42): the evidence resolver refuses `addons/mcp_loop`; other addons stay writable, matching the addon's own rule. Verified live (`PATH_FORBIDDEN`, other addons still work) |
 | 4 | Info | Untrusted project code is not sandboxed: opening a project runs its plugins/`@tool` scripts and running it runs its autoloads. Same for `test_run` and scenario `call` steps. | Documented in `docs/security.md` → "Projects you did not write" |
 
 No finding in S1, S3, S5, S6, S8, S9 required a code change.
@@ -129,6 +130,23 @@ game's main thread; the tool times out, the game process must be stopped. Inhere
 canonicalisation fix, the scene sandbox, undo/validation, `@tool` semantics, the in-game runtime, per-version tool
 notes, projects you did not write, known limitations, and private reporting via `SECURITY.md`.
 
+## Path mutation tests (property-based)
+
+Two property tests generate spellings that still resolve to a protected file and require every one of them to be
+refused: case flips, doubled slashes and `./` segments — exactly the transformations a case-insensitive file system
+collapses to the same file. Seeded (20261020) so a failure is reproducible.
+
+| Test | Targets | Proof |
+|---|---|---|
+| `tests/godot/unit/test_path_guard_fuzz.gd` (240 mutations per path) | `.git/config`, `.godot/global_script_class_cache.cfg` (read), `addons/mcp_loop/*.gd`, `.git/hooks/*` (write) | fails against the pre-#35 byte comparison (`read bypass: res://.giT/coNfig`), passes now |
+| `server/test/path-fuzz.test.ts` (120 per path) | the same on the server's `resolveProjectFile` / `resolveEvidenceFolder` | fails against the pre-#39/#42 comparison, passes now |
+
+On a case-sensitive file system a mutated spelling simply does not exist, so the test asserts only on mutations that
+resolve; it also asserts that harmless mutations of allowed paths stay allowed, so the check cannot pass by refusing
+everything.
+
+**Result: one more hole found and fixed (finding 5).** No other bypass surfaced across ~1,400 generated spellings.
+
 ## Follow-up round (after the first audit pass)
 
 - Server-side path resolution was still vulnerable to the case trick (#39). Found by deliberately re-running the probes
@@ -139,6 +157,11 @@ notes, projects you did not write, known limitations, and private reporting via 
   normally deals 0 when the side step starts 3-6 frames into its startup); the KO recording covers the KO and the
   knockdown but stops before the result screen (recording range, not a defect); the +2/-6 frame advantage remains the
   game's own counter — the defender's guard stun is not exposed as a move, so it was not independently re-derived.
+- Same-user / unauthorized client: a raw WebSocket with a wrong token receives `UNAUTHORIZED` and cannot take over the
+  session (probed against the live bridge).
+- A blocking method (`while true: pass`) called through `game_call` makes the **game** hang and the tool return
+  `TIMEOUT … within 7000 ms`; the **editor keeps answering** (`godot_status` in 3 s) and `game_stop` recovers in 3 s.
+  This is the measured behaviour behind the accepted risk in S9.
 - The fighting game's 13 scenarios were re-run against 0.8.0 (43.4 s, 13/13) to prove the paused-input change did not
   break scenario playback.
 

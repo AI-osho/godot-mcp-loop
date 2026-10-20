@@ -14,6 +14,8 @@ import type { ScenarioReport, Shot } from "./runner.js";
 
 const GENERATOR = "godot-mcp-loop";
 const PROTECTED = [".godot", ".git"];
+/** Our own addon: a script written there runs in the editor, so evidence never goes in either. */
+const OWN_ADDON = ["addons", "mcp_loop"];
 const MANIFESTS = ["report.json", "summary.json"];
 
 export interface SavedEvidence {
@@ -46,7 +48,14 @@ const forbidden = (msg: string) => new BridgeError("PATH_FORBIDDEN", msg);
 const isOutside = (r: string) => r.startsWith("..") || isAbsolute(r);
 // Case-insensitive on purpose: macOS and Windows resolve ".GODOT" to ".godot", and realpath() keeps the caller's
 // spelling, so comparing bytes here let `save_to: "res://.GODOT/evil"` write into the real .godot/ folder.
-const isProtected = (r: string) => PROTECTED.includes((r.split(sep)[0] ?? "").toLowerCase());
+/** The protected folder a relative path starts with, for the error message, or null. */
+const protectedFolder = (r: string): string | null => {
+  const parts = r.split(sep).map((p) => p.toLowerCase());
+  if (PROTECTED.includes(parts[0] ?? "")) return parts[0]!;
+  if (parts[0] === OWN_ADDON[0] && parts[1] === OWN_ADDON[1]) return `${OWN_ADDON[0]}/${OWN_ADDON[1]}`;
+  return null;
+};
+const isProtected = (r: string): boolean => protectedFolder(r) !== null;
 
 /** The report without image data (images are separate files or content items). */
 export function withoutImages(r: ScenarioReport): unknown {
@@ -72,7 +81,7 @@ export function resolveEvidenceFolder(projectPath: string, path: string, create 
   const r = relative(root, full);
   if (r === "") throw forbidden("Choose a folder inside the project, e.g. res://qa/evidence/<name>, not the project root.");
   if (isOutside(r)) throw forbidden(`${path} is outside the project.`);
-  if (isProtected(r)) throw forbidden(`Writing under ${r.split(sep)[0]}/ is not allowed.`);
+  if (isProtected(r)) throw forbidden(`Writing under ${protectedFolder(r)}/ is not allowed.`);
 
   // The deepest part of the path that exists must resolve inside the project (symbolic links).
   let probe = full;

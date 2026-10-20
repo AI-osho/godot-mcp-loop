@@ -44,7 +44,9 @@ export interface EvidenceBatchEntry {
 
 const forbidden = (msg: string) => new BridgeError("PATH_FORBIDDEN", msg);
 const isOutside = (r: string) => r.startsWith("..") || isAbsolute(r);
-const isProtected = (r: string) => PROTECTED.includes(r.split(sep)[0] ?? "");
+// Case-insensitive on purpose: macOS and Windows resolve ".GODOT" to ".godot", and realpath() keeps the caller's
+// spelling, so comparing bytes here let `save_to: "res://.GODOT/evil"` write into the real .godot/ folder.
+const isProtected = (r: string) => PROTECTED.includes((r.split(sep)[0] ?? "").toLowerCase());
 
 /** The report without image data (images are separate files or content items). */
 export function withoutImages(r: ScenarioReport): unknown {

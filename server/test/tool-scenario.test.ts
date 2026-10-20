@@ -216,6 +216,20 @@ describe("scenario_run tool", () => {
       expect(seen[3]!.message).toMatch(/3_bad\.yml.*failed/);
     });
 
+    it("refuses case variants of protected folders", async () => {
+      // macOS and Windows resolve these to the real .godot/ and .git/; realpath() keeps the caller's spelling.
+      for (const args of [{ path: "res://.GODOT/s.yaml" }, { path: "res://.Git/s.yaml" }]) {
+        const res = await client.callTool({ name: "scenario_run", arguments: args });
+        expect(textOf(res)).toContain("PATH_FORBIDDEN");
+      }
+      const saveTo = await client.callTool({
+        name: "scenario_run",
+        arguments: { path: "res://tests/s/1_a.yaml", save_to: "res://.GODOT/evil" },
+      });
+      expect(saveTo.isError).toBe(true);
+      expect(textOf(saveTo)).toContain("PATH_FORBIDDEN");
+    });
+
     it("refuses protected folders, empty folders, and mixed arguments", async () => {
       mkdirSync(join(project, ".godot"), { recursive: true });
       writeFileSync(join(project, ".godot", "s.yaml"), "name: x\nsteps:\n  - wait_ms: 1\n");

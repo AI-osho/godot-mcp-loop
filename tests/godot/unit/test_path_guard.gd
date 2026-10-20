@@ -98,3 +98,15 @@ func test_rejects_a_symlinked_file() -> void:
 func test_regular_nested_paths_still_allowed() -> void:
 	assert_eq(PathGuard.check_read("res://tests/godot/test_case.gd"), "")
 	assert_eq(PathGuard.check_write("res://tests/godot/new_dir/new.gd", ["gd"]), "")
+
+
+## macOS and Windows file systems ignore case (and Unicode normalization), so these paths reach the
+## real .git/, .godot/ and addons/ folders even though the prefixes do not match byte for byte.
+func test_rejects_case_variants_of_protected_dirs() -> void:
+	for path in ["res://.GIT/config", "res://.Godot/global_script_class_cache.cfg"]:
+		assert_true(PathGuard.check_read(path) != "", path)
+	assert_true(PathGuard.check_write("res://Addons/mcp_loop/probe.gd", ["gd"]) != "")
+	assert_true(PathGuard.check_write("res://.Git/hooks/pre-commit", ["txt"]) != "")
+	# The canonical form is what the checks see.
+	assert_eq(PathGuard.canonical("res://Addons/MCP_Loop/plugin.gd"), "res://addons/mcp_loop/plugin.gd")
+	assert_eq(PathGuard.canonical("res://new_thing/x.gd"), "res://new_thing/x.gd")

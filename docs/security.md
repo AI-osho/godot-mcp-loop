@@ -29,6 +29,9 @@ If you do not trust the agent, require human approval in your MCP client for `sc
 Every path from the agent goes through `addons/mcp_loop/util/path_guard.gd` (and `resolveProjectFile` in the server):
 
 - only `res://` paths; no `..`, no backslashes, no control characters;
+- every existing segment is canonicalised against the directory listing first, and the protected prefixes are
+  compared case-insensitively — macOS and Windows resolve `res://.GIT/config` to `.git/config` and
+  `res://Addons/mcp_loop/x.gd` to the addon, which used to slip past a byte-for-byte prefix check;
 - no reading or writing under `res://.godot/` or `res://.git/`; no writing into `res://addons/mcp_loop/`;
 - writes are limited by extension (`.gd` for `script_write`, `.tscn` for `scene_create`);
 - **symbolic links are refused** anywhere along the path, because Godot would follow them outside the project, and the
@@ -115,6 +118,15 @@ are capped at 120 s.
   `frameNNNNNNNN.png` / `frame.wav` there before a recording. The Movie Maker project settings are changed in memory
   for one launch and restored right after it. The GIF, contact sheet and copied frames are written by the server into
   the `save_to` folder under the evidence rules above.
+
+## Projects you did not write
+
+The sandbox above protects against an agent taking a wrong path and against other local users and web pages. It does
+not sandbox **project code**: opening a project in the editor runs its editor plugins, `@tool` scripts and, when you
+run the game, its autoloads and every scene it loads — with your user's permissions. `test_run` runs the project's own
+test framework, and `scenario_run` executes `call` steps in the game. Point the server at projects you trust, or read
+`project.godot` and `addons/` first. The same applies to `--projects-root`: it limits which folders the agent can
+switch to, not what the code inside them does.
 
 ## Known limitations
 

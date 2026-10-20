@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `server.json` and `mcpName` prepare the package for the official MCP Registry (name `io.github.AI-osho/godot-mcp-loop`);
+  a test keeps the manifest's version and name in step with `server/package.json`.
+- README (en/ja): a five-minute tour (install → connect → one change and one check → record with `movie`) and the
+  Marble Run recording at the top of the samples.
 - `project_export`: build the project with one of its `export_presets.cfg` presets (`--export-release`, headless, fixed
   argument list, no shell). The output is confined to `res://build/` — `res://build/<preset>/` by default, `index.html`
   for Web — so an export can never overwrite the project. Reports the files written with their sizes and the log tail;

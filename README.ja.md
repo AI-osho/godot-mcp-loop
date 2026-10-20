@@ -112,6 +112,20 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 「`res://examples/platformer/scenarios/move_right.yaml` を `scenario_run` で実行して」と頼んでください。
 `intentional_failure.yaml` を実行すると失敗レポートの見え方を確認できます。
 
+### 5 分で試す
+
+1. **アドオンを入れる**（`addons/mcp_loop` をコピーし、プラグインを有効化し、エージェント用のスキルも配置します）:
+   ```bash
+   cd my-game && npx -y godot-mcp-loop@latest install-addon . --skill
+   ```
+2. **Godot（4.5 以上）でプロジェクトを開く**: `godot -e --path .` — エディタと一緒にブリッジが 127.0.0.1 で待ち受けます。
+3. **MCP クライアントを接続**: `npx -y godot-mcp-loop@latest --project /絶対パス/my-game` を登録し、`godot_status` を
+   呼びます。Godot の版、プロジェクト、開いているシーンが返れば成功です。
+4. **1 つ変更して、1 つ確かめる**: 「コインを 1 枚追加して、`scenario_run {"path": "res://scenarios/coins.yaml"}` を
+   実行して」と頼みます。失敗したステップは、実際の値とスクリーンショット付きで返ります。
+5. **録画する**: 同じシナリオを `"movie": {}` と `"save_to": "res://qa/evidence/tour"` 付きで実行し、
+   `qa/evidence/tour/movie.gif` を開きます。実行の全体と、要所のコマを並べた画像が残ります。
+
 ## 上級サンプル
 
 [`examples/`](examples/) に完成したゲームが 4 本あります。どれも AI エージェントが godot-mcp-loop を使い、1 つの依頼文から

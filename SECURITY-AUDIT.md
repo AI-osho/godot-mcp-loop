@@ -11,8 +11,9 @@ The local source-review, native, rendering, sample-replay and real-package gates
 
 Its inventory contains 473 files with stored-byte SHA-256 and file-mode bindings. The writer, frozen source and
 qualification copy were compared directly; the pre-existing index was preserved throughout qualification.
-The final change after that freeze is this report only. That report-only delta is inventoried separately before
-commit, so the qualified runtime is not silently changed or given a new retrospective review claim.
+The final deltas after that freeze are this report and the CI caller's `TMPDIR` environment binding only. They are
+inventoried separately before commit; runtime, tests/assertions and package source remain byte-identical to the
+qualified candidate, rather than being silently changed or given a new retrospective review claim.
 
 **Remote release gates remain separate:** the exact final PR head must pass the required CI and CodeQL checks;
 the merged tree must match the approved tree; released assets must be downloaded and checked; npm requires the
@@ -84,6 +85,12 @@ twice. Original game/scenario bytes were rechecked. Empty physical bindings qual
 keyboard mappings or a new human trial. Actual source-artwork/shooting images and a twelve-image fighting-game
 contact sheet were visually inspected; image display alone does not prove timing, provenance or user acceptance.
 Owned private fixture Godot and package-server processes were checked absent after cleanup.
+
+The first Linux PR run passed Node20/24, samples/movie and CodeQL, but its unit job reported286 passed/2 failed.
+Both failures were the unchanged hardlink tests' explicit `TMPDIR` precondition, before filesystem mutation:
+`test requires its caller's isolated TMPDIR`. The CI caller had supplied only `GODOT_BIN`; it now also supplies the
+job-private `runner.temp` as `TMPDIR`. This is a caller-environment correction, not a production/test-predicate repair.
+The original failure is retained, and the corrected exact head must complete all remote gates before release.
 
 Locally qualified archives (remote archives are checked independently after release):
 

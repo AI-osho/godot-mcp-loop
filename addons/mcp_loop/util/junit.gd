@@ -21,10 +21,19 @@ static func parse(xml: String) -> Dictionary:
 	var current: Dictionary = {}
 	var detail := ""  # the failure/error/skipped element we are inside
 	var seen_suite := false
-	while p.read() == OK:
+	var seen_root := false
+	var unclosed: Array[String] = []
+	var read_error := p.read()
+	while read_error == OK:
 		match p.get_node_type():
 			XMLParser.NODE_ELEMENT:
 				var n := p.get_node_name()
+				if unclosed.is_empty():
+					if seen_root or n not in ["testsuites", "testsuite"]:
+						return _fail("The report must have one JUnit XML root element.")
+					seen_root = true
+				if not p.is_empty():
+					unclosed.append(n)
 				if n == "testsuites" or n == "testsuite":
 					seen_suite = true
 				if n == "testsuite":
@@ -48,16 +57,24 @@ static func parse(xml: String) -> Dictionary:
 					if not p.is_empty():
 						detail = n
 			XMLParser.NODE_TEXT, XMLParser.NODE_CDATA:
+				# Godot exposes CDATA through the node name; get_node_data() only supports text.
+				var data := p.get_node_data() if p.get_node_type() == XMLParser.NODE_TEXT else p.get_node_name()
+				if unclosed.is_empty() and (p.get_node_type() == XMLParser.NODE_CDATA or data.strip_edges() != ""):
+					return _fail("The report contains text outside its XML root element.")
 				if detail != "" and not current.is_empty():
-					# Godot's XMLParser returns CDATA content through get_node_name(); get_node_data() is for text only.
-					var data := p.get_node_data() if p.get_node_type() == XMLParser.NODE_TEXT else p.get_node_name()
 					current.message = _join(String(current.message), data)
 			XMLParser.NODE_ELEMENT_END:
 				var n := p.get_node_name()
+				if unclosed.is_empty() or unclosed.pop_back() != n:
+					return _fail("The report has mismatched XML closing elements.")
 				if n == detail:
 					detail = ""
 				elif n == "testcase":
 					current = {}
+		read_error = p.read()
+	# XMLParser can stop after a valid prefix; never publish its partial success totals.
+	if read_error != ERR_FILE_EOF or not unclosed.is_empty():
+		return _fail("The report is incomplete or malformed XML.")
 	if not seen_suite:
 		return _fail("The report has no <testsuite>.")
 	return {"ok": true, "tests": tests, "totals": totals(tests)}

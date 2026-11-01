@@ -46,6 +46,9 @@ func _setting_set(p: Dictionary) -> Dictionary:
 	var converted := _convert_setting(SETTINGS[key], p.get("value"))
 	if not converted.ok:
 		return Protocol.err(Protocol.INVALID_PARAMS, converted.error)
+	var write_reason := PathGuard.check_write("res://project.godot", ["godot"])
+	if write_reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, write_reason)
 	var value: Variant = converted.value
 	var existed := ProjectSettings.has_setting(key)
 	var old: Variant = ProjectSettings.get_setting(key) if existed else null
@@ -58,10 +61,10 @@ func _setting_set(p: Dictionary) -> Dictionary:
 		return Protocol.ok(result)
 	if old == value:
 		return Protocol.ok(result)
-	var ops: RefCounted = ctx.file_ops
-	ctx.commit("project setting %s" % key, null, func(ur: EditorUndoRedoManager) -> void:
-		ur.add_do_method(ops, "set_project_setting", key, value)
-		ur.add_undo_method(ops, "set_project_setting", key, old))
+	var saved: Dictionary = ctx.commit_file("project setting %s" % key,
+		"set_project_setting", [key, value], "set_project_setting", [key, old])
+	if not saved.ok:
+		return saved
 	return Protocol.ok(result)
 
 
@@ -121,6 +124,9 @@ func _action_set(p: Dictionary) -> Dictionary:
 	var name := String(p.get("name", ""))
 	if _action_name_re.search(name) == null:
 		return Protocol.err(Protocol.INVALID_PARAMS, "Action names use letters, digits, '_' and '.' (got '%s')." % name)
+	var write_reason := PathGuard.check_write("res://project.godot", ["godot"])
+	if write_reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, write_reason)
 	var key := "input/" + name
 	var existed := ProjectSettings.has_setting(key)
 	var old: Variant = ProjectSettings.get_setting(key) if existed else null
@@ -172,10 +178,10 @@ func _action_set(p: Dictionary) -> Dictionary:
 	if p.get("dry_run", false):
 		result["dry_run"] = true
 		return Protocol.ok(result)
-	var ops: RefCounted = ctx.file_ops
-	ctx.commit("input action %s" % name, null, func(ur: EditorUndoRedoManager) -> void:
-		ur.add_do_method(ops, "set_project_setting", key, value)
-		ur.add_undo_method(ops, "set_project_setting", key, old))
+	var saved: Dictionary = ctx.commit_file("input action %s" % name,
+		"set_project_setting", [key, value], "set_project_setting", [key, old])
+	if not saved.ok:
+		return saved
 	return Protocol.ok(result)
 
 
@@ -250,6 +256,8 @@ func _undo(p: Dictionary) -> Dictionary:
 	var steps := int(p.get("steps", 1))
 	var r: Dictionary = ctx.undo(steps)
 	if r.undone.is_empty():
+		if r.has("error"):
+			return {"ok": false, "error": r.error}
 		if r.stopped_reason != "":
 			return Protocol.err(Protocol.NOTHING_TO_UNDO, r.stopped_reason)
 		return Protocol.err(Protocol.NOTHING_TO_UNDO, "There are no MCP edits left to undo.")

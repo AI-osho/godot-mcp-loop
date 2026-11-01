@@ -1,0 +1,14 @@
+{
+  "copyright": "OSHO",
+  "origin_candidate": "M34-R2:34e857ecd27e5ec5b389d7e170d47da9917511d92dabb349efb5fe66c8d06d8d",
+  "files": {
+    "images.py": {
+      "source": "repair-district-adventure/tools/asset_pipeline/images.py",
+      "sha256": "dc7c0f65cac5b46d07d77204d8981d7a1934dacd7413bcbd079e8cc875353445"
+    },
+    "atlas.py": {
+      "source": "repair-district-adventure/tools/asset_pipeline/atlas.py",
+      "sha256": "868b1fee5e272cc85013aa514a6dda6075a644dfd0098872ad31052672fc5467"
+    }
+  }
+}

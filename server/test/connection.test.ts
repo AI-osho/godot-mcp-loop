@@ -51,6 +51,35 @@ describe("GodotConnection", () => {
     expect(reads).toBe(2);
   });
 
+  it("refuses an owned send when session identity changes during reconnect, then recovers without replay", async () => {
+    const other = new FakeAddon("owned-new-token");
+    const otherPort = await other.start();
+    let current: SessionInfo = { port, token: addon.token, protocol: 1, pid: process.pid };
+    conn.close();
+    conn = new GodotConnection({ projectPath: "/unused", readSession: () => current });
+    let releaseHello!: () => void; let helloStarted!: () => void;
+    const started = new Promise<void>((resolve) => { helloStarted = resolve; });
+    const release = new Promise<void>((resolve) => { releaseHello = resolve; });
+    other.beforeHelloReply = async () => { helloStarted(); await release; };
+    other.handlers.set("editor.quit", () => ({ ok: true, result: { saved: false } }));
+    try {
+      await conn.call("ping");
+      current = { port: otherPort, token: other.token, protocol: 1, pid: process.pid };
+      const pending = conn.call("editor.quit", { save: false }, { expectedEditorPid: process.pid });
+      await started;
+      current.token = "changed-again-token"; // mutate the exact object returned during handshake
+      releaseHello();
+      await expect(pending).rejects.toMatchObject({ code: "DISCONNECTED" });
+      expect(addon.received.filter((r) => r.method === "editor.quit")).toHaveLength(0);
+      expect(other.received.filter((r) => r.method === "editor.quit")).toHaveLength(0);
+      current = { port: otherPort, token: other.token, protocol: 1, pid: process.pid };
+      await expect(conn.call("ping", {}, { expectedEditorPid: process.pid })).resolves.toEqual({ pong: true });
+      expect(other.received.filter((r) => r.method === "ping")).toHaveLength(1);
+    } finally {
+      releaseHello(); conn.close(); await other.stop();
+    }
+  });
+
   it("propagates session read errors", async () => {
     conn = new GodotConnection({
       projectPath: "/x",

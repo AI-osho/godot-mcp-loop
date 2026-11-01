@@ -1,4 +1,5 @@
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { FILE_READ_LIMITS, readTextFileBounded } from "./bounded-io.js";
+import { existsSync, lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { BridgeError } from "./errors.js";
@@ -109,7 +110,7 @@ export function resolveProjectTarget(roots: string[], path: string): string {
     if (root === undefined) {
       throw new BridgeError("PATH_FORBIDDEN", `${path} resolves outside the projects roots (symbolic link).`, "Use a project below one of the roots (project_list shows them).");
     }
-    if (relative(root, real).split(sep).some((part) => PROTECTED.has(part))) {
+    if (relative(root, real).split(sep).some((part) => PROTECTED.has(part.toLowerCase()))) {
       throw new BridgeError("PATH_FORBIDDEN", `${path} is inside a .godot/ or .git/ folder.`);
     }
     if (!statSync(real).isDirectory() || !existsSync(join(real, "project.godot"))) {
@@ -127,7 +128,7 @@ export function resolveProjectTarget(roots: string[], path: string): string {
 /** config/name from project.godot, if readable. */
 export function readProjectName(dir: string): string | undefined {
   try {
-    const m = /^config\/name="((?:[^"\\]|\\.)*)"/m.exec(readFileSync(join(dir, "project.godot"), "utf8"));
+    const m = /^config\/name="((?:[^"\\]|\\.)*)"/m.exec(readTextFileBounded(join(dir, "project.godot"), FILE_READ_LIMITS.text));
     return m?.[1]?.replace(/\\(.)/g, "$1");
   } catch {
     return undefined;

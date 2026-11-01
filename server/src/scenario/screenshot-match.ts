@@ -1,5 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
+import { FILE_READ_LIMITS, readFileBounded } from "../bounded-io.js";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { projectFilePath } from "../project-path.js";
 import { BridgeError } from "../errors.js";
 import { decodePng, encodePng, type RgbaImage } from "../media/png.js";
 
@@ -49,6 +51,9 @@ export function resolveInProject(projectPath: string, resPath: string): string {
   if (!resPath.startsWith("res://")) {
     throw new BridgeError("INVALID_PARAMS", `'${resPath}' must start with res://.`);
   }
+  if (!/\.png$/i.test(resPath)) {
+    throw new BridgeError("INVALID_PARAMS", "Screenshot baselines must use a .png file.");
+  }
   const rel = resPath.slice("res://".length);
   const segments = rel.split("/");
   if (segments.some((s) => s === ".." || s === ".")) {
@@ -60,12 +65,9 @@ export function resolveInProject(projectPath: string, resPath: string): string {
   if (PROTECTED.includes(segments[0]!)) {
     throw new BridgeError("PATH_FORBIDDEN", `'${resPath}' is inside ${segments[0]}/, which tools do not write.`);
   }
-  const full = resolve(projectPath, rel);
-  const root = resolve(projectPath);
-  if (full !== root && !full.startsWith(root + sep)) {
-    throw new BridgeError("PATH_FORBIDDEN", `'${resPath}' resolves outside the project.`);
-  }
-  return full;
+  return projectFilePath(projectPath, resPath, {
+    write: true, requireRes: true, allowRoot: false, protectedTop: PROTECTED,
+  }).abs;
 }
 
 /** Bilinear scale to an exact size (the baseline decides the size). */
@@ -121,6 +123,8 @@ function inside(x: number, y: number, area: { x: number; y: number; w: number; h
 export function matchScreenshot(projectPath: string, shotPng: Buffer, opts: MatchOptions): MatchResult {
   const file = resolveInProject(projectPath, opts.baseline);
   const existed = existsSync(file);
+  // update is permission to replace a PNG baseline, not arbitrary existing data.
+  if (existed && opts.update === true) decodePng(readFileBounded(file, FILE_READ_LIMITS.png));
   if (!existed || opts.update === true) {
     const img = decodePng(shotPng); // refuse to store a broken capture as a baseline
     mkdirSync(dirname(file), { recursive: true });
@@ -136,7 +140,7 @@ export function matchScreenshot(projectPath: string, shotPng: Buffer, opts: Matc
     };
   }
 
-  const baseline = decodePng(readFileSync(file));
+  const baseline = decodePng(readFileBounded(file, FILE_READ_LIMITS.png));
   let shot = decodePng(shotPng);
   const rescaled_from = shot.width !== baseline.width || shot.height !== baseline.height
     ? { width: shot.width, height: shot.height }

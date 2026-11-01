@@ -45,6 +45,8 @@ func _run_all() -> void:
 
 	var capture := ErrorCapture.new()
 	OS.add_logger(capture)
+	# SceneTree._initialize runs before root enters the tree; filtered suites must not depend on an earlier test yielding.
+	await process_frame
 
 	var passed := 0
 	var failed := 0

@@ -160,6 +160,34 @@ func test_connection_flood_is_capped() -> void:
 	assert_true(s.waiting_count() <= WsServer.MAX_WAITING, "waiting=%d" % s.waiting_count())
 
 
+func test_rejected_unpolled_peers_are_capped_and_forcibly_reaped() -> void:
+	var s := _make_server()
+	var port: int = s.start(PORT_FROM, PORT_TO)
+	var active := await _connect(s, port)
+	await _hello(s, active)
+	var clients: Array = []
+	for i in WsServer.MAX_WAITING + 3:
+		var c := WebSocketPeer.new()
+		c.connect_to_url("ws://127.0.0.1:%d" % port)
+		await _pump(s, c, func() -> bool: return c.get_ready_state() in [WebSocketPeer.STATE_OPEN, WebSocketPeer.STATE_CLOSED])
+		if c.get_ready_state() == WebSocketPeer.STATE_OPEN:
+			c.send_text(JSON.stringify({"id": i, "method": "hello", "params": {"token": "wrong-fixture-token", "protocol": Protocol.VERSION}}))
+			c.poll() # Flush the request, then deliberately never acknowledge the server's close frame.
+		clients.append(c)
+		s.poll()
+		await tree.process_frame
+		s.poll()
+		var held: int = s._pending.size() + s._candidates.size() + s._to_close.size() + s._closing.size()
+		assert_true(held <= WsServer.MAX_WAITING, "all unauthenticated/closing states must share the admission cap: %d" % held)
+	var deadline := Time.get_ticks_msec() + 1600
+	while Time.get_ticks_msec() < deadline:
+		s.poll()
+		await tree.process_frame
+	assert_eq(s._closing.size() + s._to_close.size(), 0, "a peer withholding the close handshake must not retain its buffers indefinitely")
+	var closed := await _pump_all(s, clients, func() -> bool: return clients.all(func(c: WebSocketPeer) -> bool: return c.get_ready_state() == WebSocketPeer.STATE_CLOSED))
+	assert_true(closed, "the underlying transports must close, not only disappear from bookkeeping")
+	assert_eq((await _request(s, active, {"id": 99, "method": "ping", "params": {}})).get("result"), {"pong": true})
+
 func test_large_message_round_trip() -> void:
 	var s := _make_server()
 	var router: Object = s.get_router()

@@ -4,6 +4,7 @@ extends RefCounted
 ## res://.godot/mcp_loop/movie/frameNNNNNNNN.png (plus frame.wav). The folder is fixed so the agent cannot make the
 ## game write files anywhere else; the file tools cannot reach .godot/.
 
+const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 const DIR := "res://.godot/mcp_loop/movie"
 const KEY_FILE := "editor/movie_writer/movie_file"
 const KEY_FPS := "editor/movie_writer/fps"
@@ -15,7 +16,10 @@ static func supported() -> bool:
 
 ## Deletes the frames and sound of an earlier recording in dir (nothing else); returns dir's absolute path.
 static func prepare(dir: String = DIR) -> String:
-	DirAccess.make_dir_recursive_absolute(dir)
+	if PathGuard.check_internal_path(dir) != "":
+		return ""
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		return ""
 	var frame := RegEx.create_from_string("^frame\\d{8}\\.png$")
 	var d := DirAccess.open(dir)
 	if d != null:

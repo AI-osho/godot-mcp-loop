@@ -1,4 +1,138 @@
-# Security audit — v0.8.0
+# Security audit — 0.10.0 release candidate
+
+Date: 2026-11-02. This is a bounded assessment, not a guarantee that the repository or an arbitrary project is safe.
+The historical records below are retained as history and do not override this section or `docs/security.md`.
+
+## Current decision and source binding
+
+The local source-review, native, rendering, sample-replay and real-package gates passed for the qualified candidate:
+
+`GML-RELEASE-C3:ca841225dddb0782bdc8c3cbfad0475b122b4b0a03c973542ddec324ef42b43a`
+
+Its inventory contains 473 files with stored-byte SHA-256 and file-mode bindings. The writer, frozen source and
+qualification copy were compared directly; the pre-existing index was preserved throughout qualification.
+The final change after that freeze is this report only. That report-only delta is inventoried separately before
+commit, so the qualified runtime is not silently changed or given a new retrospective review claim.
+
+**Remote release gates remain separate:** the exact final PR head must pass the required CI and CodeQL checks;
+the merged tree must match the approved tree; released assets must be downloaded and checked; npm requires the
+maintainer's staged-package approval and a registry-integrity check. This report does not claim these future
+publication steps have happened. Tags/history must not be rewritten to repair a published artifact.
+
+## Coverage and independent review
+
+- Reviewed the complete current implementation/configuration surface, including the pre-existing uncommitted
+  security repairs, the TypeScript MCP server, all 31 addon GDScripts, fixed Python/Pillow worker, schemas,
+  provenance, scene-import boundaries, tests, documentation and distribution/workflow metadata.
+- The Node baseline review and its 25-file C1 delta are composed with direct byte comparisons of unchanged files;
+  this is not represented as a new full Node review. Its five original blocking findings are resolved in the
+  reviewed source. Later artwork-related Node changes are in the fresh review below.
+- A fresh read-only review covered the explicitly supplied 83 Godot/artwork/caller/test paths. The runtime session
+  records `qwen/qwen3.8-27b` (Nous was requested); this is not a physical-backend or billing attestation.
+  The reviewer reported all twelve original Godot/artwork findings resolved and no new blocking findings.
+- The first final response incorrectly counted 94 paths and marked a broad verdict false because three
+  outside-packet Node files and execution/platform certification were not covered. That negative response is
+  retained. Required-path set comparison found all 83 present; the three outside-scope files were independently
+  checked against the previously reviewed, byte-identical Node baseline. One same-reviewer clarification returned
+  `passed:true` strictly for `source-only-required-83`, retaining all non-guarantees. It is not publication approval.
+- Independent source opinions, parent-executed tests, deliberately mutated negative controls and human acceptance
+  remain different evidence classes. A process exit code alone was not used as an acceptance verdict.
+
+## Repairs and boundary checks
+
+| Surface | Repair and measured coverage |
+|---|---|
+| Direct text/property editing | Bound every UTF-8 replacement intermediate before allocation; reject invalid indexed builtin members before native indexing; preserve resources/state on refusal. |
+| Simulation and lifecycle | Reject paused timed/frame input before mutation; one owner for input/step/pause; keep queries available. Bind run/stop continuations and child hello to their own lifecycle, refusing successor attribution/termination. |
+| Truthful outcomes and timing | Detected native errors force `passed:false` even with exit zero and passing JUnit; retain the actual exit/totals. Ordinary waits use a monotonic wall deadline; Movie Maker's fixed simulation clock is handled separately. |
+| Owned editor and executable | Couple PID/port/token metadata to the actual authenticated peer, recheck after reconnect, and quit only the owned child. Resolve the tested executable once and handle asynchronous spawn failures. |
+| Scenario and screenshot I/O | Require valid PNG baselines in schema and final writer, preserve non-PNG targets, propagate required log-read failures and the selected project through batch/repeat/evidence operations. |
+| Artwork records/import | Validate derived producer output against the consumer schema before publication; capture scene/parent identity before worker waits and revalidate after final imports. |
+| Artwork byte generations | Decode the captured checksum generation; recheck preview manifest/image identity; atomically publish directories without replacing a late claimant, failing closed when no safe primitive exists. |
+| Filesystem bounds | Reject link/reparse metadata and resolved escapes, stream native directory lookup with a 4096-entry cap, and propagate refusal. Exercise both server/addon guards, internal I/O, aliases, hard-linked leaves, save destinations and delayed undo. |
+
+Focused RED/GREEN evidence is retained for the actual repaired boundaries. Native race tests use controlled
+barriers; mocked-process, synthetic Windows metadata and deliberate mutation controls are labelled as such rather
+than upgraded to real cross-platform or historical-production reproductions.
+
+## Executed local qualification
+
+macOS, Godot 4.7.2, Node 24, private Python 3.13 / Pillow 13.0.0. Existing user Python, MCP registrations, protected
+original games/artwork and other profiles were not modified. Native editors/games ran in isolated copies.
+
+| Gate | Actual terminal result |
+|---|---|
+| Type check and build | Both succeeded |
+| Node unit/integration suite, normal worker configuration | 49 files; 468 passed |
+| Godot unit suite | 288 passed, 0 failed; no native error prefix in the accepted log |
+| Headless real-editor/runtime integration | 153 passed, 12 opt-in skipped; those skips are not passing tests |
+| All shipped sample groups plus independent frame-lifetime oracles | 9 passed in each of two complete passes |
+| Dedicated windowed rendering/movie/screenshot/artwork checks | 4 passed across 3 files |
+| Original motivating fighting game | All 13 scenarios passed twice; 26 reports, 772 step results, no recorded errors |
+| Real installed tarball over MCP stdio | 48 tools listed; six artwork tools exercised; 7 source PNGs produced 22 byte-matching PNGs; missing-Python refusal checked |
+| Actual package/ZIP | Exact 187-file npm payload and 64-file addon payload checked against source; installed bytes and addon installation checked; no detected secrets/developer-home paths |
+
+The two shooting scenarios had previously failed by observing a short-lived effect/invulnerability state after
+transport latency consumed the observation window. The game rules and original predicates/timeouts/image labels
+were not weakened: pause plus physics stepping synchronizes the observation. Independent real-runtime per-physics
+records measure the original 20-tick effect and 120-tick invulnerability. Both oracles rejected an isolated fixture
+whose respective lifetime was shortened to one tick; that mutation is not shipped and is not historical RED.
+
+The first fighting-game fixture lacked its private trial's nine named input actions. That failed run is retained;
+only the isolated fixture's InputMap was corrected using names from the unchanged game, then the whole folder ran
+twice. Original game/scenario bytes were rechecked. Empty physical bindings qualify MCP named-action replay, not
+keyboard mappings or a new human trial. Actual source-artwork/shooting images and a twelve-image fighting-game
+contact sheet were visually inspected; image display alone does not prove timing, provenance or user acceptance.
+Owned private fixture Godot and package-server processes were checked absent after cleanup.
+
+Locally qualified archives (remote archives are checked independently after release):
+
+- npm tarball SHA-256: `92ef970437910458e36b86df78f81471ab803cd03e6272ad448adc631e79e5f1`
+- addon ZIP SHA-256: `117f650973f0915b4cce36ad625fb9a5c420d83b92ae074f1213d1ada3040816`
+
+## Repository, dependency and supply-chain checks
+
+The final-audit work also inspected fetched Git history, proposed source, GitHub-side accessible metadata/logs/assets,
+dependency/license metadata and nested release payloads. The initial fully redacted history/source secret scans
+found no leaks; initial all-dependency and production-only npm audits reported zero advisories. These are dated
+observations, not a promise about future advisories or inaccessible service data. LICENSE and companion addon/skill/
+sample/worker payload inclusion were checked in real archives. No credentials or raw private diagnostics are included
+in this report. Existing personal history was not rewritten.
+
+Workflow policy was inspected: read-only default permissions, SHA-pinned actions, checkout credentials not persisted,
+checksum-verified Godot downloads, no `pull_request_target`, bounded jobs, protected main/release tags and npm's
+OIDC/staged-publishing path. Live required-check conclusions are verified for the exact PR head before merging;
+configuration alone is not a successful run or a published npm version.
+
+## Trust boundary and residual limitations
+
+- Trusted MCP client/operator-selected Godot/Python and project code. Code-writing tools, opening projects,
+  validation/static initialization, callbacks, tests and exports can execute code with the user's rights.
+  These protections are direct-I/O/accident and ordinary-concurrency safeguards, not an OS sandbox.
+- No atomic guarantee against a malicious same-user process replacing arbitrary project/code/evidence generations.
+  A non-returning project method can block its process; limits are per-input, not global memory/disk/CPU quotas.
+- Native Windows junction/alias/no-replace behavior and Linux collision-race qualification were not demonstrated
+  on those platforms by the local macOS tests. Synthetic reparse metadata is not native Windows evidence.
+- Pixel generation matching a freshly hashed PNG is not comprehensive certification of every cached Texture2D
+  after arbitrary external edits. An additional stale-import/cache qualification remains a nonblocking proposal;
+  no such failing generation was reproduced in this assessment.
+- An independent quit-caller-specific mutation test remains a nonblocking regression-strengthening suggestion;
+  it is not a reported defect in the current guarded quit implementation.
+- Image-model identity, requested/reported quality, provider/billing facts, rights and human visual/play acceptance
+  are not inferred from an image or a successful recipe. No image-generation call was made by qualification.
+- Artifacts are not signed with a separate maintainer key. Checksums and npm OIDC provenance do not remove the
+  inherent trust in project code, dependencies, the maintainer or the provider/platform.
+
+See `SECURITY.md` for private vulnerability reporting and `docs/security.md` for the current threat model.
+
+---
+
+# Security audit — historical v0.8.0 record
+
+> **Superseded, not a current release approval.** The full 2026-10-20 re-audit found additional path, internal-I/O,
+> process-lifecycle and input-focus problems after this record was written. Local fixes are undergoing fresh
+> qualification. In particular, the older claims about read-only methods, deletion, complete export containment and
+> an approved release below must not be used as current guarantees. The current threat model is in `docs/security.md`.
 
 - Scope: everything released as `godot-mcp-loop` 0.8.0 — the MCP server (`server/`), the Godot addon
   (`addons/mcp_loop/`), the CI and release workflows.

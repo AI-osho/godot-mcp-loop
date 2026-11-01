@@ -10,7 +10,7 @@
 シーンを編集できる Godot 向け MCP はすでに多数ありますが、**その編集が本当に動いたかを確かめる** 手段はほとんどありません。
 godot-mcp-loop はエージェントにテストプレイヤーの道具一式を渡します。ゲームの起動、実際の入力送信、条件待機、
 実行中の状態取得、スクリーンショット、エラー収集、そして失敗時の値まで返す宣言的なシナリオテストです。
-編集は意図的に慎重な設計で、すべて Undo 可能・事前プレビュー可能・適用前に検証済み・プロジェクト内に限定されます。
+エディタの変更は慎重な設計で、Undo 可能・事前プレビュー可能・適用前に検証済み・プロジェクト内に限定されます。
 
 ## エージェントができること
 
@@ -31,14 +31,14 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 - **閉じたループ**: `game_run`、`game_input`（アクション・キー・マウスを実時間で。値の毎フレーム記録も可）、`game_wait_for`
   （毎フレーム判定、タイムアウト時は最後の値を返す）、`game_query`、`screenshot`、`logs_read`。
 - **シナリオテスト**: YAML/JSON のプレイテスト → ステップごとの成否、失敗時スクショ、ゲーム内エラー。[詳細](docs/scenarios.md)
-- **安全な編集**: すべての変更は Godot の Undo 履歴に記録。`edit_undo` は MCP 経由の変更だけを戻し、人の編集は戻しません。
+- **安全な編集**: エディタの変更は Godot の Undo 履歴に記録。`edit_undo` は MCP 経由の変更だけを戻し、人の編集は戻しません。
   全編集ツールに `dry_run`。GDScript は**書き込む前に**コンパイル検証。プロパティ値も変更前に全件検証。
 - **サンドボックス**: localhost 限定 + セッションごとのトークン認証。`res://` のみ。`.godot/`・`.git/`・アドオン自身への書き込み禁止。
   任意コード実行ツールは持ちません。[セキュリティ](docs/security.md)
 - **エラーで止まらない**: Godot のデバッガはスクリプトエラーでゲームを一時停止しますが、アドオンがエラーを記録して自動継続するため、
   エージェントがハングせずエラーを把握できます。
 - **ゲーム側に追加ポート不要**: ゲームとエディタは Godot 標準のデバッガ接続で通信します。
-- **厳選した 22 ツール**: 数百のツールより、モデルが迷わず使える粒度を重視。
+- **厳選した 48 ツール**: 数百のツールより、モデルが迷わず使える粒度を重視。
 
 ## 動作環境
 
@@ -182,6 +182,7 @@ cd marble-3d && npx -y godot-mcp-loop@latest install-addon . --skill && godot -e
 | シーン | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | ノード | `node_add`, `node_delete`, `node_get`, `node_set` |
 | スクリプト | `script_read`, `script_write`, `script_edit`, `script_attach` |
+| 原画・素材制作（開発版） | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
 | ファイル・素材 | `file_write`（YAML/JSON/テキスト）, `image_write`（ドット絵 PNG）, `input_action_set`, `project_setting_set`（メインシーン・画面サイズ・ストレッチ） |
 | 取り消し | `edit_undo` |
 | 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
@@ -189,6 +190,13 @@ cd marble-3d && npx -y godot-mcp-loop@latest install-addon . --skill && godot -e
 | 判定 | `scenario_run`（証拠フォルダ、`movie` で GIF とコンタクトシート）、`test_run`(GUT / GdUnit4 の単体テスト) |
 
 詳細: [docs/tools.md](docs/tools.md)（英語）
+
+開発中ソースに、制作方針・既存の承認済み画像生成手段への依頼・実PNGの返却記録・再現可能な素材加工・
+プレビューと改変検査・Godotへの足元付き配置を追加しました。原画依頼は GPT Image 2 medium 要求で、
+MCP内での画像生成や認証情報の取得は行いません。PNG処理には任意依存のPython 3.11以降とPillow 13.0.0が必要です。
+従来の編集・実行機能には不要です。制作記録・加工出力は追記型で、配置の取り消しで原画を削除しません。
+公開中npm版や登録済みMCPが自動更新された、という意味ではありません。
+[日本語の使い方・レシピ・制限](docs/art-production.ja.md)。
 
 ## ヘッドレス / CI
 

@@ -33,6 +33,7 @@ func _ready() -> void:
 	var scene := get_tree().current_scene
 	EngineDebugger.send_message("mcp_loop:hello", [{
 		"pid": OS.get_process_id(),
+		"launch_nonce": OS.get_environment("GODOT_MCP_LOOP_LAUNCH_NONCE"),
 		"scene": scene.scene_file_path if scene != null else "",
 		"display": DisplayServer.get_name(),
 	}])

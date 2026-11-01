@@ -51,13 +51,29 @@ To update, run step 1 again with `--force` and change the version in step 3.
 | Editor | `editor_launch` (finds Godot 4.5+ and opens the project, optionally headless), `editor_quit` |
 | Scenes & nodes | `scene_open`, `scene_create`, `scene_save`, `scene_tree`, `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts & files | `script_read`, `script_write`, `script_edit`, `script_attach`, `file_write`, `image_write`, `input_action_set`, `project_setting_set`, `edit_undo` |
+| Artwork production (development) | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | Build | `project_export` (release export from a preset into `res://build/` only, no shell) |
 | Judge | `scenario_run` (YAML play-tests, evidence saved with `save_to`, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4) |
 
 Security: the addon listens on localhost only, with a per-session token; file access is limited to the project (never
-`.godot/` or `.git/`); every edit is undoable. Running a game or its tests runs the project's code — see
+`.godot/` or `.git/`); editor edits are undoable. Running a game or its tests runs the project's code — see
 [security.md](https://github.com/AI-osho/godot-mcp-loop/blob/main/docs/security.md).
+
+## Optional artwork production
+
+Development-source addition: brief → `art_request` → actual PNG/quality receipt → deterministic recipe → preview
+and verification → standard Sprite2D/AnimatedSprite2D placement → existing ordinary-input/screenshot checks.
+The server does not generate images, acquire credentials or change a client's image-provider configuration.
+The client uses its existing authorized `openai-codex` / `gpt-image-2-medium` producer with a medium request.
+Reported quality can differ and is stored separately; an absent report is unknown, not inferred.
+
+PNG tools require Python 3.11+ and `Pillow==13.0.0` (`authoring/requirements.txt` in this package; no auto-install).
+The server operator may select an installed environment via `GODOT_LOOP_PYTHON`. Existing tools and brief/request
+records do not require Pillow. JSON/PNG outputs are append-only; editor undo removes the new placement group only.
+Recipes never contain executable code. For limits, examples and failure semantics see
+[the artwork guide](https://github.com/AI-osho/godot-mcp-loop/blob/main/docs/art-production.md).
+This development documentation does not mean the currently published npm version contains the new tools.
 
 ## License
 

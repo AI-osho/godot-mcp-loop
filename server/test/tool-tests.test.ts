@@ -37,6 +37,12 @@ describe("test_run (#15)", () => {
     expect(summariseTests(PASSED)).toBe("Tests (GUT, res://test): PASSED — 11/12 passed, 1 skipped (3.2 s)");
   });
 
+  it("does not trust a stale backend's passed flag over its nonzero exit code", () => {
+    const text = summariseTests({ ...PASSED, exit_code: 1 });
+    expect(text).toContain(": FAILED");
+    expect(text).toContain("Process exited with code 1");
+  });
+
   it("lists failures with their messages, the log's errors and its last lines", () => {
     const text = summariseTests(FAILED);
     const lines = text.split("\n");
@@ -85,6 +91,16 @@ describe("test_run (#15)", () => {
       const content = res.content as Array<{ text: string }>;
       expect(content[0]!.text).toMatch(/^Tests \(GdUnit4/);
       expect(JSON.parse(content[1]!.text).totals.failed).toBe(1);
+    });
+
+    it("keeps summary and full JSON consistent when a stale addon misreports success", async () => {
+      client = await connectClient(conn);
+      addon.handlers.set("tests.run", () => ({ ok: true, result: { ...PASSED, exit_code: 1 } }));
+      const result = await client.callTool({ name: "test_run", arguments: { report: "full" } });
+      expect(result.isError).toBeFalsy();
+      const content = result.content as Array<{ text: string }>;
+      expect(content[0]!.text).toContain(": FAILED");
+      expect(JSON.parse(content[1]!.text).passed).toBe(false);
     });
 
     it("passes the addon's errors through (no framework installed)", async () => {

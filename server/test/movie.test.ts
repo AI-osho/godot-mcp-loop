@@ -1,7 +1,9 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as png from "../src/media/png.js";
+import * as image from "../src/media/image.js";
 import { decodePng, encodePng, type RgbaImage } from "../src/media/png.js";
 import { contactIndices, gifPlan, listFrames, makeMovie } from "../src/media/movie.js";
 import { readGif } from "./gif-reader.js";
@@ -20,7 +22,7 @@ describe("movie frames → GIF and contact sheet", () => {
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "gml-movie-"));
   });
-  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => { vi.restoreAllMocks(); rmSync(dir, { recursive: true, force: true }); });
 
   const write = (count: number, truncatedLast = false) => {
     for (let n = 0; n < count; n++) writeFileSync(join(dir, `frame${String(n).padStart(8, "0")}.png`), encodePng(frame(n)));
@@ -38,6 +40,28 @@ describe("movie frames → GIF and contact sheet", () => {
     expect(out.seconds).toBeCloseTo(10 / 30, 3);
     expect(out.gif?.frames).toBeGreaterThan(0);
     expect(out.contact?.frames).toBe(4);
+  });
+
+  it.each([{ gif: false, contactFrames: 12 }, { gif: true, contactFrames: 0 }])("shrinks each decoded source before loading the next selected frame (%j)", (opts) => {
+    write(12);
+    const decode = png.decodePng, shrink = image.resize;
+    let unshrunk = 0, peak = 0;
+    // Observe the real decoder/resizer, not fake image data or a simulated allocator.
+    vi.spyOn(png, "decodePng").mockImplementation((data) => { const f = decode(data); peak = Math.max(peak, ++unshrunk); return f; });
+    vi.spyOn(image, "resize").mockImplementation((...args) => { unshrunk = 0; return shrink(...args); });
+    const out = makeMovie(dir, { fps: 30, maxWidth: 32, ...opts });
+    expect(out.files).toHaveLength(12);
+    expect(peak, "only the last-frame readability probe and one current source may precede a shrink").toBeLessThanOrEqual(2);
+  });
+
+  it("bounds thumbnail and GIF height as well as width for tall valid PNG frames", () => {
+    const tall = encodePng({ width: 1, height: 2048, data: new Uint8Array(2048 * 4).fill(255) });
+    for (let n = 0; n < 8; n++) writeFileSync(join(dir, `frame${String(n).padStart(8, "0")}.png`), tall);
+    const out = makeMovie(dir, { fps: 30, maxWidth: 64, contactFrames: 4 });
+    expect(out.gif!.height).toBeLessThanOrEqual(64);
+    expect(out.contact!.height).toBeLessThanOrEqual(128);
+    expect(decodePng(out.contact!.data).height).toBe(out.contact!.height);
+    expect(readGif(out.gif!.data).height).toBe(out.gif!.height);
   });
 
   it("refuses a range with no frames", () => {

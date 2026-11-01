@@ -12,8 +12,7 @@ const MAX_DIFF_LINES := 300
 
 var ctx: RefCounted
 var _class_name_re := RegEx.create_from_string("(?m)^(\\s*)class_name\\s+([A-Za-z_][A-Za-z0-9_]*)")
-# "@tool" as an annotation (not inside a comment or string on the same line).
-var _tool_re := RegEx.create_from_string("(?m)^[ \\t]*(@tool)\\b")
+
 
 const TOOL_WARNING := "This is a @tool script: once it is used in an open scene, attached, or instantiated by the editor, its code runs inside the Godot editor with your user's permissions. It was compiled with @tool disabled for validation."
 
@@ -63,7 +62,10 @@ func _edit(p: Dictionary) -> Dictionary:
 		return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
 	if not FileAccess.file_exists(path):
 		return Protocol.err(Protocol.FILE_NOT_FOUND, "File not found: %s" % path, "Create new scripts with script_write.")
-	var current := FileAccess.get_file_as_string(path)
+	var snapshot: Dictionary = ctx.file_ops.snapshot_bytes(path)
+	if not snapshot.ok:
+		return snapshot
+	var current: String = snapshot.result.bytes.get_string_from_utf8()
 	var edited := TextEdits.apply(current, p.get("edits"))
 	if not edited.ok:
 		return Protocol.err(Protocol.INVALID_PARAMS, edited.error, edited.get("hint", "Nothing was written."))
@@ -88,7 +90,12 @@ func _apply_write(path: String, content: String, dry_run: bool, tool: String) ->
 		return Protocol.err(Protocol.SCRIPT_PARSE_ERROR, "GDScript does not compile: " + detail, hint)
 
 	var exists := FileAccess.file_exists(path)
-	var old := FileAccess.get_file_as_string(path) if exists else ""
+	var old := ""
+	if exists:
+		var snapshot: Dictionary = ctx.file_ops.snapshot_bytes(path)
+		if not snapshot.ok:
+			return snapshot
+		old = snapshot.result.bytes.get_string_from_utf8()
 	var result := {"path": path, "created": not exists, "stats": TextDiff.stats(old, content)}
 	if exists:
 		var diff := TextDiff.unified(old, content, path)
@@ -100,7 +107,7 @@ func _apply_write(path: String, content: String, dry_run: bool, tool: String) ->
 	else:
 		# Echoing a whole new file back as a diff only costs tokens.
 		result["summary"] = "created %s (%d lines)" % [path, content.count("\n") + (0 if content.ends_with("\n") or content == "" else 1)]
-	if _tool_re.search(content) != null:
+	if validation_source(content).is_tool:
 		result["warnings"] = [TOOL_WARNING]
 	if dry_run:
 		result["dry_run"] = true
@@ -108,13 +115,10 @@ func _apply_write(path: String, content: String, dry_run: bool, tool: String) ->
 	if exists and old == content:
 		result["unchanged"] = true
 		return Protocol.ok(result)
-	var ops: RefCounted = ctx.file_ops
-	ctx.commit("write %s" % path, null, func(ur: EditorUndoRedoManager) -> void:
-		ur.add_do_method(ops, "write_text", path, content)
-		if exists:
-			ur.add_undo_method(ops, "write_text", path, old)
-		else:
-			ur.add_undo_method(ops, "remove_file", path))
+	var saved: Dictionary = ctx.commit_file("write %s" % path, "write_text", [path, content],
+		"write_text" if exists else "remove_file", [path, old] if exists else [path])
+	if not saved.ok:
+		return saved
 	result.merge(await _register_global_class(path, content))
 	return Protocol.ok(result)
 
@@ -162,6 +166,52 @@ func _class_registered(cls: String, path: String) -> bool:
 	return false
 
 
+## Blank only annotation tokens, including inline annotations. Byte scanning keeps this linear and preserves locations.
+static func validation_source(content: String) -> Dictionary:
+	if not "@tool" in content:
+		return {"source": content, "is_tool": false}
+	var bytes := content.to_utf8_buffer()
+	var quote := 0
+	var triple := false
+	var comment := false
+	var found := false
+	var i := 0
+	while i < bytes.size():
+		var c := int(bytes[i])
+		if comment:
+			if c == 10:
+				comment = false
+			i += 1
+			continue
+		if quote != 0:
+			if c == 92:
+				i += 2
+				continue
+			if c == quote and (not triple or (i + 2 < bytes.size() and bytes[i + 1] == quote and bytes[i + 2] == quote)):
+				i += 3 if triple else 1
+				quote = 0
+			else:
+				i += 1
+			continue
+		if c == 35:
+			comment = true
+		elif c == 34 or c == 39:
+			quote = c
+			triple = i + 2 < bytes.size() and bytes[i + 1] == c and bytes[i + 2] == c
+			i += 3 if triple else 1
+			continue
+		elif c == 64 and i + 4 < bytes.size() and bytes[i + 1] == 116 and bytes[i + 2] == 111 and bytes[i + 3] == 111 and bytes[i + 4] == 108:
+			var next := int(bytes[i + 5]) if i + 5 < bytes.size() else 0
+			if not ((next >= 65 and next <= 90) or (next >= 97 and next <= 122) or (next >= 48 and next <= 57) or next == 95):
+				for j in 5:
+					bytes[i + j] = 32
+				found = true
+				i += 5
+				continue
+		i += 1
+	return {"source": bytes.get_string_from_utf8(), "is_tool": found}
+
+
 ## Compiles `content` in isolation. Returns [{line, message}] (empty = OK).
 func _validate(path: String, content: String) -> Array:
 	var src := content
@@ -181,8 +231,7 @@ func _validate(path: String, content: String) -> Array:
 
 	# Compiling a @tool script runs its static initializers in the editor.
 	# Validate a copy with the annotation blanked (same length keeps columns).
-	for tm in _tool_re.search_all(src):
-		src = src.substr(0, tm.get_start(1)) + "     " + src.substr(tm.get_end(1))
+	src = validation_source(src).source
 
 	var cursor: int = ctx.log_capture.cursor()
 	var script := GDScript.new()

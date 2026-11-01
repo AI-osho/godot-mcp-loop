@@ -5,6 +5,7 @@ extends RefCounted
 ## lands somewhere unintended.
 
 const MAX_EDITS := 50
+const MAX_OUTPUT_BYTES := 1048576
 
 
 static func apply(content: String, edits: Variant) -> Dictionary:
@@ -32,6 +33,10 @@ static func apply(content: String, edits: Variant) -> Dictionary:
 		if count > 1 and not e.get("replace_all", false):
 			return {"ok": false, "error": "Edit %d: text occurs %d times: %s" % [n, count, _snippet(old)],
 				"hint": "Include more surrounding lines to make it unique, or set replace_all: true."}
+		# Bound each intermediate result, not only the final caller's write.
+		var next_bytes := text.to_utf8_buffer().size() + count * (new.to_utf8_buffer().size() - old.to_utf8_buffer().size())
+		if next_bytes > MAX_OUTPUT_BYTES:
+			return {"ok": false, "error": "Edit %d would exceed the 1 MiB UTF-8 text limit before replacement." % n}
 		text = text.replace(old, new)
 		replacements += count
 	return {"ok": true, "content": text, "replacements": replacements}

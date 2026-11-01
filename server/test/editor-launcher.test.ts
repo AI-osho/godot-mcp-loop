@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { findGodot, godotCandidates, parseGodotVersion } from "../src/editor-launcher.js";
+import { EditorLauncher, findGodot, godotCandidates, parseGodotVersion } from "../src/editor-launcher.js";
+import { GodotConnection } from "../src/connection.js";
 
 describe("finding the Godot executable", () => {
   let dir: string;
@@ -17,6 +18,39 @@ describe("finding the Godot executable", () => {
     writeFileSync(p, "", { mode: 0o755 });
     return p;
   };
+
+  it("refuses a project path Godot would decode before executable lookup or log creation", async () => {
+    const project = join(dir, "literal%20project");
+    mkdirSync(join(project, "addons", "mcp_loop"), { recursive: true });
+    writeFileSync(join(project, "addons", "mcp_loop", "plugin.cfg"), "");
+    writeFileSync(join(project, "project.godot"), 'config_version=5\n[editor_plugins]\nenabled=PackedStringArray("res://addons/mcp_loop/plugin.cfg")\n');
+    let lookups = 0;
+    const launcher = new EditorLauncher({ find: async () => { lookups++; throw new Error("unexpected executable lookup"); } });
+    await expect(launcher.launch({ projectPath: project } as GodotConnection, { timeoutMs: 1000 }))
+      .rejects.toMatchObject({ code: "INVALID_PARAMS" });
+    expect(lookups).toBe(0);
+    expect(existsSync(join(project, ".godot"))).toBe(false);
+  });
+
+  it("holds the selected project across asynchronous executable discovery and releases it on failure", async () => {
+    const project = join(dir, "project");
+    mkdirSync(join(project, "addons", "mcp_loop"), { recursive: true });
+    writeFileSync(join(project, "addons", "mcp_loop", "plugin.cfg"), "");
+    writeFileSync(join(project, "project.godot"), 'config_version=5\n[editor_plugins]\nenabled=PackedStringArray("res://addons/mcp_loop/plugin.cfg")\n');
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>((r) => { entered = r; });
+    const gate = new Promise<void>((r) => { release = r; });
+    const conn = new GodotConnection({ projectPath: project });
+    const launcher = new EditorLauncher({ find: async () => { entered(); await gate; throw new Error("deliberate discovery failure"); } });
+    const run = launcher.launch(conn, { timeoutMs: 1000 });
+    try {
+      await started;
+      expect(() => conn.switchProject(join(dir, "other"))).toThrowError(expect.objectContaining({ code: "BUSY" }));
+      expect(conn.projectPath).toBe(project);
+    } finally { release(); await expect(run).rejects.toThrow("deliberate discovery failure"); }
+    conn.switchProject(join(dir, "other"));
+    expect(conn.projectPath).toBe(join(dir, "other"));
+  });
 
   it("parses `godot --version` output", () => {
     expect(parseGodotVersion("4.7.2.stable.official.ed1daf0bf\n")).toEqual({ major: 4, minor: 7, patch: 2, text: "4.7.2.stable.official.ed1daf0bf" });
@@ -66,6 +100,19 @@ describe("finding the Godot executable", () => {
       },
     });
     expect(found).toMatchObject({ path: good, source: "PATH", version: "4.7.2.stable.official.ed1daf0bf" });
+  });
+
+  it.each(["GODOT_BIN", "PATH"] as const)("binds a relative %s executable to the discovery cwd before validation and project spawn", async (source) => {
+    const expected = exe("relative/godot");
+    const configured = relative(process.cwd(), expected);
+    const checked: string[] = [];
+    const env = source === "GODOT_BIN" ? { GODOT_BIN: configured, PATH: "" } : { PATH: relative(process.cwd(), join(expected, "..")) };
+    const result = await findGodot({ env, platform: "linux", home: dir, appDirs: [], runVersion: async (path) => {
+      checked.push(path); return "4.7.2.stable.official";
+    } });
+    expect(checked[0]).toBe(expected);
+    expect(result.path).toBe(expected);
+    expect(result.source).toBe(source);
   });
 
   it("explains what it tried when nothing usable is found", async () => {

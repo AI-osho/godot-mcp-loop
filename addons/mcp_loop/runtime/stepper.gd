@@ -15,11 +15,13 @@ signal finished
 var _left: int
 var _frame := 0
 var _tap: Array
+var _pause_at_end: bool
 
 
-func _init(frames: int, tap: Array = []) -> void:
+func _init(frames: int, tap: Array = [], pause_at_end: bool = true) -> void:
 	_left = frames
 	_tap = tap
+	_pause_at_end = pause_at_end
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	process_physics_priority = 1 << 30
 
@@ -43,14 +45,24 @@ func _physics_process(_delta: float) -> void:
 		Input.flush_buffered_events()
 	_left -= 1
 	if _left <= 0:
-		get_tree().paused = true
+		if _pause_at_end:
+			get_tree().paused = true
 		set_physics_process(false)
 		finished.emit()
 
 
-static func _send(action: String, pressed: bool) -> void:
+static func _send(action: String, pressed: bool, strength: float = 1.0) -> void:
+	# Native focus loss clears event/device state, not API-owned actions. A tool hold lasts until its explicit release.
+	# Keep the event too: game _input/_unhandled_input callbacks must still receive the press and release.
+	if pressed:
+		Input.action_press(action, strength)
+	else:
+		Input.action_release(action)
 	var event := InputEventAction.new()
 	event.action = StringName(action)
 	event.pressed = pressed
-	event.strength = 1.0 if pressed else 0.0
-	Input.parse_input_event(event)
+	event.strength = strength if pressed else 0.0
+	# Dispatch callbacks without registering a device-held event, which native focus loss would release again.
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		tree.root.push_input(event)

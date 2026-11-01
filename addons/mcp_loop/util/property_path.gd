@@ -6,22 +6,8 @@ extends RefCounted
 
 const Codec = preload("res://addons/mcp_loop/util/value_codec.gd")
 
-const MEMBERS := {
-	TYPE_VECTOR2: ["x", "y"], TYPE_VECTOR2I: ["x", "y"],
-	TYPE_VECTOR3: ["x", "y", "z"], TYPE_VECTOR3I: ["x", "y", "z"],
-	TYPE_VECTOR4: ["x", "y", "z", "w"], TYPE_VECTOR4I: ["x", "y", "z", "w"],
-	TYPE_COLOR: ["r", "g", "b", "a", "h", "s", "v", "r8", "g8", "b8", "a8"],
-	TYPE_RECT2: ["position", "size", "end"], TYPE_RECT2I: ["position", "size", "end"],
-	TYPE_TRANSFORM2D: ["x", "y", "origin"],
-	TYPE_QUATERNION: ["x", "y", "z", "w"],
-	TYPE_BASIS: ["x", "y", "z"],
-	TYPE_TRANSFORM3D: ["basis", "origin"],
-	TYPE_PLANE: ["normal", "d", "x", "y", "z"],
-	TYPE_AABB: ["position", "size", "end"],
-}
-const INDEXABLE := [TYPE_ARRAY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY,
-	TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_VECTOR2_ARRAY,
-	TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY]
+const MEMBERS = Codec.INDEXED_MEMBERS
+const INDEXABLE = Codec.INDEXED_ARRAY_TYPES
 
 
 static func _has_property(obj: Object, name: String) -> bool:

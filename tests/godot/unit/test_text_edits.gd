@@ -9,6 +9,26 @@ func _apply(edits: Array) -> Dictionary:
 	return TextEdits.apply(SRC, edits)
 
 
+func test_refuses_oversized_replacement_before_result_allocation() -> void:
+	var r := TextEdits.apply("a".repeat(2048), [{"old": "a", "new": "b".repeat(1024), "replace_all": true}])
+	assert_false(r.ok, "A replacement expanding past the 1 MiB caller limit must be rejected before replace().")
+	if r.ok:
+		return
+	assert_string_contains(r.error, "1 MiB")
+
+
+func test_replacement_budget_counts_utf8_bytes_not_characters() -> void:
+	var r := TextEdits.apply("猫".repeat(180000), [{"old": "猫", "new": "犬犬", "replace_all": true}])
+	assert_false(r.ok, "A character-count-only budget admits oversized UTF-8 text.")
+
+
+func test_replacement_at_exact_byte_limit_remains_valid() -> void:
+	var r := TextEdits.apply("a".repeat(1024), [{"old": "a", "new": "b".repeat(1024), "replace_all": true}])
+	assert_true(r.ok, str(r.get("error", "")))
+	if r.ok:
+		assert_eq(r.content.to_utf8_buffer().size(), 1048576)
+
+
 func test_single_replacement() -> void:
 	var r := _apply([{"old": "var speed := 100", "new": "var speed := 250"}])
 	assert_true(r.ok, str(r.get("error", "")))

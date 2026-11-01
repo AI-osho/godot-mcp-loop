@@ -1,8 +1,12 @@
+import { FILE_READ_LIMITS, readTextFileBounded } from "./bounded-io.js";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { BridgeError } from "./errors.js";
+import { assertGodotValue } from "./godot-args.js";
+import { stopProcess } from "./process-lifetime.js";
+import { projectFilePath } from "./project-path.js";
 
 /**
  * Project export (project_export): `--export-release` with a preset from export_presets.cfg, started with a fixed
@@ -48,7 +52,7 @@ export function parseExportPresets(text: string): ExportPreset[] {
 }
 
 export function readExportPresets(projectPath: string): ExportPreset[] {
-  const file = join(projectPath, "export_presets.cfg");
+  const file = projectFilePath(projectPath, "res://export_presets.cfg").abs;
   if (!existsSync(file)) {
     throw new BridgeError(
       "PRESET_NOT_FOUND",
@@ -56,7 +60,7 @@ export function readExportPresets(projectPath: string): ExportPreset[] {
       "Add a preset in Godot: Project > Export > Add…, then call project_export again.",
     );
   }
-  const presets = parseExportPresets(readFileSync(file, "utf8"));
+  const presets = parseExportPresets(readTextFileBounded(file, FILE_READ_LIMITS.text));
   if (presets.length === 0) {
     throw new BridgeError(
       "PRESET_NOT_FOUND",
@@ -98,19 +102,8 @@ export function defaultOutput(preset: ExportPreset): string {
 
 /** A res://build/... path, resolved to disk. Anything else is refused. */
 export function resolveExportOutput(projectPath: string, path: string): { abs: string; res: string } {
-  const rel = path.startsWith("res://") ? path.slice("res://".length) : path;
-  if (isAbsolute(rel)) {
-    throw new BridgeError("PATH_FORBIDDEN", `Use a res:// path under res://${EXPORT_ROOT}/ (got ${path}).`);
-  }
-  if (rel.includes("\\") || rel.split("/").includes("..")) {
-    throw new BridgeError("PATH_FORBIDDEN", `Use a simple res://${EXPORT_ROOT}/... path (got ${path}).`);
-  }
-  const abs = resolve(projectPath, rel);
-  const r = relative(projectPath, abs);
-  if (r.startsWith("..") || isAbsolute(r)) {
-    throw new BridgeError("PATH_FORBIDDEN", `${path} is outside the project.`);
-  }
-  const parts = r.split("/");
+  const target = projectFilePath(projectPath, path, { write: true, allowRoot: false });
+  const parts = target.res.slice(6).split("/");
   if ((parts[0] ?? "").toLowerCase() !== EXPORT_ROOT || parts.length < 2) {
     throw new BridgeError(
       "PATH_FORBIDDEN",
@@ -118,11 +111,43 @@ export function resolveExportOutput(projectPath: string, path: string): { abs: s
       `Use res://${EXPORT_ROOT}/<name> so the project itself is never overwritten.`,
     );
   }
-  return { abs, res: `res://${parts.join("/")}` };
+  // Godot writes sidecars too (.wasm, .pck, .js, icons, ...), not just the requested file.
+  assertExportTree(dirname(target.abs));
+  return target;
+}
+
+/** Fail closed on aliases and special files throughout the output folder; never traverse a link. */
+function assertExportTree(dir: string): void {
+  const pending = [{ path: dir, depth: 0 }];
+  let checked = 0;
+  while (pending.length > 0) {
+    const entry = pending.pop()!;
+    if (++checked > 10_000 || entry.depth > 32) {
+      throw new BridgeError("PATH_FORBIDDEN", "Export folder is too large to check safely; choose a fresh output folder.");
+    }
+    let st;
+    try {
+      st = lstatSync(entry.path);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw e;
+    }
+    if (st.isSymbolicLink() || (st.isFile() && st.nlink > 1)) {
+      throw new BridgeError("PATH_FORBIDDEN", `Export folder contains a symbolic link or hard link: ${entry.path}.`);
+    }
+    if (st.isDirectory()) {
+      for (const name of readdirSync(entry.path)) pending.push({ path: join(entry.path, name), depth: entry.depth + 1 });
+    } else if (!st.isFile()) {
+      throw new BridgeError("PATH_FORBIDDEN", `Export folder contains a special file: ${entry.path}.`);
+    }
+  }
 }
 
 /** The exact argument list handed to Godot (never a shell string). */
 export function exportArgs(projectPath: string, preset: string, absOutput: string): string[] {
+  assertGodotValue(projectPath, "Project path");
+  assertGodotValue(preset, "Export preset", true);
+  assertGodotValue(absOutput, "Export output");
   return ["--headless", "--path", projectPath, "--export-release", preset, absOutput];
 }
 
@@ -138,7 +163,7 @@ export function exportedFiles(absOutput: string): Array<{ path: string; size: nu
     }
   };
   if (absOutput.endsWith(".html")) {
-    const dir = absOutput.slice(0, absOutput.lastIndexOf("/"));
+    const dir = dirname(absOutput);
     try {
       for (const f of readdirSync(dir)) stat(join(dir, f));
     } catch {
@@ -208,9 +233,13 @@ export interface ExportRunResult {
 export function runExport(opts: ExportRunOptions): Promise<ExportRunResult> {
   return new Promise((resolvePromise, reject) => {
     const started = Date.now();
-    // Godot refuses to export into a folder that does not exist yet.
-    mkdirSync(dirname(opts.absOutput), { recursive: true });
-    const child = spawn(opts.godotPath, exportArgs(opts.projectPath, opts.preset, opts.absOutput), {
+    const root = realpathSync(opts.projectPath);
+    const requested = relative(root, resolve(opts.absOutput)).split(sep).join("/");
+    // Revalidate here too: the tool awaits executable/template discovery after its dry-run validation.
+    const target = resolveExportOutput(root, requested);
+    const args = exportArgs(root, opts.preset, target.abs);
+    mkdirSync(dirname(target.abs), { recursive: true });
+    const child = spawn(opts.godotPath, args, {
       shell: false,
       cwd: opts.projectPath,
       windowsHide: true,
@@ -222,15 +251,34 @@ export function runExport(opts: ExportRunOptions): Promise<ExportRunResult> {
     };
     child.stdout?.on("data", keep);
     child.stderr?.on("data", keep);
+    let timedOut = false;
+    let exitSeen = false;
+    const exit = new Promise<void>((done) => child.once("exit", () => { exitSeen = true; done(); }));
+    const timeoutError = () => new BridgeError("TIMEOUT",
+      `The export exceeded ${opts.timeoutMs} ms; direct exporter exit ${exitSeen ? "confirmed" : "not confirmed"}.` + (log ? `\n${tail(log)}` : ""),
+      exitSeen ? "The direct exporter exited; arbitrary plugin descendants are not covered by this confirmation."
+        : `Termination was requested for PID ${child.pid}; it may still be running. Check it before exporting again.`);
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
+      timedOut = true;
+      void stopProcess(child, exit).then(() => {
+        // An inherited pipe is not the direct child's lifecycle; bound both without inventing exit confirmation.
+        child.stdin?.destroy();
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        reject(timeoutError());
+      });
     }, opts.timeoutMs);
     child.on("error", (e) => {
       clearTimeout(timer);
+      if (timedOut) return; // a failed termination request is not a spawn failure; the bounded stop still owns it
       reject(new BridgeError("EXPORT_FAILED", `Could not start Godot: ${e.message}`, "Check the --godot path or GODOT_BIN."));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
+      if (timedOut) {
+        reject(timeoutError());
+        return;
+      }
       const result = { log, duration_ms: Date.now() - started, exit_code: code };
       const missing = /no export template|export template(s)? (are|is) missing|not found:.*template/i.test(log);
       if (code === 0 && !missing) {

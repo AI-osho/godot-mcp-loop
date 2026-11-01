@@ -9,6 +9,23 @@ const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 const MAX_ARRAY_ITEMS := 64
 const MAX_DEPTH := 8
 
+const INDEXED_MEMBERS := {
+	TYPE_VECTOR2: ["x", "y"], TYPE_VECTOR2I: ["x", "y"],
+	TYPE_VECTOR3: ["x", "y", "z"], TYPE_VECTOR3I: ["x", "y", "z"],
+	TYPE_VECTOR4: ["x", "y", "z", "w"], TYPE_VECTOR4I: ["x", "y", "z", "w"],
+	TYPE_COLOR: ["r", "g", "b", "a", "h", "s", "v", "r8", "g8", "b8", "a8"],
+	TYPE_RECT2: ["position", "size", "end"], TYPE_RECT2I: ["position", "size", "end"],
+	TYPE_TRANSFORM2D: ["x", "y", "origin"],
+	TYPE_QUATERNION: ["x", "y", "z", "w"],
+	TYPE_BASIS: ["x", "y", "z"],
+	TYPE_TRANSFORM3D: ["basis", "origin"],
+	TYPE_PLANE: ["normal", "d", "x", "y", "z"],
+	TYPE_AABB: ["position", "size", "end"],
+}
+const INDEXED_ARRAY_TYPES := [TYPE_ARRAY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY,
+	TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_VECTOR2_ARRAY,
+	TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY]
+
 
 static func _ok(v: Variant) -> Dictionary:
 	return {"ok": true, "value": v, "error": ""}
@@ -336,13 +353,64 @@ static func _encode_embedded(res: Resource, depth: int) -> Dictionary:
 
 ## Returns a copy of `base` with the value at `subpath` (e.g. ["origin", "y"])
 ## replaced. Used to turn "position:x" edits into whole-property undo steps.
-static func with_indexed(base: Variant, subpath: Array, value: Variant) -> Variant:
+## Safe indexed write lookup; no unchecked Variant[] reads on builtin values.
+static func indexed_child(base: Variant, key: String, allow_new_key: bool = false) -> Dictionary:
+	var kind := typeof(base)
+	if INDEXED_ARRAY_TYPES.has(kind):
+		if not key.is_valid_int():
+			return _fail("Array indices must be integers: " + key)
+		var index := int(key)
+		if index < 0:
+			index += base.size()
+		if index < 0 or index >= base.size():
+			return _fail("Array index is out of range: " + key)
+		return {"ok": true, "key": index, "value": base[index]}
+	if kind == TYPE_DICTIONARY:
+		var actual: Variant = key
+		if not base.has(key) and key.is_valid_int() and base.has(int(key)):
+			actual = int(key)
+		if not base.has(actual) and not allow_new_key:
+			return _fail("Dictionary key not found: " + key)
+		return {"ok": true, "key": actual, "value": base.get(actual)}
+	if base is Object:
+		if not is_instance_valid(base) or not base is Resource or base is Script:
+			return _fail("Indexed editing of Script or non-Resource Object references is not supported; use the dedicated script or node tools.")
+		if key == "resource_path":
+			return _fail("resource_path is a resource identity and cannot be changed as an indexed property.")
+		for prop in base.get_property_list():
+			if prop.name == key:
+				return {"ok": true, "key": key, "value": base.get(key), "property": prop}
+		return _fail("Unknown indexed Resource property: " + key)
+	if not INDEXED_MEMBERS.has(kind) or not INDEXED_MEMBERS[kind].has(key):
+		return _fail("Invalid indexed member '%s' on %s." % [key, type_string(kind)])
+	return {"ok": true, "key": key, "value": base[key]}
+
+
+static func with_indexed(base: Variant, subpath: Array, value: Variant, errors: Array = []) -> Variant:
 	if subpath.is_empty():
 		return value
-	var key: Variant = subpath[0]
-	var copy: Variant = base.duplicate() if (typeof(base) == TYPE_DICTIONARY or typeof(base) == TYPE_ARRAY) else base
-	var child: Variant = copy.get(key) if typeof(copy) == TYPE_DICTIONARY else copy[key]
-	copy[key] = with_indexed(child, subpath.slice(1), value)
+	if base is Object and (not base is Resource or base is Script):
+		errors.append("Indexed editing of Script or non-Resource Object references is not supported; use the dedicated script or node tools.")
+		return base
+	if base is Resource and String(subpath[0]) == "resource_path":
+		errors.append("resource_path is a resource identity and cannot be changed as an indexed property.")
+		return base
+	var access := indexed_child(base, str(subpath[0]), subpath.size() == 1)
+	if not access.ok:
+		errors.append(access.error)
+		return base
+	var key: Variant = access.key
+	var copy: Variant
+	if base is Resource:
+		# Preview and undo preparation must not mutate a shared live Resource through its reference.
+		copy = base.duplicate()
+		if copy == null:
+			errors.append("The indexed Resource cannot be duplicated safely; replace the whole property instead.")
+			return base
+	else:
+		copy = base.duplicate() if (typeof(base) == TYPE_DICTIONARY or INDEXED_ARRAY_TYPES.has(typeof(base))) else base
+	var child: Variant = access.value
+	copy[key] = with_indexed(child, subpath.slice(1), value, errors)
 	return copy
 
 

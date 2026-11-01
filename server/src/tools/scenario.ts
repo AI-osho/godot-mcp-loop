@@ -1,8 +1,9 @@
+import { FILE_READ_LIMITS, readTextFileBounded } from "../bounded-io.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { CallToolResult, ServerNotification, ServerRequest } from "@modelcontextprotocol/sdk/types.js";
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { projectFilePath } from "../project-path.js";
 import { z } from "zod";
 import type { GodotConnection } from "../connection.js";
 import { BridgeError } from "../errors.js";
@@ -14,26 +15,9 @@ import { safe, strict } from "./helpers.js";
 
 /** Resolves a res:// or project-relative path, refusing anything outside the project. */
 export function resolveProjectFile(projectPath: string, path: string): string {
-  const rel = path.startsWith("res://") ? path.slice("res://".length) : path;
-  if (isAbsolute(rel)) throw new BridgeError("PATH_FORBIDDEN", `Use a res:// or project-relative path (got ${path}).`);
-  const root = realpathSync(projectPath);
-  const full = resolve(root, rel);
-  const r = relative(root, full);
-  if (r.startsWith("..") || isAbsolute(r)) {
-    throw new BridgeError("PATH_FORBIDDEN", `${path} is outside the project.`);
-  }
-  // Same rule as the addon's PathGuard: .godot/ holds the session token, .git/ the history. Compare without case:
-  // macOS and Windows resolve ".GODOT" to ".godot", and realpath() keeps the spelling it was given.
-  const protectedDir = (p: string) => [".godot", ".git"].includes((p.split(sep)[0] ?? "").toLowerCase());
-  if (protectedDir(r)) throw new BridgeError("PATH_FORBIDDEN", `Access under ${r.split(sep)[0]}/ is not allowed.`);
-  if (!existsSync(full)) throw new BridgeError("FILE_NOT_FOUND", `Scenario file not found: ${path}`);
-  // Re-check after resolving symlinks: a link inside the project may point outside it.
-  const real = realpathSync(full);
-  const rr = relative(root, real);
-  if (rr.startsWith("..") || isAbsolute(rr) || protectedDir(rr)) {
-    throw new BridgeError("PATH_FORBIDDEN", `${path} resolves outside the project or into a protected folder (symbolic link).`);
-  }
-  return real;
+  const { abs } = projectFilePath(projectPath, path);
+  if (!existsSync(abs)) throw new BridgeError("FILE_NOT_FOUND", `Scenario file not found: ${path}`);
+  return abs;
 }
 
 const ICON: Record<string, string> = { pass: "✓", fail: "✗", error: "✗", skip: "○", skipped: "-" };
@@ -170,7 +154,7 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
             fps: z.number().int().min(1).max(60).optional().describe("Recording rate (default 30). The game runs at this fixed step, as fast as it can render."),
             gif: z.boolean().optional().describe("Write movie.gif (default true)."),
             gif_fps: z.number().int().min(1).max(50).optional().describe("GIF frame rate (default 15; at most fps). Long recordings are thinned to 300 GIF frames."),
-            max_width: z.number().int().min(64).max(1280).optional().describe("GIF width in pixels (default 480; never enlarged)."),
+            max_width: z.number().int().min(64).max(1280).optional().describe("Maximum GIF edge in pixels (default 480; bounds width and height, never enlarged)."),
             contact_sheet: z.number().int().min(0).max(36).optional().describe("Frames in contact.png (default 12; 0 = none)."),
             frames: z.boolean().optional().describe("Also keep every recorded frame as frames/frameNNNNNNNN.png (default false)."),
             from_step: z
@@ -205,104 +189,104 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
       report?: "summary" | "full";
       save_to?: string;
       movie?: MovieArgs;
-    }, extra: Extra): Promise<CallToolResult> => {
-      const given = [args.path, args.paths, args.scenario].filter((x) => x !== undefined).length;
-      if (given !== 1) {
-        throw new BridgeError("INVALID_PARAMS", "Provide exactly one of 'path', 'paths' or 'scenario'.");
-      }
-      if (args.movie !== undefined && args.save_to === undefined) {
-        throw new BridgeError("INVALID_PARAMS", "movie needs save_to: the GIF and contact sheet are saved with the evidence.");
-      }
-      // Check the evidence folder before starting the game, so a bad save_to costs nothing.
-      if (args.save_to !== undefined) resolveEvidenceFolder(conn.projectPath, args.save_to, false);
-      let batch: string[] | undefined = args.paths;
-      if (args.path !== undefined && statSync(resolveProjectFile(conn.projectPath, args.path)).isDirectory()) {
-        batch = listScenarioFolder(conn.projectPath, args.path);
-      }
-      if (batch !== undefined) {
-        if (args.movie !== undefined) throw new BridgeError("INVALID_PARAMS", "movie records one scenario; give a single file or an inline scenario.");
-        return runBatch(batch, args, extra);
-      }
-      const source = args.path !== undefined ? readFileSync(resolveProjectFile(conn.projectPath, args.path), "utf8") : args.scenario;
-      const scenario = parseScenario(source);
-      if (args.movie) {
-        const total = scenario.steps.length;
-        const from = args.movie.from_step;
-        const to = args.movie.to_step;
-        if ((from !== undefined && from > total) || (to !== undefined && to > total)) {
-          throw new BridgeError("INVALID_PARAMS", `The scenario has ${total} steps; from_step/to_step must be between 1 and ${total}.`);
+    }, extra: Extra): Promise<CallToolResult> => conn.withProjectLease(async () => {
+        const given = [args.path, args.paths, args.scenario].filter((x) => x !== undefined).length;
+        if (given !== 1) {
+          throw new BridgeError("INVALID_PARAMS", "Provide exactly one of 'path', 'paths' or 'scenario'.");
         }
-        if (from !== undefined && to !== undefined && from > to) {
-          throw new BridgeError("INVALID_PARAMS", "movie.from_step must not be after movie.to_step.");
+        if (args.movie !== undefined && args.save_to === undefined) {
+          throw new BridgeError("INVALID_PARAMS", "movie needs save_to: the GIF and contact sheet are saved with the evidence.");
         }
-      }
-      const fps = args.movie?.fps ?? 30;
-      const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), {
-        ...(args.movie ? { movie: { fps } } : {}),
-        projectPath: conn.projectPath,
-      });
-      let movie: EvidenceMovie | undefined;
-      let movieNote: string | undefined;
-      let range: { first: number; last: number } | undefined;
-      if (args.movie && (args.movie.from_step !== undefined || args.movie.to_step !== undefined)) {
-        const from = args.movie.from_step ?? 1;
-        const to = args.movie.to_step ?? scenario.steps.length;
-        const sf = report.movie?.step_frames;
-        if (sf !== undefined && sf.length > 0) {
-          const firstFrame = sf[from - 1] ?? 0;
-          const lastFrame = sf[to] ?? sf[sf.length - 1]!;
-          if (lastFrame > firstFrame) range = { first: firstFrame, last: lastFrame };
-          else movieNote = `Movie range: steps ${from}–${to} cover no frames (${firstFrame}..${lastFrame}); the whole recording is used.`;
-        } else {
-          movieNote = "Movie range ignored: the recording did not report step frame positions.";
+        // Check the evidence folder before starting the game, so a bad save_to costs nothing.
+        if (args.save_to !== undefined) resolveEvidenceFolder(conn.projectPath, args.save_to, false);
+        let batch: string[] | undefined = args.paths;
+        if (args.path !== undefined && statSync(resolveProjectFile(conn.projectPath, args.path)).isDirectory()) {
+          batch = listScenarioFolder(conn.projectPath, args.path);
         }
-      }
-      if (args.movie && report.movie?.dir) {
-        try {
-          const output = makeMovie(report.movie.dir, {
-            fps: report.movie.fps,
-            ...(args.movie.gif !== undefined ? { gif: args.movie.gif } : {}),
-            ...(args.movie.gif_fps !== undefined ? { gifFps: args.movie.gif_fps } : {}),
-            ...(args.movie.max_width !== undefined ? { maxWidth: args.movie.max_width } : {}),
-            ...(args.movie.contact_sheet !== undefined ? { contactFrames: args.movie.contact_sheet } : {}),
-            ...(range !== undefined ? { range } : {}),
-          });
-          const keepFrames = args.movie.frames === true;
-          movie = { output, keepFrames, line: movieLine(output, keepFrames) };
-          if (range !== undefined) {
-            const from = args.movie.from_step ?? 1;
-            const to = args.movie.to_step ?? scenario.steps.length;
-            movie.line += ` — trimmed to steps ${from}–${to} (frames ${range.first}–${range.last - 1} of the recording)`;
+        if (batch !== undefined) {
+          if (args.movie !== undefined) throw new BridgeError("INVALID_PARAMS", "movie records one scenario; give a single file or an inline scenario.");
+          return runBatch(batch, args, extra);
+        }
+        const source = args.path !== undefined ? readTextFileBounded(resolveProjectFile(conn.projectPath, args.path), FILE_READ_LIMITS.text) : args.scenario;
+        const scenario = parseScenario(source);
+        if (args.movie) {
+          const total = scenario.steps.length;
+          const from = args.movie.from_step;
+          const to = args.movie.to_step;
+          if ((from !== undefined && from > total) || (to !== undefined && to > total)) {
+            throw new BridgeError("INVALID_PARAMS", `The scenario has ${total} steps; from_step/to_step must be between 1 and ${total}.`);
           }
-          report.movie = { ...report.movie, frames: output.files.length, seconds: Math.round(output.seconds * 100) / 100 };
-        } catch (e) {
-          movieNote = `Movie not made: ${e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e)}`;
+          if (from !== undefined && to !== undefined && from > to) {
+            throw new BridgeError("INVALID_PARAMS", "movie.from_step must not be after movie.to_step.");
+          }
         }
-      }
-      const full = args.report === "full";
-      const shots = args.include_screenshots !== false
-        ? [...report.screenshots, ...(report.failure_screenshot ? [report.failure_screenshot] : [])]
-        : [];
-      let summary = summarise(report);
-      if (!full && shots.length > 0) summary += `\n  Screenshots (in order): ${shots.map((x) => x.label).join(", ")}`;
-      if (movie) summary += `\n  ${movie.line}`;
-      if (movieNote) summary += `\n  ${movieNote}`;
-      if (args.save_to !== undefined) {
-        const to = args.save_to;
-        summary += `\n  ${evidenceLine(() => saveScenarioEvidence(conn.projectPath, to, report, summarise(report), args.path, movie))}`;
-      }
-      const content: CallToolResult["content"] = [{ type: "text", text: summary }];
-      if (movie?.output.contact) {
-        content.push({ type: "text", text: `Contact sheet: ${movie.output.contact.frames} frames, evenly spaced, each labelled "<game time>s (<frame>)"` });
-        content.push({ type: "image", data: movie.output.contact.data.toString("base64"), mimeType: "image/png" });
-      }
-      if (full) content.push({ type: "text", text: JSON.stringify(withoutImages(report), null, 2) });
-      for (const shot of shots) {
-        if (full) content.push({ type: "text", text: `Screenshot: ${shot.label}` });
-        content.push({ type: "image", data: shot.png_base64, mimeType: "image/png" });
-      }
-      return { content };
-    }),
+        const fps = args.movie?.fps ?? 30;
+        const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), {
+          ...(args.movie ? { movie: { fps } } : {}),
+          projectPath: conn.projectPath,
+        });
+        let movie: EvidenceMovie | undefined;
+        let movieNote: string | undefined;
+        let range: { first: number; last: number } | undefined;
+        if (args.movie && (args.movie.from_step !== undefined || args.movie.to_step !== undefined)) {
+          const from = args.movie.from_step ?? 1;
+          const to = args.movie.to_step ?? scenario.steps.length;
+          const sf = report.movie?.step_frames;
+          if (sf !== undefined && sf.length > 0) {
+            const firstFrame = sf[from - 1] ?? 0;
+            const lastFrame = sf[to] ?? sf[sf.length - 1]!;
+            if (lastFrame > firstFrame) range = { first: firstFrame, last: lastFrame };
+            else movieNote = `Movie range: steps ${from}–${to} cover no frames (${firstFrame}..${lastFrame}); the whole recording is used.`;
+          } else {
+            movieNote = "Movie range ignored: the recording did not report step frame positions.";
+          }
+        }
+        if (args.movie && report.movie?.dir) {
+          try {
+            const output = makeMovie(report.movie.dir, {
+              fps: report.movie.fps,
+              ...(args.movie.gif !== undefined ? { gif: args.movie.gif } : {}),
+              ...(args.movie.gif_fps !== undefined ? { gifFps: args.movie.gif_fps } : {}),
+              ...(args.movie.max_width !== undefined ? { maxWidth: args.movie.max_width } : {}),
+              ...(args.movie.contact_sheet !== undefined ? { contactFrames: args.movie.contact_sheet } : {}),
+              ...(range !== undefined ? { range } : {}),
+            });
+            const keepFrames = args.movie.frames === true;
+            movie = { output, keepFrames, line: movieLine(output, keepFrames) };
+            if (range !== undefined) {
+              const from = args.movie.from_step ?? 1;
+              const to = args.movie.to_step ?? scenario.steps.length;
+              movie.line += ` — trimmed to steps ${from}–${to} (frames ${range.first}–${range.last - 1} of the recording)`;
+            }
+            report.movie = { ...report.movie, frames: output.files.length, seconds: Math.round(output.seconds * 100) / 100 };
+          } catch (e) {
+            movieNote = `Movie not made: ${e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e)}`;
+          }
+        }
+        const full = args.report === "full";
+        const shots = args.include_screenshots !== false
+          ? [...report.screenshots, ...(report.failure_screenshot ? [report.failure_screenshot] : [])]
+          : [];
+        let summary = summarise(report);
+        if (!full && shots.length > 0) summary += `\n  Screenshots (in order): ${shots.map((x) => x.label).join(", ")}`;
+        if (movie) summary += `\n  ${movie.line}`;
+        if (movieNote) summary += `\n  ${movieNote}`;
+        if (args.save_to !== undefined) {
+          const to = args.save_to;
+          summary += `\n  ${evidenceLine(() => saveScenarioEvidence(conn.projectPath, to, report, summarise(report), args.path, movie))}`;
+        }
+        const content: CallToolResult["content"] = [{ type: "text", text: summary }];
+        if (movie?.output.contact) {
+          content.push({ type: "text", text: `Contact sheet: ${movie.output.contact.frames} frames, evenly spaced, each labelled "<game time>s (<frame>)"` });
+          content.push({ type: "image", data: movie.output.contact.data.toString("base64"), mimeType: "image/png" });
+        }
+        if (full) content.push({ type: "text", text: JSON.stringify(withoutImages(report), null, 2) });
+        for (const shot of shots) {
+          if (full) content.push({ type: "text", text: `Screenshot: ${shot.label}` });
+          content.push({ type: "image", data: shot.png_base64, mimeType: "image/png" });
+        }
+        return { content };
+    })),
   );
 
   async function runBatch(
@@ -328,8 +312,8 @@ export function registerScenarioTools(server: McpServer, conn: GodotConnection):
         continue;
       }
       try {
-        const scenario = parseScenario(readFileSync(resolveProjectFile(conn.projectPath, path), "utf8"));
-        const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}));
+        const scenario = parseScenario(readTextFileBounded(resolveProjectFile(conn.projectPath, path), FILE_READ_LIMITS.text));
+        const report = await runScenario(scenario, (m, p, o) => conn.call(m, p ?? {}, o ?? {}), { projectPath: conn.projectPath });
         entries.push({ path, report });
       } catch (e) {
         entries.push({ path, error: e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e) });

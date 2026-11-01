@@ -3,6 +3,27 @@ extends "res://tests/godot/test_case.gd"
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
 
 
+func test_large_directory_scan_fails_closed_for_all_path_guards() -> void:
+	var folder := "res://tests/godot/_path_guard_entry_budget"
+	var created := DirAccess.make_dir_absolute(folder)
+	assert_eq(created, OK, "The isolated entry-budget fixture must be newly owned.")
+	if created != OK:
+		return
+	for i in 4097:
+		var file := FileAccess.open(folder.path_join("entry_%04d.txt" % i), FileAccess.WRITE)
+		assert_true(file != null)
+		if file != null:
+			file.close()
+	var target := folder.path_join("not_present.txt")
+	assert_true(PathGuard.check_read(target) != "", "Directory enumeration must be bounded.")
+	assert_true(PathGuard.check_write(target, ["txt"]) != "", "Write guard must preserve the enumeration refusal.")
+	assert_true(PathGuard.check_internal_path(target) != "", "Internal guard must not erase the refusal.")
+	for i in 4097:
+		DirAccess.remove_absolute(folder.path_join("entry_%04d.txt" % i))
+	assert_eq(DirAccess.remove_absolute(folder), OK)
+	assert_eq(PathGuard.check_read("res://tests/godot/test_case.gd"), "", "Ordinary small directories remain usable.")
+
+
 func test_read_allows_res_paths() -> void:
 	assert_eq(PathGuard.check_read("res://scenes/main.tscn"), "")
 
@@ -24,6 +45,12 @@ func test_rejects_backslashes_and_control_chars() -> void:
 	assert_true(PathGuard.check_read("res://a\\b.gd") != "")
 	assert_true(PathGuard.check_read("res://a\nb.gd") != "")
 	assert_true(PathGuard.check_read("res://a	b.gd") != "")
+
+
+func test_rejects_portable_path_alias_syntax() -> void:
+	for path in ["res://build/data:stream.gd", "res://.git /probe.gd", "res://.godot./probe.gd", "res://a/name.gd "]:
+		assert_true(PathGuard.check_read(path) != "", path)
+		assert_true(PathGuard.check_write(path, ["gd"]) != "", path)
 
 
 func test_write_allows_expected_extension() -> void:
@@ -48,6 +75,12 @@ func test_write_allows_other_addons() -> void:
 func test_normalize_collapses_dot_segments() -> void:
 	assert_eq(PathGuard.normalize("res://a/./b.gd"), "res://a/b.gd")
 	assert_eq(PathGuard.normalize("res://a//b.gd"), "res://a/b.gd")
+
+
+func test_rejects_the_protected_directory_itself() -> void:
+	for path in ["res://.git", "res://.git/", "res://.GODOT", "res://.godot/"]:
+		assert_true(PathGuard.check_read(path) != "", path)
+	assert_eq(PathGuard.check_read("res://.git-backup/notes.txt"), "")
 
 
 func test_read_rejects_internal_dirs() -> void:
@@ -93,6 +126,14 @@ func test_rejects_a_symlinked_file() -> void:
 	var err := DirAccess.open("res://").create_link(target, ProjectSettings.globalize_path(LINK_FILE))
 	assert_eq(err, OK, "test setup: create_link")
 	assert_true(PathGuard.check_read(LINK_FILE) != "")
+
+
+func test_unicode_case_alias_cannot_write_the_addon() -> void:
+	var alias := "res://addonſ/mcp_loop"
+	var dir := DirAccess.open(alias)
+	if dir == null:
+		return # Native alias fixture: this spelling need not resolve on a case-sensitive filesystem.
+	assert_true(PathGuard.check_write(alias + "/guard_probe.gd", ["gd"]) != "", "the filesystem's long-s alias must not bypass addon protection")
 
 
 func test_regular_nested_paths_still_allowed() -> void:

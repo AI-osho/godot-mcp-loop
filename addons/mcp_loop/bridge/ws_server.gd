@@ -13,9 +13,10 @@ const BIND_ADDRESS := "127.0.0.1"
 const INBOUND_BUFFER := 4 * 1024 * 1024
 const OUTBOUND_BUFFER := 24 * 1024 * 1024
 const HANDSHAKE_TIMEOUT_MS := 5000
-## Connections that are handshaking or waiting to authenticate.
+## All non-active peers share one cap, including rejected peers flushing a reply or waiting for a close handshake.
 const MAX_WAITING := 3
 const REJECT_GRACE_MS := 250
+const CLOSE_TIMEOUT_MS := 1000
 
 var hello_timeout_ms := 5000
 
@@ -25,8 +26,9 @@ var _port := -1
 var _peer: WebSocketPeer = null
 var _pending: Array = []    # WebSocket handshake in progress: {peer, since}
 var _candidates: Array = [] # open, not authenticated yet: {peer, since}
-var _closing: Array = []    # replaced/rejected peers kept until their close frame is flushed
+var _closing: Array = []    # replaced/rejected peers: {peer, since}
 var _to_close: Array = []   # rejected candidates: {peer, code, reason}; closed once their reply is flushed
+var _transports: Dictionary = {} # peer -> owned TCP transport; retained so a withheld close handshake can be forced down
 # Bumped whenever the active peer changes so late async responses are dropped.
 var _generation := 0
 
@@ -44,7 +46,7 @@ func get_port() -> int:
 
 
 func waiting_count() -> int:
-	return _pending.size() + _candidates.size()
+	return _pending.size() + _candidates.size() + _to_close.size() + _closing.size()
 
 
 ## Binds the first free port in [from, to]. Returns the port or -1.
@@ -57,14 +59,15 @@ func start(from: int, to: int) -> int:
 
 
 func stop() -> void:
-	if _peer != null:
-		_peer.close(1001, "server stopping")
-		_peer = null
-	for p in _pending + _candidates + _to_close:
-		p.peer.close()
+	for ws in _transports:
+		ws.close(1001, "server stopping")
+		_transports[ws].disconnect_from_host()
+	_transports.clear()
+	_peer = null
 	_pending.clear()
 	_candidates.clear()
 	_to_close.clear()
+	_closing.clear()
 	_tcp.stop()
 	_port = -1
 	_router.reset_session()
@@ -93,7 +96,10 @@ func poll() -> void:
 		ws.outbound_buffer_size = OUTBOUND_BUFFER
 		ws.max_queued_packets = 1024
 		if ws.accept_stream(conn) == OK:
+			_transports[ws] = conn
 			_pending.append({"peer": ws, "since": Time.get_ticks_msec()})
+		else:
+			conn.disconnect_from_host()
 
 	_poll_pending()
 	_poll_candidates()
@@ -112,6 +118,7 @@ func _poll_pending() -> void:
 			still.append(p)
 		else:
 			ws.close()
+			_drop_peer(ws)
 	_pending = still
 
 
@@ -121,6 +128,7 @@ func _poll_candidates() -> void:
 		var ws: WebSocketPeer = c.peer
 		ws.poll()
 		if ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			_drop_peer(ws)
 			continue
 		if Time.get_ticks_msec() - c.since > hello_timeout_ms:
 			_reject(ws, 4002, "hello timeout")
@@ -156,6 +164,12 @@ func _reject(ws: WebSocketPeer, code: int, reason: String) -> void:
 	_to_close.append({"peer": ws, "code": code, "reason": reason, "since": Time.get_ticks_msec()})
 
 
+func _drop_peer(ws: WebSocketPeer) -> void:
+	if _transports.has(ws):
+		_transports[ws].disconnect_from_host()
+		_transports.erase(ws)
+
+
 func _with_id(id: Variant, envelope: Dictionary) -> Dictionary:
 	var out := {"id": id}
 	out.merge(envelope)
@@ -165,7 +179,7 @@ func _with_id(id: Variant, envelope: Dictionary) -> Dictionary:
 func _promote(ws: WebSocketPeer) -> void:
 	if _peer != null:
 		_peer.close(4000, "replaced by a new authenticated connection")
-		_closing.append(_peer)
+		_closing.append({"peer": _peer, "since": Time.get_ticks_msec()})
 	_peer = ws
 	_generation += 1
 	_router.reset_session()
@@ -181,19 +195,26 @@ func _poll_active() -> void:
 		var age: int = Time.get_ticks_msec() - int(t.since)
 		if (ws.get_current_outbound_buffered_amount() == 0 and age >= REJECT_GRACE_MS) or age > 1000:
 			ws.close(t.code, t.reason)
-			_closing.append(ws)
+			_closing.append({"peer": ws, "since": Time.get_ticks_msec()})
 		else:
 			still.append(t)
 	_to_close = still
+	var closing: Array = []
 	for old in _closing:
-		old.poll()
-	_closing = _closing.filter(func(o: WebSocketPeer) -> bool: return o.get_ready_state() != WebSocketPeer.STATE_CLOSED)
+		var ws: WebSocketPeer = old.peer
+		ws.poll()
+		if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED or Time.get_ticks_msec() - int(old.since) >= CLOSE_TIMEOUT_MS:
+			_drop_peer(ws)
+		else:
+			closing.append(old)
+	_closing = closing
 
 	if _peer == null:
 		return
 	_peer.poll()
 	var state := _peer.get_ready_state()
 	if state == WebSocketPeer.STATE_CLOSED:
+		_drop_peer(_peer)
 		_peer = null
 		_generation += 1
 		_router.reset_session()

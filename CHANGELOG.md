@@ -3,11 +3,102 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.10.0] - 2026-11-01
 
-_Nothing yet._
+### Added
+- Optional 2D artwork-production workflow: strict production briefs, approved external GPT Image 2 medium
+  requests, real PNG receipts with requested/reported quality separation, deterministic crop/key/fit/common-scale
+  and RGBA atlas builds, image-block previews and source/code/output change detection.
+- `asset_scene_add` places validated artwork as standard Sprite2D/AnimatedSprite2D/SpriteFrames under one
+  undoable group, with explicit anchors, scale, drawing order and frames; refuses target/name changes during import.
+- Fixed Python/Pillow helper included in the npm payload (`Pillow==13.0.0`, Python 3.11+, optional to existing tools),
+  with bounded JSON/PNG input, no executable recipes, no automatic dependency installation or image API/auth code.
+- English/Japanese artwork-production guides and updated agent workflow. Artwork previews, native screenshots,
+  automated input checks, human acceptance and unverified model/billing/rights claims are kept distinct.
+- Separate original-manifest checksums, encoded PNG byte-limit checks before publication, fixed Pillow startup
+  checks and environment-sensitive verification; production JSON uses exclusive atomic publication rather than
+  writing partial bytes to its final revision name.
 
-## [0.9.3] - 2026-10-20
+### Security
+- Bound every exact text-replacement intermediate before allocation; stream native path lookup with a 4096-entry
+  fail-closed limit. Reject invalid indexed builtin members before native access, preserving shared Resource copies.
+- Reject artwork-path reparse metadata and resolved escapes; atomically publish build directories without replacing
+  a concurrent empty-directory claimant. Unsupported no-replace platforms fail closed.
+- Bind preview decoding to verified byte generations and capture artwork scene/parent identity before the earlier
+  worker wait, not only during native import.
+- Pin the optional artwork runtime to Pillow 13.0.0 / Python 3.11+; refuse oversized intermediate pose geometry,
+  per-frame PNG area and aggregate retained selections before allocation/publication.
+- Require screenshot baseline `.png` paths in both schema and writer; an update refuses an existing non-PNG file.
+- Bind owned-editor readiness/quit to the authenticated connection's PID/port/token identity, not merely a separate
+  session-file PID, and recheck the session after reconnect awaits. Missing owned PIDs fail closed.
+- Recheck physical path containment for scenario/evidence/baseline/export I/O, including linked output companions,
+  ownership manifests, hard-linked leaf files, and delayed file undo. Internal session, movie, test and launcher
+  paths now have explicit checks rather than relying on the public file guard.
+- Refuse installer/sample destinations inside the running package by filesystem identity, including native Unicode
+  aliases, and destructive destinations containing the running package or loose-checkout copy sources.
+- Reject copied or hard-linked session files that could connect the wrong project; validate connection metadata.
+- Bound PNG inflation/dimensions, scenario structure/recursive aliases, test-log reads (last 64 KiB) and JUnit input
+  (8 MiB). These are per-input limits, not an aggregate memory/disk quota.
+- Mark `game_wait_for` as non-read-only: method conditions can change state. Clarify that project loading, callbacks,
+  `dry_run` validation, test runners and exports are not an OS sandbox.
+- Revalidate every open scene's native save destination before save/play/quit, including inactive scenes; refuse
+  generic edits of native scene/resource path identities. Project-settings undo refuses changed paths without
+  consuming the pending action.
+- Reject argv values Godot reinterprets (`%20`, edge whitespace, control characters and option-like export presets)
+  before launching or making output folders. Ordinary Unicode names and interior spaces remain supported.
+- Prepare indexed Resource previews on copies; refuse indexed Script/non-Resource Object edits. Mask real `@tool`
+  annotation tokens even after an inline annotation without changing strings, comments or locations.
+- Cap all non-active WebSocket states together and forcibly close withheld handshakes; retain the authenticated client.
+- Bound project-controlled Node reads, shrink movie frames before retaining samples, bound portrait dimensions and
+  cap encoded GIFs at 64 MiB. None of these is an overall process-memory or disk quota.
+- Update transitive `body-parser` to 2.4.0 and `fast-uri` to 3.1.9 for newly published advisories, with lockfile
+  regression tests; pin the staged-publishing npm CLI to 12.2.1 rather than resolving `npm@latest`.
+
+### Fixed
+- Synchronize the two short-lived shooter regression checkpoints with explicit pause/physics stepping rather than
+  remote-call latency; preserve every original condition and gameplay rule, and independently verify the20/120-tick lifetimes.
+- Serialize simulation step/input/pause and game run/stop/quit lifecycles. Refuse paused inline timed edits before
+  side effects; correlate launched children with their own hello and avoid force-stopping a successor game.
+- Use monotonic minimum wall waits for ordinary millisecond input without changing Movie Maker's fixed-step clock.
+- Refuse a passing test-run verdict when native Godot errors were logged, even with exit zero and successful JUnit.
+- Validate generated artwork requests against the same schema used by registration before publishing a revision.
+- Make explicit `assert_no_errors` fail when log acquisition fails or returns a malformed envelope; unavailable
+  logs are not a verified empty error log. Preserve best-effort final diagnostics separately.
+- Pass the selected project to visual checks in folder/list scenario runs, just as for a single scenario.
+- Bind relative Godot executable candidates to the discovery working directory before validation/spawn. Handle
+  asynchronous spawn errors without an unhandled process event; failed no-PID launches release their ownership entry.
+- Refuse file/script/image replacement when the original cannot be read for its undo snapshot, rather than recording
+  an empty original. Keep failed inverse recovery ahead of older edits after unobserved native redo/undo cycles.
+- Reject incomplete or structurally malformed JUnit XML before accepting partial passing cases, including with
+  process exit zero; retain supported GUT/GdUnit4 reports and single-suite roots.
+- Report failed file/script/image/settings/input saves instead of successful edit metadata. Check file inverse I/O
+  before consuming native undo; retain failed and native-redone recovery entries, preserve original errors and
+  partial-step results, snapshot mutable input settings, and refuse reentrant file/history operations. PNG sidecars
+  are checked before removal and orphan metadata is not overwritten; paired removal remains non-atomic.
+- Never pass a test runner that exits nonzero, even when its JUnit report claims success. The server also rejects a
+  stale addon's contradictory success flag and displays the process exit code in failed summaries.
+- Retain editor process ownership after readiness timeout, refuse concurrent/repeated spawn while it is alive, and
+  match readiness/quit to its PID. Pin the entire editor-launch request through its final status reply.
+- Remove only session metadata matching a successful publication fingerprint. Correlate runtime responses with live
+  pending requests, native sessions and run generations; discard late/unsolicited replies and foreign callbacks.
+- Refuse changed main/current scene selection after launch/restart waits and recheck physical paths and open-scene
+  save destinations at native play. Keep valid main-scene UIDs intact rather than converting them into argv filenames.
+- Count inline scenario object keys in the UTF-8 text budget. Enforce colour-specific PNG `tRNS` lengths and forbid
+  redundant transparency chunks on alpha images while preserving supported grayscale, RGB and indexed transparency.
+- Confirm direct-child exit after termination requests instead of reporting an unobserved successful stop.
+  Failed editor shutdown retains ownership; an unconfirmed test-runner stop retains `BUSY` until exit is observed.
+  Export timeouts retain partial diagnostics and remain bounded when descendants inherit output pipes.
+- Keep synthetic action holds across application focus changes in both `game_input` and `game_step`, while preserving
+  input callbacks and explicit/timed/tap release. Native focus-loss tests include a raw-event negative control.
+- Finish `hold_frames` / `wait_frames` after game-node physics callbacks, not at the frame-start signal: a one-frame
+  hold was released before the RPG could see it. The exact-count regression also exercises physics catch-up at 10 fps.
+- Keep project selection pinned through multi-step scenarios/evidence, exports and editor startup/shutdown; concurrent
+  project switches return `BUSY`, and failed operations release the pin. A native save refusal does not force-kill an editor.
+
+See `SECURITY-AUDIT.md` for the qualification scope and remaining limits. The earlier unpublished 0.9.3 work below
+is included in 0.10.0; npm's preceding public version was 0.9.2.
+
+## [0.9.3] - 2026-10-20 (unpublished; included in 0.10.0)
 
 ### Security
 - The Claude Code plugin launched the MCP server as `godot-mcp-loop@latest`, so every editor session re-resolved npm

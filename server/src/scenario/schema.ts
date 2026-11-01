@@ -66,7 +66,7 @@ const MatchScreenshotStep = z
   .object({
     match_screenshot: z
       .object({
-        baseline: z.string().min(1).describe("res:// path of the baseline PNG; written from this capture when missing"),
+        baseline: z.string().min(1).regex(/\.png$/i, "Screenshot baselines must use .png").describe("res:// path of the baseline PNG; written from this capture when missing"),
         tolerance: z.number().min(0).max(1).optional().describe("Allowed fraction of differing pixels (default 0.005)"),
         pixel_tolerance: z
           .number()
@@ -132,16 +132,49 @@ export const ScenarioSchema = z
 
 export type Scenario = z.infer<typeof ScenarioSchema>;
 
+/** Reject cycles and excessive nesting before Zod's recursive schema can overflow its stack. */
+function checkScenarioStructure(data: unknown): void {
+  const pending: Array<{ value: unknown; depth: number; exit?: boolean }> = [{ value: data, depth: 0 }];
+  const active = new WeakSet<object>();
+  let nodes = 0;
+  let textBytes = 0;
+  while (pending.length > 0) {
+    const { value, depth, exit } = pending.pop()!;
+    if (exit) { active.delete(value as object); continue; }
+    if (++nodes > 100_000 || depth > 64) throw new BridgeError("INVALID_PARAMS", "Scenario is too large or nested too deeply.");
+    if (typeof value === "string") {
+      textBytes += Buffer.byteLength(value, "utf8");
+      if (textBytes > 1024 * 1024) throw new BridgeError("INVALID_PARAMS", "Scenario exceeds the 1 MiB text limit.");
+    }
+    if (value === null || typeof value !== "object") continue;
+    if (active.has(value)) throw new BridgeError("INVALID_PARAMS", "Recursive scenario aliases are not allowed.");
+    active.add(value);
+    pending.push({ value, depth, exit: true });
+    const keyed = !Array.isArray(value);
+    for (const [key, child] of Object.entries(value)) {
+      if (keyed) {
+        textBytes += Buffer.byteLength(key, "utf8");
+        if (textBytes > 1024 * 1024) throw new BridgeError("INVALID_PARAMS", "Scenario exceeds the 1 MiB text limit.");
+      }
+      pending.push({ value: child, depth: depth + 1 });
+    }
+  }
+}
+
 /** Parses a scenario from YAML/JSON text or an already-parsed object. */
 export function parseScenario(input: unknown): Scenario {
   let data = input;
   if (typeof input === "string") {
+    if (Buffer.byteLength(input, "utf8") > 1024 * 1024) {
+      throw new BridgeError("INVALID_PARAMS", "Scenario exceeds the 1 MiB document limit.");
+    }
     try {
       data = parseYaml(input);
     } catch (e) {
       throw new BridgeError("INVALID_PARAMS", `Scenario is not valid YAML/JSON: ${(e as Error).message}`);
     }
   }
+  checkScenarioStructure(data);
   const r = ScenarioSchema.safeParse(data);
   if (!r.success) {
     const issues = r.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);

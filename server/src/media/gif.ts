@@ -1,4 +1,7 @@
 import type { RgbaImage } from "./png.js";
+import { BridgeError } from "../errors.js";
+
+export const MAX_GIF_BYTES = 64 * 1024 * 1024;
 
 /**
  * Animated GIF without dependencies: one global palette (exact when the frames use at most 256 colours — typical for
@@ -135,14 +138,18 @@ function medianCut(frames: RgbaImage[], colours: number): Palette {
 }
 
 class Bytes {
-  private buf = Buffer.alloc(1 << 16);
+  private buf: Buffer;
   length = 0;
+  constructor(private readonly maxBytes: number) {
+    this.buf = Buffer.alloc(Math.min(1 << 16, maxBytes));
+  }
   push(...bytes: number[]): void {
     for (const b of bytes) this.byte(b);
   }
   byte(b: number): void {
+    if (this.length >= this.maxBytes) throw new BridgeError("INVALID_PARAMS", "GIF exceeds its encoded byte budget.");
     if (this.length === this.buf.length) {
-      const next = Buffer.alloc(this.buf.length * 2);
+      const next = Buffer.alloc(Math.min(this.buf.length * 2, this.maxBytes));
       this.buf.copy(next);
       this.buf = next;
     }
@@ -214,12 +221,16 @@ function lzw(out: Bytes, indices: Uint8Array, minCode: number): void {
  * With a palette (e.g. built from a sample of the frames) the frames may be any iterable and are encoded one at a time,
  * so a long recording never sits in memory as a whole.
  */
-export function encodeGif(frames: Iterable<RgbaImage>, opts: { delaysCs: number[]; loop?: number; palette?: Palette }): Buffer {
+export function encodeGif(frames: Iterable<RgbaImage>, opts: { delaysCs: number[]; loop?: number; palette?: Palette; maxBytes?: number }): Buffer {
+  const maxBytes = opts.maxBytes ?? MAX_GIF_BYTES;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_GIF_BYTES) {
+    throw new BridgeError("INVALID_PARAMS", "Invalid GIF byte budget.");
+  }
   const source = opts.palette ? frames : [...frames];
   const q = opts.palette ?? quantize(source as RgbaImage[]);
   let tableBits = 1;
   while (1 << tableBits < q.palette.length) tableBits++;
-  const out = new Bytes();
+  const out = new Bytes(maxBytes);
   let width = 0;
   let height = 0;
   let prev: Uint8Array | undefined;
@@ -282,7 +293,7 @@ export function encodeGif(frames: Iterable<RgbaImage>, opts: { delaysCs: number[
     const h = y1 - y0 + 1;
     const sub = w === width && h === height ? idx : new Uint8Array(w * h);
     if (sub !== idx) for (let y = 0; y < h; y++) sub.set(idx.subarray((y0 + y) * width + x0, (y0 + y) * width + x0 + w), y * w);
-    const image = new Bytes();
+    const image = new Bytes(maxBytes);
     image.byte(0x2c);
     image.u16(x0);
     image.u16(y0);

@@ -2,7 +2,8 @@
 
 ## Supported versions
 
-Security fixes go into the latest release line (currently 0.4.x).
+Security fixes go into the latest release line. Use the latest published version; unreleased branches are not
+release builds.
 
 ## Reporting a vulnerability
 

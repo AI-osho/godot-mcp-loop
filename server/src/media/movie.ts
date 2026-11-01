@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { FILE_READ_LIMITS, readFileBounded } from "../bounded-io.js";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { BridgeError } from "../errors.js";
 import { encodeGif, quantize } from "./gif.js";
@@ -54,7 +55,7 @@ export interface MovieOptions {
   gif?: boolean;
   /** GIF frame rate (default 15, at most the recording rate). */
   gifFps?: number;
-  /** Width of the GIF in pixels (default 480; never enlarged). */
+  /** Maximum GIF edge in pixels (default 480; both axes bounded, never enlarged). */
   maxWidth?: number;
   /** Frames in the contact sheet (default 12; 0 = none). */
   contactFrames?: number;
@@ -93,7 +94,7 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
   }
   const load = (file: string): RgbaImage | undefined => {
     try {
-      return decodePng(readFileSync(file));
+      return decodePng(readFileBounded(file, FILE_READ_LIMITS.png));
     } catch {
       return undefined;
     }
@@ -113,7 +114,11 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
   const contactN = opts.contactFrames ?? 12;
   if (contactN > 0) {
     const picks = contactIndices(usable, contactN)
-      .map((i) => ({ i, image: load(kept[i]!) }))
+      .map((i) => {
+        const image = load(kept[i]!);
+        // Retain a thumbnail, never an array of full-resolution decoded sources.
+        return { i, image: image ? resize(image, Math.min(320, maxWidth), Math.min(320, maxWidth)) : undefined };
+      })
       .filter((p): p is { i: number; image: RgbaImage } => p.image !== undefined);
     if (picks.length > 0) {
       const sheet = contactSheet(
@@ -128,9 +133,11 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
     const plan = gifPlan(usable, fps, Math.min(opts.gifFps ?? 15, fps));
     // Palette from a sample of the frames, then every frame is decoded, scaled and encoded one at a time.
     const sample = contactIndices(plan.indices.length, 24)
-      .map((k) => load(kept[plan.indices[k]!]!))
-      .filter((f): f is RgbaImage => f !== undefined)
-      .map((f) => resize(f, maxWidth));
+      .map((k) => {
+        const image = load(kept[plan.indices[k]!]!);
+        return image ? resize(image, Math.min(320, maxWidth), Math.min(320, maxWidth)) : undefined;
+      })
+      .filter((f): f is RgbaImage => f !== undefined);
     const palette = quantize(sample);
     const delays: number[] = [];
     let carried = 0;
@@ -145,7 +152,7 @@ export function makeMovie(dir: string, opts: MovieOptions): MovieOutput {
           out.unreadable += 1;
           continue;
         }
-        const img = resize(f, maxWidth);
+        const img = resize(f, maxWidth, maxWidth);
         size = { width: img.width, height: img.height };
         delays.push(plan.delaysCs[k]! + carried);
         carried = 0;

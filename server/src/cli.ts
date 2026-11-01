@@ -1,5 +1,6 @@
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve, sep } from "node:path";
+import { FILE_READ_LIMITS, readTextFileBounded } from "./bounded-io.js";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SERVER_VERSION } from "./version.js";
 
@@ -52,6 +53,52 @@ export function listSamples(): string[] {
     .sort();
 }
 
+/** Refuse writes into the running installation, including path aliases and missing final components. */
+function assertOutsidePackage(target: string, extra: string[] = [], refuseContainingSource = false): void {
+  // Compare filesystem identities, not spellings: both a symlink alias and differently cased paths on macOS/Windows
+  // can reach this package while looking unrelated to pkgRoot. Missing final components are checked via their parent.
+  const sourcePaths = [pkgRoot, ...extra];
+  const protectedDirs = sourcePaths.map((p) => statSync(p));
+  let ancestor = target;
+  for (;;) {
+    try { lstatSync(ancestor); break; }
+    catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw new CliError(`Cannot inspect ${ancestor}; choose a writable folder.`);
+      const parent = dirname(ancestor);
+      if (parent === ancestor) throw new CliError(`Cannot resolve ${target}.`);
+      ancestor = parent;
+    }
+  }
+  try { ancestor = realpathSync(ancestor); }
+  catch { throw new CliError(`${target} goes through a broken symbolic link.`); }
+  for (;;) {
+    const st = statSync(ancestor);
+    if (protectedDirs.some((p) => p.dev === st.dev && p.ino === st.ino)) {
+      throw new CliError(`${target} is inside the installed package or sample source; pick a folder outside it.`);
+    }
+    const parent = dirname(ancestor);
+    if (parent === ancestor) break;
+    ancestor = parent;
+  }
+  if (!refuseContainingSource) return;
+  let targetId;
+  try { targetId = statSync(target); }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return; throw e; }
+  // rmSync would also delete a running package/source nested below the target. Check both directions before any copy.
+  for (const source of sourcePaths) {
+    let current = realpathSync(source);
+    for (;;) {
+      const st = statSync(current);
+      if (st.dev === targetId.dev && st.ino === targetId.ino) {
+        throw new CliError(`${target} contains the installed package or copy source; refusing to replace it.`);
+      }
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
+}
+
 /** Copies a sample project into an empty or missing folder. */
 export function copySample(name: string, dest: string): { name: string; project: string; files: number } {
   const available = listSamples();
@@ -60,11 +107,7 @@ export function copySample(name: string, dest: string): { name: string; project:
   }
   const source = join(samplesDir(), name);
   const target = resolve(dest);
-  // Copying into the installed package would leave a folder inside node_modules that npm removes on the next install,
-  // and writing over the package's own files is never what the caller meant.
-  if (target === pkgRoot || target.startsWith(pkgRoot + sep)) {
-    throw new CliError(`${target} is inside the installed package; pick a folder outside it.`);
-  }
+  assertOutsidePackage(target, [source]);
   if (existsSync(target) && readdirSync(target).length > 0) {
     throw new CliError(`${target} is not empty; pass a new folder for the sample.`);
   }
@@ -77,7 +120,7 @@ export function copySample(name: string, dest: string): { name: string; project:
 
 function addonVersion(dir: string): string | undefined {
   try {
-    return /^version="([^"]*)"/m.exec(readFileSync(join(dir, "plugin.cfg"), "utf8"))?.[1];
+    return /^version="([^"]*)"/m.exec(readTextFileBounded(join(dir, "plugin.cfg"), FILE_READ_LIMITS.metadata))?.[1];
   } catch {
     return undefined;
   }
@@ -89,9 +132,13 @@ function inside(root: string, ...parts: string[]): string {
   for (const part of parts) {
     p = join(p, part);
     try {
-      if (lstatSync(p).isSymbolicLink()) throw new CliError(`${p} is a symbolic link; refusing to write through it.`);
+      const st = lstatSync(p);
+      if (st.isSymbolicLink() || (st.isFile() && st.nlink > 1)) {
+        throw new CliError(`${p} is a symbolic link or hard link; refusing to write through it.`);
+      }
     } catch (e) {
       if (e instanceof CliError) throw e;
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
       break; // does not exist yet
     }
   }
@@ -107,7 +154,11 @@ export function enablePlugin(text: string): string {
   const next = text.slice(start).search(/^\[/m);
   const end = next === -1 ? text.length : start + next;
   const section = text.slice(start, end);
-  const enabled = /^enabled=PackedStringArray\((.*)\)[ \t]*$/m.exec(section);
+  const enabled = /^[ \t]*enabled[ \t]*=[ \t]*PackedStringArray\((.*)\)[ \t]*$/m.exec(section);
+  const assignments = [...section.matchAll(/^[ \t]*enabled[ \t]*=/gm)].length;
+  if (assignments > 1 || (assignments === 1 && !enabled)) {
+    throw new CliError("The editor_plugins enabled setting is duplicated or unsupported; open the project in Godot to normalize it before installing.");
+  }
   if (!enabled) return `${text.slice(0, start)}\n\nenabled=PackedStringArray(${entry})${section.replace(/^\n*/, "\n\n")}${text.slice(end)}`;
   const items = [...enabled[1]!.matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
   if (items.includes(PLUGIN)) return text;
@@ -126,12 +177,16 @@ export function installAddon(opts: InstallOptions): { messages: string[]; projec
   const given = resolve(opts.project);
   if (!existsSync(join(given, "project.godot"))) throw new CliError(`${given} is not a Godot project (no project.godot).`);
   const root = realpathSync(given);
+  assertOutsidePackage(root);
   const assets = assetDirs();
   const want = addonVersion(assets.addon);
   if (!want) throw new CliError(`The bundled addon is missing (${assets.addon}); reinstall godot-mcp-loop.`);
   const messages: string[] = [];
 
   const target = inside(root, "addons", "mcp_loop");
+  const sources = [assets.addon, ...(opts.skill ? [assets.skill] : [])];
+  assertOutsidePackage(target, sources, true);
+  if (opts.skill) assertOutsidePackage(inside(root, ".claude", "skills", "godot-mcp-loop"), sources, true);
   if (existsSync(target)) {
     const have = addonVersion(target);
     if (have === want && !opts.force) {
@@ -151,7 +206,7 @@ export function installAddon(opts: InstallOptions): { messages: string[]; projec
 
   if (opts.enable !== false) {
     const file = inside(root, "project.godot");
-    const before = readFileSync(file, "utf8");
+    const before = readTextFileBounded(file, FILE_READ_LIMITS.text);
     const after = enablePlugin(before);
     if (after === before) {
       messages.push("The plugin is already enabled in project.godot.");

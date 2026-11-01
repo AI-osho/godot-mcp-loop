@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -45,11 +45,11 @@ describe("export_presets.cfg", () => {
 });
 
 describe("export output paths", () => {
-  const project = "/tmp/some-project";
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "gml-export-path-")));
 
   it("accepts a path under res://build/", () => {
     expect(resolveExportOutput(project, "res://build/web/index.html")).toEqual({
-      abs: "/tmp/some-project/build/web/index.html",
+      abs: join(project, "build/web/index.html"),
       res: "res://build/web/index.html",
     });
   });
@@ -66,6 +66,16 @@ describe("export output paths", () => {
 });
 
 describe("godot arguments", () => {
+  it.each([
+    ["/p%20other", "Web", "/p%20other/build/web/index.html"],
+    ["/p", "--dump-extension-api", "/p/build/web/index.html"],
+    ["/p", "Web", "/p/build/a%20b/index.html"],
+    ["/p", " Web", "/p/build/web/index.html"],
+    ["/p", "Web\n", "/p/build/web/index.html"],
+  ])("refuses values that Godot reinterprets instead of passing them as literal data (%j)", (project, preset, output) => {
+    expect(() => exportArgs(project!, preset!, output!)).toThrowError(expect.objectContaining({ code: "INVALID_PARAMS" }));
+  });
+
   it("builds a fixed argument list (no shell, headless, release)", () => {
     expect(exportArgs("/p", "Web", "/p/build/web/index.html")).toEqual([
       "--headless",

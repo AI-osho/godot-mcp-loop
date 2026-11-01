@@ -32,7 +32,8 @@ const oneLine = (s: string, max = 240): string => {
 
 export function summariseTests(r: TestRunResult): string {
   const t = r.totals;
-  const head = `Tests (${NAMES[r.framework] ?? r.framework}, ${r.path}): ${r.passed ? "PASSED" : "FAILED"} — `;
+  const passed = r.passed && r.exit_code === 0;
+  const head = `Tests (${NAMES[r.framework] ?? r.framework}, ${r.path}): ${passed ? "PASSED" : "FAILED"} — `;
   const secs = `(${(r.duration_ms / 1000).toFixed(1)} s)`;
   let counts: string;
   if (t.tests === 0) counts = `no results ${secs}`;
@@ -44,6 +45,7 @@ export function summariseTests(r: TestRunResult): string {
     counts = `${parts.join(", ")} ${secs}`;
   }
   const lines = [head + counts];
+  if (r.exit_code !== 0) lines.push(`  Process exited with code ${r.exit_code}.`);
   if (r.report_error) lines.push(`  ${r.report_error}`);
   for (const f of r.failures) {
     const kind = f.status === "error" ? " (error)" : "";
@@ -53,7 +55,7 @@ export function summariseTests(r: TestRunResult): string {
   if (r.log_errors?.length) {
     lines.push("Errors in the log:", ...r.log_errors.map((e) => `  - ${oneLine(e, 300)}`));
   }
-  if (!r.passed && r.log_tail?.length) {
+  if (!passed && r.log_tail?.length) {
     lines.push("Last log lines:", ...r.log_tail.map((l) => `  ${l}`));
   }
   return lines.join("\n");
@@ -106,7 +108,8 @@ export function registerTestTools(server: McpServer, conn: GodotConnection, opts
                 .catch(() => undefined);
             }, progressMs);
       try {
-        const result = (await conn.call("tests.run", dropUndefined(params), { timeoutMs: timeout })) as TestRunResult;
+        const reply = (await conn.call("tests.run", dropUndefined(params), { timeoutMs: timeout })) as TestRunResult;
+        const result = { ...reply, passed: reply.passed && reply.exit_code === 0 };
         const content: CallToolResult["content"] = [{ type: "text", text: summariseTests(result) }];
         if (report === "full") content.push({ type: "text", text: JSON.stringify(result, null, 2) });
         return { content };

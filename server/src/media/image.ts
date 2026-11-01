@@ -1,10 +1,11 @@
 import type { RgbaImage } from "./png.js";
 
-/** Shrinks to at most maxWidth (box filter: each target pixel averages the source pixels it covers). */
-export function resize(img: RgbaImage, maxWidth: number): RgbaImage {
-  if (img.width <= maxWidth) return img;
-  const w = Math.max(1, Math.round(maxWidth));
-  const h = Math.max(1, Math.round((img.height * w) / img.width));
+/** Shrinks inside a width/optional-height box; never enlarges. Each target pixel averages its source box. */
+export function resize(img: RgbaImage, maxWidth: number, maxHeight = Infinity): RgbaImage {
+  const ratio = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+  if (ratio === 1) return img;
+  const w = Math.max(1, Math.round(img.width * ratio));
+  const h = Math.max(1, Math.round(img.height * ratio));
   const data = new Uint8Array(w * h * 4);
   const fx = img.width / w;
   const fy = img.height / h;
@@ -72,7 +73,7 @@ export function contactSheet(frames: Array<{ image: RgbaImage; label: string }>,
   const gap = 2;
   const scale = 2;
   const labelH = 5 * scale + 4;
-  const tiles = frames.map((f) => ({ image: resize(f.image, opts.tileWidth), label: f.label }));
+  const tiles = frames.map((f) => ({ image: resize(f.image, opts.tileWidth, opts.tileWidth), label: f.label }));
   const tileW = Math.max(...tiles.map((t) => t.image.width));
   const tileH = Math.max(...tiles.map((t) => t.image.height));
   const cols = Math.max(1, Math.min(opts.columns, tiles.length));

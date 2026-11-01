@@ -79,6 +79,7 @@ jobs:
       - name: GDScript unit tests
         env:
           GODOT_BIN: /home/runner/godot/godot
+          TMPDIR: ${{ runner.temp }}
         run: scripts/test-godot-unit.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

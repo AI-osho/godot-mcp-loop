@@ -265,11 +265,13 @@ function countFrames(dir: string): number {
   }
 }
 
-async function readErrors(call: BridgeCall): Promise<unknown[]> {
+async function readErrors(call: BridgeCall, required = false): Promise<unknown[]> {
   try {
-    const r = (await call("logs.read", { source: "game", min_level: "error", limit: 50 })) as { entries: unknown[] };
+    const r = (await call("logs.read", { source: "game", min_level: "error", limit: 50 })) as { entries?: unknown[] } | null;
+    if (!r || !Array.isArray(r.entries)) throw new BridgeError("BAD_RESPONSE", "Game error logs could not be verified: invalid logs.read response.");
     return r.entries;
-  } catch {
+  } catch (error) {
+    if (required) throw error;
     return [];
   }
 }
@@ -368,7 +370,7 @@ async function runStep(step: ScenarioStep, call: BridgeCall, res: StepResult, re
     }
     res.detail = { iterations: times, steps_per_iteration: steps.length };
   } else if ("assert_no_errors" in step) {
-    const errors = await readErrors(call);
+    const errors = await readErrors(call, true);
     if (errors.length > 0) {
       const first = errors.slice(0, 3).map((e) => (e as { message?: string }).message ?? JSON.stringify(e));
       throw new BridgeError("ASSERTION_FAILED", `The game logged ${errors.length} error(s): ${first.join(" | ")}`);

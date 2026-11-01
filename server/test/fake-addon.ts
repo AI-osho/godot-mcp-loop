@@ -31,6 +31,8 @@ export class FakeAddon {
   silent = false;
   /** Delay before answering hello (e.g. to switch projects while a connect is in flight). */
   helloDelayMs = 0;
+  /** Deterministic test barrier immediately before the hello reply. */
+  beforeHelloReply?: () => Promise<void>;
 
   constructor(token = "fake-token") {
     this.token = token;
@@ -53,6 +55,7 @@ export class FakeAddon {
         let env: unknown;
         if (req.method === "hello") {
           if (this.helloDelayMs > 0) await new Promise((r) => setTimeout(r, this.helloDelayMs));
+          await this.beforeHelloReply?.();
           if (params.token !== this.token) {
             env = { ok: false, error: { code: "UNAUTHORIZED", message: "Invalid token." } };
           } else if (params.protocol !== 1) {

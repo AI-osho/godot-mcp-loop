@@ -38,7 +38,7 @@ export function registerEditorTools(server: McpServer, conn: GodotConnection, la
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
-    safe(async (args: { headless?: boolean; timeout_ms?: number }, extra: Extra) => {
+    safe(async (args: { headless?: boolean; timeout_ms?: number }, extra: Extra) => conn.withProjectLease(async () => {
       if (editorRunning(conn.projectPath, (d) => conn.readSessionOf(d))) {
         return jsonResult({ launched: false, already_running: true, ...(await buildStatus(conn)) });
       }
@@ -63,7 +63,7 @@ export function registerEditorTools(server: McpServer, conn: GodotConnection, la
         ...(args.headless !== undefined ? { headless: args.headless } : {}),
       });
       return jsonResult({ launched: true, pid: r.pid, godot_path: r.godot.path, log: r.log, ...(await buildStatus(conn)) });
-    }),
+    })),
   );
 
   server.registerTool(

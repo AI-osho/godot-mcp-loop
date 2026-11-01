@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decodePng, encodePng, type RgbaImage } from "../src/media/png.js";
 import { matchScreenshot, resolveInProject } from "../src/scenario/screenshot-match.js";
+import { parseScenario } from "../src/scenario/schema.js";
 
 function image(width: number, height: number, rgba: [number, number, number, number] = [30, 40, 60, 255]): RgbaImage {
   const data = new Uint8Array(width * height * 4);
@@ -19,6 +20,24 @@ describe("match_screenshot baselines", () => {
     project = mkdtempSync(join(tmpdir(), "gml-match-"));
   });
   afterEach(() => rmSync(project, { recursive: true, force: true }));
+
+  it.each(["project.godot", "script.gd", "scene.tscn", "data.json"])("refuses non-PNG baseline %s in the scenario schema", (name) => {
+    expect(() => parseScenario({ name: "bad baseline", steps: [{ match_screenshot: { baseline: `res://${name}`, update: true } }] })).toThrow();
+  });
+
+  it.each(["project.godot", "script.gd", "scene.tscn", "data.json"])("refuses the non-PNG writer target %s without changing its bytes", (name) => {
+    const original = Buffer.from(`preserve ${name}`);
+    const path = join(project, name); writeFileSync(path, original);
+    expect(() => matchScreenshot(project, png(image(2, 2)), { baseline: `res://${name}`, update: true })).toThrow();
+    expect(readFileSync(path)).toEqual(original);
+  });
+
+  it("does not overwrite a non-PNG regular file merely because its name ends in .png", () => {
+    const original = Buffer.from("preserve existing non-image data");
+    writeFileSync(join(project, "keep.png"), original);
+    expect(() => matchScreenshot(project, png(image(2, 2)), { baseline: "res://keep.png", update: true })).toThrow();
+    expect(readFileSync(join(project, "keep.png"))).toEqual(original);
+  });
 
   it("creates a missing baseline and matches it afterwards", () => {
     const shot = png(image(20, 10));

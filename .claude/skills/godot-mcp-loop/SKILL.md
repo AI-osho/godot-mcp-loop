@@ -20,9 +20,44 @@ needs to see it; screenshots need a window) and close it with `editor_quit` when
 `GODOT_NOT_FOUND` or `ADDON_NOT_INSTALLED` / `ADDON_NOT_ENABLED`, ask the user — do not install or configure Godot
 yourself.
 
+An `editor_launch` readiness timeout does not stop its editor. Do not blindly repeat startup: a live owned process
+returns `BUSY`; check `godot_status` later or use `editor_quit`. Project switching is refused throughout launch,
+including the final status reply. A `game_run` refusal saying main/current changed means recheck the selected scene
+before retrying; it does not authorize running whichever scene replaced it during a wait.
+
 Several games: when `godot_status` shows `projects_roots`, `project_list` lists the projects you may switch to and
 `project_connect {path}` points every following tool call at another one (check that its result names the project
 you meant before editing).
+
+## Illustrated 2D artwork production (development tools)
+
+Use this optional path when the work needs original illustration rather than a quick text-palette sprite.
+`production_plan` -> `art_request` -> the client's existing authorized image producer -> `art_register` ->
+`asset_build` -> `asset_preview` + `asset_verify` -> `asset_scene_add` -> `scene_save` -> ordinary runtime checks.
+
+- `art_request` prepares an `openai-codex` / `gpt-image-2-medium` request with medium quality; it does not generate
+  images, acquire credentials, switch providers or authorise high-quality fallback. If the client has no approved
+  image producer, ask for real PNGs or a suitable authorized producer; never invent an image/response.
+- Register the actual project-local PNG. Preserve requested versus reported quality/model and actual dimensions;
+  omit reported values the producer did not supply rather than inferring them. Record a real raw response when
+  available. `needs_revision` and `rejected` are not accepted artwork.
+- `asset_build` accepts declarative crop/key/pose/icon/common-scale/copy/atlas recipes, never executable code.
+  Inspect the original before choosing crop/foot/frame numbers. PNG tools need optional Python 3.11+ and Pillow
+  13.0.0; brief/request records and existing editor tools do not. Nothing auto-installs dependencies.
+- Require `asset_verify.passed == true`; a failed domain report is not necessarily `isError`. A preview is processed
+  artwork, not a Godot screenshot. Check both before placing a frame/atlas with explicit position/scale/z order.
+  Do not edit manifests or regenerate `manifest.sha256` to force acceptance; rebuild under a new ID. Code,
+  dependency or recorded Python/Pillow environment changes invalidate old verification.
+- Records/builds are append-only files under new project paths. Editor undo removes the placement group but does
+  not delete source art or exports. `asset_scene_add` supports dry_run and one-step undo; save explicitly.
+- Use ordinary `game_input` keys/actions and actual screenshots/logs to verify the result. `game_set`/`game_call`
+  can prepare diagnostic states, but teleport/debug completion does not prove the normal gameplay route.
+- Story, game rules, collisions and project-specific test routes stay in the project. Passing automation is not
+  the user's acceptance of visual style, fun or sound. No automatic publication or sample-game changes.
+
+The packaged runtime is under `authoring/`; full recipes and limitations are in the repository's
+`docs/art-production.md` and `docs/art-production.ja.md`. Use the matched development server/addon pair; the
+currently published package or a client that has not reconnected may not contain these tools.
 
 ## Editing
 
@@ -36,6 +71,16 @@ you meant before editing).
 | Preview / revert | `dry_run: true` on any editing tool; `edit_undo` reverts your own MCP edits. |
 
 Rules:
+- Trust project code before loading/running it. `dry_run` skips the planned edit, not constructors or callbacks.
+- A refused `edit_undo` after a path became linked does not consume the action; restore a safe path before retrying.
+- A file I/O undo failure retains its recovery record. Check `undone`, `stopped_reason` and `error` for partial multi-step
+  progress; repair the filesystem before retrying. PNG/sidecar removal is not atomic. Native GUI history movement alone
+  is not an I/O receipt; a failed native redo needs editor undo/redo realignment. If an error says disk changed without
+  confirmed history registration, inspect it rather than blindly replaying the write.
+- Native `Node.scene_file_path` / `Resource.resource_path` identities are not generic properties to edit. Indexed Resource
+  previews use copies; Script/non-Resource Object reference edits are refused. Use dedicated scene/script tools.
+- Native play/save-all checks all open scene destinations, including inactive ones. Repair a refused save path;
+  `editor_quit` does not discard unsaved work by force-killing an editor on a save refusal.
 - Keep work inside the folder you were given (for example `res://games/<name>/`) and prefix input actions you add
   with the game's name (`rpg_confirm`, not `confirm`) so they don't collide with other games in the project.
 - Don't change the project's main scene, autoloads or other games unless asked.
@@ -46,6 +91,8 @@ Rules:
 ## Running and observing
 
 - `game_run {scene: "res://.../main.tscn", restart: true}` waits until the in-game runtime connects.
+- Godot launch/export/test arguments must remain literal: `%20`, edge whitespace/control characters and option-like
+  export presets are refused, not rewritten. Ordinary Unicode names and interior spaces work.
 - `game_query` reads live values (`properties: ["position:x", "score"]`, script variables included).
 - `game_wait_for` instead of sleeping: `{node, property, op, value, timeout_ms}`; `timeout_ms: 0` is a one-shot
   assert. Ops: `== != > >= < <= contains`, and `changed / increased / decreased` (no value).
@@ -77,6 +124,9 @@ Wall-clock timing makes tests flaky. Prefer frame-exact tools — details and YA
   the first run; `update: true` to accept a new look) and attaches a red diff image when it differs — use it for
   screens that must not change.
 - Conditions can read a method's result: `{node: ".", method: "summary", property: "state", op: "==", value: "battle"}`.
+  Use pure observation methods: `game_wait_for` can mutate state through a method and is not a read-only sandbox.
+- Action presses in `game_input` and `game_step` remain held across application focus changes; explicitly release them
+  when finished. Taps and timed holds release automatically. Physical key/mouse events are not persistent actions.
 - 3D values are JSON: `transform` reads as `{origin, basis: {x, y, z}}`, and `transform:origin:y`, `aabb:size:z`,
   `plane:normal:y` work in queries, sets and conditions. `record: {node, method, properties}` samples a method's
   return value (e.g. `{node: ".", method: "summary", properties: ["ball_pos:2"]}`).
@@ -110,7 +160,8 @@ earlier state. Patterns: [references/scenario-cookbook.md](references/scenario-c
 Logic that has no screen (damage formulas, inventory rules, save data, level generation) is cheaper to check with unit
 tests. If the project has GUT or GdUnit4 in `addons/`, write tests in `res://test/` and run them with
 `test_run {path: "res://test"}` (GUT: `test: "test_jump"` runs matching tests only). It returns counts and every
-failing test with its message. Don't install a test framework unless asked.
+failing test with its message. A valid successful-looking report does not pass when the child exits nonzero; check
+the summary's process exit code as well as test counts. Don't install a test framework unless asked.
 
 ## Before you report done
 

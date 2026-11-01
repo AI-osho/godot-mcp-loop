@@ -117,11 +117,43 @@ func test_input_press_and_release_steps() -> void:
 	assert_false(Input.is_action_pressed("mcp_test_jump"))
 
 
+func test_input_rejects_malformed_field_types_before_any_prior_side_effect() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var malformed := [
+		{"wait_ms": "abc"}, {"key": "Space", "hold_ms": -0.5}, {"wait_frames": 0.5},
+		{"action": "mcp_test_jump", "press": "yes"}, {"action": "mcp_test_jump", "strength": "0.4"},
+		{"mouse_move": ["10", 20]}, {"mouse_click": [1, 2], "button": "unknown"},
+		{"action": "mcp_test_jump", "press": true, "release": true},
+	]
+	for bad in malformed:
+		assert_true(_cmds._validate_steps([bad]) != "", "must reject malformed input: " + JSON.stringify(bad))
+	var r: Dictionary = await _cmds.handle("input", {"steps": [
+		{"set": {"node": "Player", "properties": {"position:x": 999}}}, {"wait_ms": "abc"}]})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_eq(_scene.get_node("Player").position.x, 10.0, "preflight must fail before the preceding valid edit runs")
+	r = await _cmds.handle("step", {"frames": 1.5})
+	assert_error_code(r, Protocol.INVALID_PARAMS)
+	assert_eq(_cmds._validate_steps([{"wait_ms": 0.0}, {"action": "mcp_test_jump", "strength": 0.4, "hold_frames": 2.0}]), "", "JSON integer-valued floats and analog strengths remain valid")
+
+
 func test_input_unknown_action_is_rejected_before_running() -> void:
 	_setup()
 	var r: Dictionary = await _cmds.handle("input", {"steps": [{"wait_ms": 10}, {"action": "does_not_exist"}]})
 	assert_error_code(r, Protocol.INVALID_PARAMS)
 	assert_true(r.error.message.contains("does_not_exist"))
+
+
+func test_nonrecording_millisecond_sleep_does_not_expire_before_wall_time() -> void:
+	_setup()
+	var original_fps := Engine.max_fps
+	Engine.max_fps = 30
+	await tree.process_frame
+	var started := Time.get_ticks_msec()
+	await _cmds._sleep(80)
+	var elapsed := Time.get_ticks_msec() - started
+	Engine.max_fps = original_fps
+	assert_true(elapsed >= 80, "A normal real-time wait ended early: %d ms for 80 ms." % elapsed)
 
 
 func test_input_key_and_wait() -> void:
@@ -606,6 +638,82 @@ func test_pause_and_step_run_exact_physics_frames() -> void:
 	assert_false(tree.paused)
 
 
+func test_simulation_calls_have_one_owner_while_query_remains_available() -> void:
+	_setup()
+	tree.paused = true
+	var replies: Array = []
+	var watchdog_armed := [true]
+	var watchdog_used := [false]
+	tree.create_timer(0.2, true, false, true).timeout.connect(func() -> void:
+		if watchdog_armed[0]:
+			watchdog_used[0] = true
+			tree.paused = false)
+	var start := func() -> void:
+		replies.append(await _cmds.handle("step", {"frames": 3}))
+	start.call()
+	var competing: Dictionary = await _cmds.handle("step", {"frames": 1})
+	assert_error_code(competing, Protocol.BUSY, "A shorter step must not pause the first owner's tree.")
+	assert_error_code(await _cmds.handle("pause", {"paused": true}), Protocol.BUSY)
+	assert_error_code(await _cmds.handle("input", {"steps": [
+		{"set": {"node": "Player", "properties": {"position:x": 999}}}]}), Protocol.BUSY)
+	var query: Dictionary = await _cmds.handle("query", {"node": "Player", "properties": ["position:x"]})
+	assert_true(query.ok, JSON.stringify(query))
+	assert_eq(query.result.properties["position:x"], 10.0, "Read-only observation remains available without the rejected edit.")
+	var deadline := Time.get_ticks_msec() + 1500
+	while replies.is_empty() and Time.get_ticks_msec() < deadline:
+		await tree.process_frame
+	watchdog_armed[0] = false
+	assert_false(watchdog_used[0], "The original step must finish without an external resume.")
+	assert_eq(replies.size(), 1)
+	if not replies.is_empty():
+		assert_true(replies[0].ok, JSON.stringify(replies[0]))
+		assert_eq(replies[0].result.stepped_frames, 3)
+	assert_true(tree.paused)
+	var resumed: Dictionary = await _cmds.handle("pause", {"paused": false})
+	assert_true(resumed.ok, "Ownership must be released when the first call finishes.")
+	for i in 5:
+		await tree.physics_frame
+	assert_false(tree.paused, "No abandoned competitor may pause a later resume.")
+
+
+func test_inline_timed_waits_are_not_classified_as_time_free() -> void:
+	_setup()
+	for kind in ["set", "call", "assert"]:
+		for wait in ["wait_frames", "wait_ms"]:
+			var step := {kind: {}}
+			step[wait] = 1
+			assert_true(_cmds._steps_need_frames([step]), "%s + %s requires time." % [kind, wait])
+			step[wait] = 0
+			assert_false(_cmds._steps_need_frames([step]), "A zero wait does not advance time.")
+
+
+func test_paused_inline_wait_frames_is_refused_before_the_edit() -> void:
+	_setup()
+	tree.paused = true
+	var watchdog_armed := [true]
+	var watchdog_used := [false]
+	# Bounded negative control: old code hangs on its pausable frame waiter.
+	# Only the failing implementation needs this externally injected resume.
+	tree.create_timer(0.15, true, false, true).timeout.connect(func() -> void:
+		if watchdog_armed[0]:
+			watchdog_used[0] = true
+			tree.paused = false)
+	var result: Dictionary = await _cmds.handle("input", {"steps": [
+		{"set": {"node": "Player", "properties": {"position:x": 999}}, "wait_frames": 1}]})
+	watchdog_armed[0] = false
+	assert_error_code(result, Protocol.INVALID_PARAMS)
+	assert_false(watchdog_used[0], "Paused preflight must return without waiting for an external resume.")
+	assert_eq(_scene.get_node("Player").position.x, 10.0, "Nothing may be edited before the refusal.")
+	assert_true(tree.paused)
+	# A genuinely time-free edit with zero frame wait remains valid.
+	tree.paused = true
+	var positive: Dictionary = await _cmds.handle("input", {"steps": [
+		{"set": {"node": "Player", "properties": {"position:x": 20}}, "wait_frames": 0}]})
+	assert_true(positive.ok, JSON.stringify(positive))
+	assert_eq(_scene.get_node("Player").position.x, 20.0)
+	assert_true(tree.paused)
+
+
 func test_runtime_answers_while_paused() -> void:
 	_setup()
 	await _cmds.handle("pause", {"paused": true})
@@ -648,6 +756,28 @@ class InputProbe extends Node:
 			events += 1
 
 
+func test_input_hold_frames_matches_node_callbacks_not_only_the_frame_signal() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	var probe := InputProbe.new()
+	_scene.add_child(probe)
+	var previous_fps := Engine.max_fps
+	# Multiple physics ticks per rendered frame must not stretch a one-frame hold into a whole render batch.
+	Engine.max_fps = 10
+	for count in [1, 2, 6]:
+		await tree.process_frame
+		probe.held_frames = 0
+		probe.frames = 0
+		var r: Dictionary = await _cmds.handle("input", {"steps": [
+			{"action": "mcp_test_jump", "hold_frames": count}, {"wait_frames": 2}]})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		assert_eq(probe.held_frames, count, "the game node, not just physics_frame listeners, must see every held frame")
+		assert_eq(probe.frames, count + 2, "consecutive frame waits complete after their game-node callbacks")
+		assert_false(Input.is_action_pressed("mcp_test_jump"))
+		assert_false(tree.paused, "ordinary input timing must not pause the game")
+	Engine.max_fps = previous_fps
+
+
 func test_step_tap_is_seen_as_just_pressed_and_as_an_event() -> void:
 	_setup()
 	InputMap.add_action("mcp_test_jump")
@@ -682,6 +812,52 @@ func test_step_press_holds_until_release() -> void:
 	await _cmds.handle("step", {"frames": 1, "release": ["mcp_test_jump"]})
 	assert_eq(probe.held_frames, 6, "released before game nodes run")
 	assert_false(Input.is_action_pressed("mcp_test_jump"))
+
+
+func test_temporary_step_taps_preserve_explicit_holds_from_either_api() -> void:
+	_setup()
+	await tree.process_frame
+	InputMap.add_action("mcp_test_jump")
+	for origin in ["step", "input"]:
+		var r: Dictionary
+		var expected_strength := 1.0
+		if origin == "input":
+			tree.paused = false
+			expected_strength = 0.4
+			r = await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "press": true, "strength": expected_strength}]})
+			assert_eq(r.ok, true, JSON.stringify(r))
+			r = await _cmds.handle("step", {"frames": 2, "tap": ["mcp_test_jump"]})
+		else:
+			r = await _cmds.handle("step", {"frames": 2, "press": ["mcp_test_jump"], "tap": ["mcp_test_jump"]})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		assert_true(Input.is_action_pressed("mcp_test_jump"), "a temporary tap must not release an explicit hold from " + origin)
+		assert_true(is_equal_approx(Input.get_action_strength("mcp_test_jump"), expected_strength), "a temporary tap must not replace the held strength")
+		r = await _cmds.handle("step", {"frames": 1, "release": ["mcp_test_jump"]})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		assert_false(Input.is_action_pressed("mcp_test_jump"), "positive control: an explicit release still works")
+
+
+func test_temporary_input_actions_preserve_explicit_holds_from_either_api() -> void:
+	_setup()
+	InputMap.add_action("mcp_test_jump")
+	for origin in ["step", "input"]:
+		tree.paused = false
+		var r: Dictionary
+		var expected_strength := 1.0
+		if origin == "step":
+			r = await _cmds.handle("step", {"frames": 1, "press": ["mcp_test_jump"]})
+			tree.paused = false
+		else:
+			expected_strength = 0.4
+			r = await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "press": true, "strength": expected_strength}]})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		r = await _cmds.handle("input", {"steps": [{"action": "mcp_test_jump", "hold_frames": 2}], "pause_at_end": true})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		assert_true(Input.is_action_pressed("mcp_test_jump"), "temporary input must not release a persistent " + origin + " press")
+		assert_true(is_equal_approx(Input.get_action_strength("mcp_test_jump"), expected_strength))
+		r = await _cmds.handle("step", {"frames": 1, "release": ["mcp_test_jump"]})
+		assert_eq(r.ok, true, JSON.stringify(r))
+		assert_false(Input.is_action_pressed("mcp_test_jump"))
 
 
 func test_step_tap_in_a_single_frame_step() -> void:

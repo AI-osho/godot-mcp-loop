@@ -10,6 +10,7 @@ extends RefCounted
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
+const GodotArgs = preload("res://addons/mcp_loop/util/godot_args.gd")
 const JUnit = preload("res://addons/mcp_loop/util/junit.gd")
 
 const GUT_RUNNER := "res://addons/gut/gut_cmdln.gd"
@@ -24,6 +25,8 @@ static var _ident_re := RegEx.create_from_string("^[A-Za-z_][A-Za-z0-9_]{0,199}$
 
 var tree: SceneTree
 var _running := false
+var _running_pid := -1
+var _unconfirmed_stop := false
 
 
 func _init(scene_tree: SceneTree) -> void:
@@ -103,6 +106,10 @@ static func plan(p: Dictionary, file_exists: Callable, dir_exists: Callable, wor
 	else:
 		args.append_array(["-s", GDUNIT_RUNNER, "--ignoreHeadlessMode", "-c", "-a", path,
 			"-rd", WORK_DIR + "/gdunit", "-rc", "1"])
+	for arg in args:
+		var reason := GodotArgs.check(arg)
+		if reason != "":
+			return Protocol.err(Protocol.INVALID_PARAMS, reason)
 	return {"ok": true, "framework": fw, "path": path if path != "" else GUT_CONFIG, "args": args}
 
 
@@ -136,7 +143,7 @@ static func build_result(pl: Dictionary, parsed: Dictionary, exit_code: int, dur
 		r.failures = parsed.tests.filter(func(t: Dictionary) -> bool: return t.status in ["failed", "error"]).slice(0, MAX_FAILURES)
 		if parsed.tests.size() <= MAX_LISTED_TESTS:
 			r.tests = parsed.tests.map(func(t: Dictionary) -> Dictionary: return {"suite": t.suite, "name": t.name, "status": t.status})
-		r.passed = parsed.totals.tests > 0 and parsed.totals.failed == 0 and parsed.totals.errors == 0
+		r.passed = exit_code == 0 and parsed.totals.tests > 0 and parsed.totals.failed == 0 and parsed.totals.errors == 0
 		if parsed.totals.tests == 0:
 			r.report_error = "No tests were found."
 	else:
@@ -147,12 +154,43 @@ static func build_result(pl: Dictionary, parsed: Dictionary, exit_code: int, dur
 	var errs := log_errors(log_text)
 	if not errs.is_empty():
 		r.log_errors = errs
+		r.passed = false
+		if not r.has("report_error"):
+			r.report_error = "Godot emitted errors outside the JUnit result; inspect log_errors."
 	if not r.passed:
 		r.log_tail = log_tail(log_text, 25)
 	return r
 
 
+func _process_alive(pid: int) -> bool:
+	return OS.is_process_running(pid)
+
+
+func _kill_process(pid: int) -> Error:
+	return OS.kill(pid)
+
+
+func _stop_test_process(pid: int, grace_ms: int = 2000) -> bool:
+	_running = true
+	_running_pid = pid
+	_unconfirmed_stop = false
+	_kill_process(pid)
+	var deadline := Time.get_ticks_msec() + grace_ms
+	while _process_alive(pid):
+		if Time.get_ticks_msec() >= deadline:
+			_unconfirmed_stop = true
+			return false
+		await tree.process_frame
+	_running = false
+	_running_pid = -1
+	return true
+
+
 func _run(p: Dictionary) -> Dictionary:
+	if _running and _unconfirmed_stop and _running_pid > 0 and not _process_alive(_running_pid):
+		_running = false
+		_running_pid = -1
+		_unconfirmed_stop = false
 	if _running:
 		return Protocol.err(Protocol.BUSY, "A test run is already in progress.")
 	var work_abs := ProjectSettings.globalize_path(WORK_DIR)
@@ -163,22 +201,25 @@ func _run(p: Dictionary) -> Dictionary:
 	if not pl.get("ok", false):
 		return pl
 	var timeout_ms := clampi(int(p.get("timeout_ms", 120000)), 5000, 600000)
-	_prepare(work_abs)
+	if _prepare(work_abs) != OK:
+		return Protocol.err(Protocol.PATH_FORBIDDEN, "The test output path is not writable or contains a symbolic link.")
 	_running = true
 	var started := Time.get_ticks_msec()
 	var pid := OS.create_process(OS.get_executable_path(), pl.args)
+	_running_pid = pid
 	if pid <= 0:
 		_running = false
 		return Protocol.err(Protocol.INTERNAL, "Could not start Godot for the tests (%s)." % OS.get_executable_path())
 	var deadline := started + timeout_ms
-	while OS.is_process_running(pid):
+	while _process_alive(pid):
 		if Time.get_ticks_msec() > deadline:
-			OS.kill(pid)
-			_running = false
-			return Protocol.err(Protocol.TIMEOUT, "The tests did not finish within %d ms; the test process was stopped." % timeout_ms,
+			var stopped := await _stop_test_process(pid)
+			var status := "test process exit confirmed" if stopped else "test process exit not confirmed; new test runs remain blocked"
+			return Protocol.err(Protocol.TIMEOUT, "The tests did not finish within %d ms; %s (PID %d)." % [timeout_ms, status, pid],
 				"Last log lines:\n" + "\n".join(log_tail(_read(work_abs.path_join("run.log")), 15)))
 		await tree.process_frame
 	_running = false
+	_running_pid = -1
 	var exit_code := OS.get_process_exit_code(pid)
 	var report := work_abs.path_join("gut.xml") if pl.framework == "gut" else _gdunit_report(work_abs.path_join("gdunit"))
 	var parsed := JUnit.parse(_read(report)) if report != "" else {"ok": false, "error": "no report file", "totals": JUnit.totals([])}
@@ -186,15 +227,26 @@ func _run(p: Dictionary) -> Dictionary:
 
 
 ## Removes the previous run's report and log.
-func _prepare(work_abs: String) -> void:
-	DirAccess.make_dir_recursive_absolute(work_abs)
+func _prepare(work_abs: String) -> Error:
+	for path in [work_abs, work_abs.path_join("gut.xml"), work_abs.path_join("run.log"), work_abs.path_join("gdunit")]:
+		if PathGuard.check_internal_path(ProjectSettings.localize_path(path)) != "":
+			return ERR_UNAUTHORIZED
+	var err := DirAccess.make_dir_recursive_absolute(work_abs)
+	if err != OK:
+		return err
 	for f in ["gut.xml", "run.log"]:
 		if FileAccess.file_exists(work_abs.path_join(f)):
 			DirAccess.remove_absolute(work_abs.path_join(f))
 	_remove_tree(work_abs.path_join("gdunit"))
+	return OK
 
 
 func _remove_tree(dir: String) -> void:
+	# The root can be a link too; checking only its children follows it and deletes another folder's files.
+	var parent := DirAccess.open(dir.get_base_dir())
+	if parent != null and parent.is_link(dir.get_file()):
+		parent.remove(dir.get_file())
+		return
 	var d := DirAccess.open(dir)
 	if d == null:
 		return
@@ -225,6 +277,22 @@ func _gdunit_report(dir: String) -> String:
 
 
 func _read(path: String) -> String:
-	if path == "" or not FileAccess.file_exists(path):
+	if path == "" or PathGuard.check_internal_path(ProjectSettings.localize_path(path)) != "" or not FileAccess.file_exists(path):
 		return ""
-	return FileAccess.get_file_as_string(path)
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return ""
+	var length := f.get_length()
+	var is_log := path.get_file() == "run.log"
+	var budget := 64 * 1024 if is_log else 8 * 1024 * 1024
+	if not is_log and length > budget:
+		f.close()
+		return ""
+	var truncated := length > budget
+	f.seek(maxi(0, length - budget) if is_log else 0)
+	var bytes := f.get_buffer(mini(length, budget))
+	f.close()
+	# The byte boundary can land in the middle of a UTF-8 code point.
+	while not bytes.is_empty() and (bytes[0] & 0xc0) == 0x80:
+		bytes.remove_at(0)
+	return ("[Log truncated to its last 64 KiB]\n" if truncated else "") + bytes.get_string_from_utf8()

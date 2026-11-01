@@ -94,6 +94,21 @@ describe("install-addon (#16)", () => {
     expect(text).toContain("[rendering]\n\nx=1");
   });
 
+  it("updates a whitespace-formatted enabled assignment instead of adding a duplicate key", () => {
+    const before = '[editor_plugins]\n\t enabled = PackedStringArray("res://addons/other/plugin.cfg")\n';
+    const after = enablePlugin(before);
+    expect(after.match(/^\s*enabled\s*=/gm)).toHaveLength(1);
+    expect(after).toContain('"res://addons/other/plugin.cfg"');
+    expect(after).toContain(`"${PLUGIN}"`);
+  });
+
+  it.each([
+    'enabled=PackedStringArray()\nenabled=PackedStringArray()\n',
+    'enabled=Array("unsupported")\n',
+  ])("refuses an ambiguous or unsupported enabled setting without inventing another key", (setting) => {
+    expect(() => enablePlugin(`[editor_plugins]\n${setting}`)).toThrowError(/duplicated or unsupported/i);
+  });
+
   it("enablePlugin handles a section without an enabled line and a missing section", () => {
     expect(enablePlugin('[editor_plugins]\n\n[input]\n')).toBe(`[editor_plugins]\n\nenabled=PackedStringArray("${PLUGIN}")\n\n[input]\n`);
     expect(enablePlugin("config_version=5\n")).toBe(`config_version=5\n\n[editor_plugins]\n\nenabled=PackedStringArray("${PLUGIN}")\n`);

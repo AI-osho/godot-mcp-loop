@@ -20,6 +20,10 @@ steps:
 
 ## Steps
 
+YAML/JSON document text is limited to 1 MiB of UTF-8. The same 1 MiB text budget counts object keys as well as string
+values in parsed or inline scenarios; a large property name cannot bypass it. Structural depth, node count, recursive
+aliases and expanded step count are bounded separately. Serialized text also includes its syntax in the document limit.
+
 | Step | Meaning | Fails when |
 |---|---|---|
 | `wait_for: {node, property, op, value, timeout_ms?}` | Poll every frame until true (default 5 s). `op: changed/increased/decreased` needs no value. `tolerance` and `message` work on `wait_for` and `assert`. | Timeout — the report shows the last value. |

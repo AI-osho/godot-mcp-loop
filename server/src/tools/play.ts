@@ -196,7 +196,8 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       "Wait until a property of a node in the running game (or the return value of one of its methods, e.g. " +
       "{method: 'summary', property: 'state'}) satisfies a condition, checked every frame. " +
       "Fails with TIMEOUT and the last observed value. timeout_ms=0 checks once (an assertion). " +
-      "op changed/increased/decreased waits for a change from the value seen when waiting starts.",
+      "op changed/increased/decreased waits for a change from the value seen when waiting starts. " +
+      "Methods are invoked, not sandboxed: use pure observation methods only; this tool is not marked read-only.",
     check: checkConditionTarget,
     input: {
       node: ConditionSchema.shape.node,
@@ -209,7 +210,8 @@ export const PLAY_TOOLS: ForwardToolDef[] = [
       tolerance: ConditionSchema.shape.tolerance,
       message: ConditionSchema.shape.message,
     },
-    readOnly: true,
+    // A method condition can call mutating built-ins or project hooks, so clients must not auto-approve it as a read.
+    readOnly: false,
     timeoutFor: (a) => Number(a.timeout_ms ?? 5000) + GRACE_MS,
   },
   {

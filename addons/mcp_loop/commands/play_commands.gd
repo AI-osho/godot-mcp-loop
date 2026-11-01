@@ -5,6 +5,7 @@ extends RefCounted
 
 const Protocol = preload("res://addons/mcp_loop/bridge/protocol.gd")
 const PathGuard = preload("res://addons/mcp_loop/util/path_guard.gd")
+const GodotArgs = preload("res://addons/mcp_loop/util/godot_args.gd")
 const Movie = preload("res://addons/mcp_loop/commands/movie.gd")
 
 const RUNTIME_GRACE_MS := 5000
@@ -16,6 +17,8 @@ var ctx: RefCounted
 var dbg: EditorDebuggerPlugin
 var tree: SceneTree
 var _recording := false
+var _lifecycle_busy := false
+const RUN_NONCE_ENV := "GODOT_MCP_LOOP_LAUNCH_NONCE"
 
 
 func _init(context: RefCounted, debugger_bridge: EditorDebuggerPlugin, scene_tree: SceneTree) -> void:
@@ -65,22 +68,75 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
 	return true
 
 
+func _preflight_run_target(scene: String, target: String, current_id: int) -> Dictionary:
+	if scene in ["main", ""] and String(ProjectSettings.get_setting("application/run/main_scene", "")) != target:
+		return Protocol.err(Protocol.BUSY, "The main scene changed while waiting to launch.", "Check the selected target and retry game_run.")
+	if scene == "current":
+		var root: Node = ctx.edited_root()
+		if root == null or root.get_instance_id() != current_id or root.scene_file_path != target:
+			return Protocol.err(Protocol.BUSY, "The current edited scene changed while waiting to launch.", "Check the selected target and retry game_run.")
+	var reason := GodotArgs.check(target)
+	if reason != "":
+		return Protocol.err(Protocol.INVALID_PARAMS, reason)
+	var path := target
+	if target.begins_with("uid://"):
+		var uid := ResourceUID.text_to_id(target)
+		if not ResourceUID.has_id(uid):
+			return Protocol.err(Protocol.FILE_NOT_FOUND, "The selected scene UID is not registered after import.")
+		path = ResourceUID.get_id_path(uid)
+	reason = PathGuard.check_read(path)
+	if reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
+	if not FileAccess.file_exists(path):
+		return Protocol.err(Protocol.FILE_NOT_FOUND, "Scene not found: " + path)
+	reason = ctx.native_save_reason()
+	if reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
+	return Protocol.ok()
+
+
+func _lifecycle_call(method: String, p: Dictionary) -> Dictionary:
+	if _lifecycle_busy:
+		return Protocol.err(Protocol.BUSY, "Another game run, stop or editor quit owns the lifecycle.", "Wait for that operation to finish; status queries remain available.")
+	_lifecycle_busy = true
+	var result: Dictionary
+	if method == "run":
+		result = await _run_owned(p)
+	elif method == "stop":
+		result = await _stop_owned(p)
+	else:
+		result = await _quit_owned(p)
+	# A successful quit keeps admission closed until the deferred editor exit.
+	_lifecycle_busy = method == "quit" and result.ok
+	return result
+
+
 func _run(p: Dictionary) -> Dictionary:
+	return await _lifecycle_call("run", p)
+
+
+func _stop(p: Dictionary) -> Dictionary:
+	return await _lifecycle_call("stop", p)
+
+
+func _quit(p: Dictionary) -> Dictionary:
+	return await _lifecycle_call("quit", p)
+
+
+func _run_owned(p: Dictionary) -> Dictionary:
 	var scene := String(p.get("scene", "main"))
+	for arg in [scene, ProjectSettings.globalize_path("res://")]:
+		var reason := GodotArgs.check(arg)
+		if reason != "":
+			return Protocol.err(Protocol.INVALID_PARAMS, reason)
 	var timeout_ms := clampi(int(p.get("timeout_ms", 20000)), 1000, 120000)
 	var movie: Variant = p.get("movie", null)
 	if movie != null and not (movie is Dictionary):
 		return Protocol.err(Protocol.INVALID_PARAMS, "movie must be an object like {\"fps\": 30}.")
 	if movie != null and not Movie.supported():
 		return Protocol.err(Protocol.RENDERING_UNAVAILABLE, "This Godot version cannot record from the editor (Movie Maker).")
-	if EditorInterface.is_playing_scene():
-		if not p.get("restart", false):
-			return Protocol.err(Protocol.GAME_ALREADY_RUNNING, "The game is already running.",
-				"Use game_stop first, or pass restart=true.")
-		EditorInterface.stop_playing_scene()
-		await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
-
 	var target := ""
+	var current_id := 0
 	match scene:
 		"main", "":
 			target = String(ProjectSettings.get_setting("application/run/main_scene", ""))
@@ -92,6 +148,7 @@ func _run(p: Dictionary) -> Dictionary:
 			if root == null or root.scene_file_path == "":
 				return Protocol.err(Protocol.NO_EDITED_SCENE, "No saved scene is being edited.")
 			target = root.scene_file_path
+			current_id = root.get_instance_id()
 		_:
 			var reason := PathGuard.check_read(scene)
 			if reason != "":
@@ -100,11 +157,29 @@ func _run(p: Dictionary) -> Dictionary:
 				return Protocol.err(Protocol.FILE_NOT_FOUND, "Scene not found: %s" % scene)
 			target = scene
 
+	var arg_reason := GodotArgs.check(target)
+	if arg_reason != "":
+		return Protocol.err(Protocol.INVALID_PARAMS, arg_reason)
+	var save_reason: String = ctx.native_save_reason()
+	if save_reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, save_reason)
+	# Finish preflight before stopping an existing game or creating a recording directory.
+	if EditorInterface.is_playing_scene():
+		if not p.get("restart", false):
+			return Protocol.err(Protocol.GAME_ALREADY_RUNNING, "The game is already running.",
+				"Use game_stop first, or pass restart=true.")
+		EditorInterface.stop_playing_scene()
+		if not await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000):
+			return Protocol.err(Protocol.TIMEOUT, "The previous game did not stop; no replacement was launched.")
+
 	# Launching while the editor is still scanning/importing can start a game
 	# with stale or missing resources; wait for the scan to settle first.
 	var fs := EditorInterface.get_resource_filesystem()
 	await _wait_until(func() -> bool: return not fs.is_scanning(), timeout_ms)
 
+	var checked := _preflight_run_target(scene, target, current_id)
+	if not checked.ok:
+		return checked
 	dbg.reset_for_run(bool(p.get("pause_on_error", false)))
 	_recording = movie != null
 	var movie_info := {}
@@ -112,8 +187,31 @@ func _run(p: Dictionary) -> Dictionary:
 	if movie != null:
 		var fps := clampi(int(movie.get("fps", 30)), 1, 120)
 		var dir := Movie.prepare()
+		if dir == "":
+			return Protocol.err(Protocol.PATH_FORBIDDEN, "The movie folder is not writable or contains a symbolic link.")
 		movie_info = {"dir": dir, "fps": fps}
 		saved_movie = Movie.begin(fps, dir.path_join("frame.png"))
+	# Project/editor callbacks can run while movie settings change; recheck at the actual native sink too.
+	checked = _preflight_run_target(scene, target, current_id)
+	if not checked.ok:
+		if movie != null:
+			Movie.end(saved_movie)
+		_recording = false
+		return checked
+	if EditorInterface.is_playing_scene():
+		if movie != null:
+			Movie.end(saved_movie)
+		return Protocol.err(Protocol.BUSY, "A different game started while waiting to launch.")
+	# Correlate the actual child hello with this launch, including a replacement
+	# that starts before the first debugger session is established. Not an auth token.
+	var run_nonce := Crypto.new().generate_random_bytes(16).hex_encode()
+	var had_nonce := OS.has_environment(RUN_NONCE_ENV)
+	var previous_nonce := OS.get_environment(RUN_NONCE_ENV)
+	OS.set_environment(RUN_NONCE_ENV, run_nonce)
+	if OS.get_environment(RUN_NONCE_ENV) != run_nonce:
+		if movie != null:
+			Movie.end(saved_movie)
+		return Protocol.err(Protocol.INTERNAL, "Could not bind the native game launch.")
 	match scene:
 		"main", "":
 			EditorInterface.play_main_scene()
@@ -121,6 +219,10 @@ func _run(p: Dictionary) -> Dictionary:
 			EditorInterface.play_current_scene()
 		_:
 			EditorInterface.play_custom_scene(target)
+	if had_nonce:
+		OS.set_environment(RUN_NONCE_ENV, previous_nonce)
+	else:
+		OS.unset_environment(RUN_NONCE_ENV)
 	if movie != null:
 		Movie.end(saved_movie)
 
@@ -129,6 +231,11 @@ func _run(p: Dictionary) -> Dictionary:
 		# Give the process a moment to appear before treating "not playing" as an exit.
 		return dbg.ready or (Time.get_ticks_msec() - started_at > 2000 and not EditorInterface.is_playing_scene()), timeout_ms)
 	if dbg.ready:
+		var observed_nonce: Variant = dbg.runtime_info.get("launch_nonce")
+		if typeof(observed_nonce) != TYPE_STRING or observed_nonce != run_nonce:
+			return Protocol.err(Protocol.BUSY, "The running game changed before this launch completed.", "No replacement game was stopped. Inspect godot_status before retrying.")
+		if not EditorInterface.is_playing_scene():
+			return Protocol.err(Protocol.GAME_NOT_RUNNING, "The launched game has already exited.")
 		var out := {"running": true, "scene": dbg.runtime_info.get("scene", target), "pid": dbg.runtime_info.get("pid"), "display": dbg.runtime_info.get("display")}
 		if movie != null:
 			if String(out.display) == "headless":
@@ -144,29 +251,45 @@ func _run(p: Dictionary) -> Dictionary:
 		"Make sure the MCPLoopRuntime autoload is enabled (Project Settings > Globals > Autoload), or re-enable the plugin.")
 
 
-func _stop(p: Dictionary) -> Dictionary:
+func _stop_owned(p: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return Protocol.ok({"stopped": false, "was_running": false})
+	var owner_generation: int = dbg.current_generation()
 	# graceful: let the game quit by itself (a Movie Maker recording is finished properly); kill it if it doesn't.
 	var graceful := false
 	if bool(p.get("graceful", false)) and dbg.ready:
 		var r: Dictionary = await dbg.call_runtime(tree, "quit", {}, 3000)
+		if EditorInterface.is_playing_scene() and dbg.current_generation() != owner_generation:
+			return Protocol.err(Protocol.BUSY, "The game changed during graceful stop; its successor was not stopped.")
 		if r.get("ok", false):
-			graceful = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 10000)
+			await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene() or dbg.current_generation() != owner_generation, 10000)
+			graceful = not EditorInterface.is_playing_scene()
 	if EditorInterface.is_playing_scene():
+		if dbg.current_generation() != owner_generation:
+			return Protocol.err(Protocol.BUSY, "The game changed before forced stop; its successor was not stopped.")
 		EditorInterface.stop_playing_scene()
-	var stopped: bool = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
+	var stopped: bool = await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene() or (dbg.ready and dbg.current_generation() != owner_generation), 5000)
+	if EditorInterface.is_playing_scene() and dbg.current_generation() != owner_generation:
+		return Protocol.err(Protocol.BUSY, "The game changed while stopping; its successor was not stopped.")
+	stopped = not EditorInterface.is_playing_scene()
 	return Protocol.ok({"stopped": stopped, "was_running": true, "graceful": graceful, "game": dbg.status()})
 
 
 ## editor_quit: stops the game, saves the open scenes unless save=false, answers, then quits the editor.
-func _quit(p: Dictionary) -> Dictionary:
+func _quit_owned(p: Dictionary) -> Dictionary:
+	var save := bool(p.get("save", true))
+	if save:
+		var reason: String = ctx.native_save_reason()
+		if reason != "":
+			return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
 	var was_playing := EditorInterface.is_playing_scene()
 	if was_playing:
 		EditorInterface.stop_playing_scene()
 		await _wait_until(func() -> bool: return not EditorInterface.is_playing_scene(), 5000)
-	var save := bool(p.get("save", true))
 	if save:
+		var reason: String = ctx.native_save_reason()
+		if reason != "":
+			return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
 		EditorInterface.save_all_scenes()
 	# Quit only after the reply has gone out (the bridge sends it on the next poll).
 	tree.create_timer(0.5, true).timeout.connect(func() -> void: tree.quit())

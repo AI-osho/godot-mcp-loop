@@ -1,9 +1,13 @@
+import { FILE_READ_LIMITS, readTextFileBounded, readTextFileTail } from "./bounded-io.js";
 import { execFile, spawn as nodeSpawn, type SpawnOptions } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import type { GodotConnection } from "./connection.js";
 import { BridgeError } from "./errors.js";
+import { assertGodotValue } from "./godot-args.js";
+import { projectFilePath } from "./project-path.js";
+import { exitedWithin, stopProcess } from "./process-lifetime.js";
 
 /**
  * Opening and closing the Godot editor for the current project (editor_launch / editor_quit). The executable comes
@@ -105,7 +109,10 @@ export interface FoundGodot {
 export async function findGodot(opts: FindOptions & { runVersion?: (path: string) => Promise<string> } = {}): Promise<FoundGodot> {
   const run = opts.runVersion ?? runVersionDefault;
   const tried: string[] = [];
-  for (const c of godotCandidates(opts)) {
+  // Bind all relative candidates before the first await: validation and editor
+  // spawn use different working directories, but must execute the same file.
+  const candidates = godotCandidates(opts).map((candidate) => ({ ...candidate, path: resolve(candidate.path) }));
+  for (const c of candidates) {
     if (!isFile(c.path)) {
       tried.push(`${c.path} (not found; from ${c.source})`);
       continue;
@@ -139,6 +146,7 @@ export async function findGodot(opts: FindOptions & { runVersion?: (path: string
 export interface EditorProcess {
   pid?: number | undefined;
   once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
+  on(event: "error", listener: (error: Error) => void): unknown;
   kill(signal?: NodeJS.Signals): boolean;
   unref(): void;
 }
@@ -148,6 +156,7 @@ export type SpawnFn = (cmd: string, args: string[], opts: SpawnOptions) => Edito
 interface Launched {
   proc: EditorProcess;
   exited: boolean;
+  processError?: Error;
   exit: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
   godot: FoundGodot;
 }
@@ -178,7 +187,7 @@ export function logPath(project: string): string {
 
 function logTail(project: string, lines = 15): string {
   try {
-    const text = readFileSync(logPath(project), "utf8").trimEnd();
+    const text = readTextFileTail(projectFilePath(project, "res://.godot/mcp_loop/editor.log", { write: true, protectedTop: [] }).abs, FILE_READ_LIMITS.log).trimEnd();
     return text.split("\n").slice(-lines).join("\n");
   } catch {
     return "";
@@ -194,9 +203,10 @@ export function checkProject(project: string): void {
   if (!existsSync(join(project, "addons", "mcp_loop", "plugin.cfg"))) {
     throw new BridgeError("ADDON_NOT_INSTALLED", `The MCP Loop addon is not installed in ${project}.`, install);
   }
-  const text = readFileSync(join(project, "project.godot"), "utf8");
+  const text = readTextFileBounded(join(project, "project.godot"), FILE_READ_LIMITS.text);
   const section = /^\[editor_plugins\][ \t]*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(text)?.[1] ?? "";
-  if (!/^enabled=PackedStringArray\(.*\)/m.test(section) || !section.includes(PLUGIN_ENTRY)) {
+  const enabled = /^[ \t]*enabled[ \t]*=[ \t]*PackedStringArray\((.*)\)[ \t]*$/m.exec(section);
+  if (!enabled || !enabled[1]!.includes(PLUGIN_ENTRY)) {
     throw new BridgeError("ADDON_NOT_ENABLED", `The MCP Loop plugin is not enabled in ${project}/project.godot.`, install);
   }
 }
@@ -212,6 +222,7 @@ export class EditorLauncher {
 
   /** Editors started by this server process, by real project path. */
   private readonly launched = new Map<string, Launched>();
+  private readonly starting = new Set<string>();
 
   constructor(opts: LauncherOptions = {}) {
     this.findFn = opts.find ?? (() => findGodot(opts.godot !== undefined ? { flag: opts.godot } : {}));
@@ -230,108 +241,140 @@ export class EditorLauncher {
     opts: { headless?: boolean; timeoutMs: number; onWait?: () => void },
   ): Promise<{ pid: number | undefined; godot: FoundGodot; log: string }> {
     const project = conn.projectPath;
-    checkProject(project);
-    const godot = await this.findFn();
-    const log = logPath(project);
-    mkdirSync(join(project, ".godot", "mcp_loop"), { recursive: true, mode: 0o700 });
-    const fd = openSync(log, "w", 0o600);
-    let proc: EditorProcess;
-    try {
-      const args = [...(opts.headless ? ["--headless"] : []), "-e", "--path", project];
-      // Detached with its output in a file: the editor must outlive this server and never block on a closed pipe.
-      proc = this.spawnFn(godot.path, args, { cwd: project, detached: true, shell: false, stdio: ["ignore", fd, fd], windowsHide: false });
-    } finally {
-      closeSync(fd);
-    }
-    const entry: Launched = {
-      proc,
-      exited: false,
-      godot,
-      exit: new Promise((resolve) => {
-        proc.once("exit", (code, signal) => {
-          entry.exited = true;
-          resolve({ code, signal });
-        });
-      }),
-    };
-    this.launched.set(realOr(project), entry);
-    proc.unref();
-
-    const deadline = Date.now() + opts.timeoutMs;
-    for (;;) {
-      if (entry.exited) {
-        const { code, signal } = await entry.exit;
-        const tail = logTail(project);
-        throw new BridgeError(
-          "EDITOR_EXITED",
-          `The Godot editor exited (${signal ? `signal ${signal}` : `exit code ${code}`}) before its MCP Loop bridge started.` +
-            (tail ? `\nLast lines of ${log}:\n${tail}` : ""),
-          "Read the log lines above; a project made with another Godot version or a broken addon script are common causes.",
-        );
+    assertGodotValue(project, "Project path");
+    return conn.withProjectLease(async () => {
+      const key = realOr(project);
+      if (this.starting.has(key) || this.alive(project)) {
+        throw new BridgeError("BUSY", "An editor opened by this server is still running or starting for this project.", "Wait for godot_status to connect, or use editor_quit. A readiness timeout does not terminate the editor.");
       }
+      this.starting.add(key);
       try {
-        conn.readSessionOf(project);
-        await conn.call("ping", {}, { timeoutMs: 5000 });
-        return { pid: proc.pid, godot, log };
-      } catch {
-        /* not up yet */
+        checkProject(project);
+        const godot = await this.findFn();
+        const log = projectFilePath(project, "res://.godot/mcp_loop/editor.log", { write: true, protectedTop: [] }).abs;
+        mkdirSync(join(project, ".godot", "mcp_loop"), { recursive: true, mode: 0o700 });
+        const fd = openSync(log, "w", 0o600);
+        let proc: EditorProcess;
+        try {
+          const args = [...(opts.headless ? ["--headless"] : []), "-e", "--path", project];
+          // Detached with its output in a file: the editor must outlive this server and never block on a closed pipe.
+          proc = this.spawnFn(godot.path, args, { cwd: project, detached: true, shell: false, stdio: ["ignore", fd, fd], windowsHide: false });
+        } finally {
+          closeSync(fd);
+        }
+        const entry: Launched = {
+          proc,
+          exited: false,
+          godot,
+          exit: new Promise((resolve) => {
+            proc.once("exit", (code, signal) => {
+              entry.exited = true;
+              resolve({ code, signal });
+            });
+            proc.on("error", (error) => {
+              entry.processError = error;
+              // No PID means spawn never created an owned process. Other errors
+              // (e.g. a refused kill) must not falsely release live ownership.
+              if (proc.pid === undefined) {
+                entry.exited = true;
+                if (this.launched.get(key) === entry) this.launched.delete(key);
+                resolve({ code: null, signal: null });
+              }
+            });
+          }),
+        };
+        this.launched.set(key, entry);
+        proc.unref();
+
+        const deadline = Date.now() + opts.timeoutMs;
+        for (;;) {
+          if (entry.processError) {
+            throw new BridgeError("EDITOR_SPAWN_FAILED", `The Godot editor could not start: ${entry.processError.message}`, "Check the configured executable and permissions before retrying.");
+          }
+          if (entry.exited) {
+            const { code, signal } = await entry.exit;
+            const tail = logTail(project);
+            throw new BridgeError(
+              "EDITOR_EXITED",
+              `The Godot editor exited (${signal ? `signal ${signal}` : `exit code ${code}`}) before its MCP Loop bridge started.` +
+                (tail ? `\nLast lines of ${log}:\n${tail}` : ""),
+              "Read the log lines above; a project made with another Godot version or a broken addon script are common causes.",
+            );
+          }
+          try {
+            const session = conn.readSessionOf(project);
+            if (session.pid !== proc.pid) throw new BridgeError("NOT_CONNECTED", "The published bridge belongs to a different editor process.");
+            await conn.call("ping", {}, { timeoutMs: 5000, expectedEditorPid: session.pid });
+            if (conn.readSessionOf(project).pid !== proc.pid) throw new BridgeError("NOT_CONNECTED", "The editor session changed while waiting for readiness.");
+            return { pid: proc.pid, godot, log };
+          } catch {
+            /* not up yet */
+          }
+          if (Date.now() >= deadline) {
+            throw new BridgeError(
+              "TIMEOUT",
+              `The Godot editor (pid ${proc.pid}) did not start its MCP Loop bridge within ${opts.timeoutMs} ms. It is still running; its output goes to ${log}.`,
+              "The first start of a project imports every asset and can take long: call godot_status again in a while.",
+            );
+          }
+          opts.onWait?.();
+          await sleep(this.pollMs);
+        }
+      } finally {
+        this.starting.delete(key);
       }
-      if (Date.now() >= deadline) {
-        throw new BridgeError(
-          "TIMEOUT",
-          `The Godot editor (pid ${proc.pid}) did not start its MCP Loop bridge within ${opts.timeoutMs} ms. It is still running; its output goes to ${log}.`,
-          "The first start of a project imports every asset and can take long: call godot_status again in a while.",
-        );
-      }
-      opts.onWait?.();
-      await sleep(this.pollMs);
-    }
+    });
   }
 
   /** Closes an editor this server launched for the current project. */
   async quit(conn: GodotConnection, opts: { save: boolean; timeoutMs: number }): Promise<Record<string, unknown>> {
-    const project = conn.projectPath;
-    const entry = this.alive(project);
-    let sessionPid: number | undefined;
-    try {
-      sessionPid = conn.readSessionOf(project).pid;
-    } catch {
-      sessionPid = undefined;
-    }
-    if (!entry || (sessionPid !== undefined && entry.proc.pid !== undefined && sessionPid !== entry.proc.pid)) {
-      if (sessionPid === undefined && !entry) {
-        throw new BridgeError("GODOT_NOT_RUNNING", `No Godot editor is running for ${project}.`);
+    return conn.withProjectLease(async () => {
+      const project = conn.projectPath;
+      const entry = this.alive(project);
+      let sessionPid: number | undefined;
+      try {
+        sessionPid = conn.readSessionOf(project).pid;
+      } catch {
+        sessionPid = undefined;
       }
-      throw new BridgeError(
-        "EDITOR_NOT_LAUNCHED",
-        "This server did not open the running editor, so it will not close it (it may hold someone's unsaved work).",
-        "Ask the user to close it.",
-      );
-    }
-    let saved: unknown = false;
-    let bridgeError: string | undefined;
-    try {
-      const r = (await conn.call("editor.quit", { save: opts.save }, { timeoutMs: 15_000 })) as { saved?: unknown };
-      saved = r?.saved ?? false;
-    } catch (e) {
-      bridgeError = e instanceof BridgeError ? `${e.code}: ${e.message}` : String(e);
-    }
-    const timeout = sleep(opts.timeoutMs).then(() => "timeout" as const);
-    let killed = false;
-    if (bridgeError !== undefined || (await Promise.race([entry.exit, timeout])) === "timeout") {
-      entry.proc.kill("SIGTERM");
-      killed = true;
-      const late = await Promise.race([entry.exit, sleep(5000).then(() => "timeout" as const)]);
-      if (late === "timeout") entry.proc.kill("SIGKILL");
-    }
-    conn.close();
-    this.launched.delete(realOr(project));
-    return {
-      quit: true,
-      project_path: project,
-      saved,
-      ...(killed ? { killed: true } : {}),
-      ...(bridgeError ? { bridge_error: bridgeError } : {}),
-    };
+      if (!entry || entry.proc.pid === undefined || (sessionPid !== undefined && sessionPid !== entry.proc.pid)) {
+        if (sessionPid === undefined && !entry) {
+          throw new BridgeError("GODOT_NOT_RUNNING", `No Godot editor is running for ${project}.`);
+        }
+        throw new BridgeError(
+          "EDITOR_NOT_LAUNCHED",
+          "This server did not open the running editor, so it will not close it (it may hold someone's unsaved work).",
+          "Ask the user to close it.",
+        );
+      }
+      let saved: unknown = false;
+      let bridgeError: string | undefined;
+      try {
+        const r = (await conn.call("editor.quit", { save: opts.save }, { timeoutMs: 15_000, expectedEditorPid: entry.proc.pid })) as { saved?: unknown };
+        saved = r?.saved ?? false;
+      } catch (e) {
+        // A domain refusal (especially an unsafe save) must not become permission to discard unsaved work.
+        if (!(e instanceof BridgeError) || !["DISCONNECTED", "TIMEOUT", "NOT_CONNECTED", "GODOT_NOT_RUNNING", "BAD_RESPONSE"].includes(e.code)) throw e;
+        bridgeError = `${e.code}: ${e.message}`;
+      }
+      const ended = entry.exited || (bridgeError === undefined && await exitedWithin(entry.exit, opts.timeoutMs));
+      let killed = false;
+      if (!ended) {
+        killed = true;
+        const stopped = await stopProcess(entry.proc, entry.exit, { termGraceMs: 5000, killGraceMs: 1000 });
+        if (!stopped.exited) {
+          throw new BridgeError("TIMEOUT", "The editor's exit was not confirmed after termination requests; ownership was retained.", "It may still be running. Check its process before launching another editor; editor_quit can be retried.");
+        }
+      }
+      conn.close();
+      this.launched.delete(realOr(project));
+      return {
+        quit: true,
+        project_path: project,
+        saved,
+        ...(killed ? { killed: true } : {}),
+        ...(bridgeError ? { bridge_error: bridgeError } : {}),
+      };
+    });
   }
 }

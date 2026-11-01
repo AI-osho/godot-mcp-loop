@@ -1,6 +1,8 @@
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { FILE_READ_LIMITS, readFileBounded, readTextFileBounded } from "../bounded-io.js";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { BridgeError } from "../errors.js";
+import { projectFilePath } from "../project-path.js";
 import type { MovieOutput } from "../media/movie.js";
 import { SERVER_VERSION } from "../version.js";
 import type { ScenarioReport, Shot } from "./runner.js";
@@ -13,9 +15,6 @@ import type { ScenarioReport, Shot } from "./runner.js";
  */
 
 const GENERATOR = "godot-mcp-loop";
-const PROTECTED = [".godot", ".git"];
-/** Our own addon: a script written there runs in the editor, so evidence never goes in either. */
-const OWN_ADDON = ["addons", "mcp_loop"];
 const MANIFESTS = ["report.json", "summary.json"];
 
 export interface SavedEvidence {
@@ -46,16 +45,6 @@ export interface EvidenceBatchEntry {
 
 const forbidden = (msg: string) => new BridgeError("PATH_FORBIDDEN", msg);
 const isOutside = (r: string) => r.startsWith("..") || isAbsolute(r);
-// Case-insensitive on purpose: macOS and Windows resolve ".GODOT" to ".godot", and realpath() keeps the caller's
-// spelling, so comparing bytes here let `save_to: "res://.GODOT/evil"` write into the real .godot/ folder.
-/** The protected folder a relative path starts with, for the error message, or null. */
-const protectedFolder = (r: string): string | null => {
-  const parts = r.split(sep).map((p) => p.toLowerCase());
-  if (PROTECTED.includes(parts[0] ?? "")) return parts[0]!;
-  if (parts[0] === OWN_ADDON[0] && parts[1] === OWN_ADDON[1]) return `${OWN_ADDON[0]}/${OWN_ADDON[1]}`;
-  return null;
-};
-const isProtected = (r: string): boolean => protectedFolder(r) !== null;
 
 /** The report without image data (images are separate files or content items). */
 export function withoutImages(r: ScenarioReport): unknown {
@@ -74,47 +63,17 @@ export function withoutImages(r: ScenarioReport): unknown {
  * itself is refused. Without create, an existing folder is also checked for ownership (see the module comment).
  */
 export function resolveEvidenceFolder(projectPath: string, path: string, create = true): { abs: string; res: string } {
-  const rel = path.startsWith("res://") ? path.slice("res://".length) : path;
-  if (isAbsolute(rel)) throw forbidden(`Use a res:// or project-relative folder (got ${path}).`);
-  const root = realpathSync(projectPath);
-  const full = resolve(root, rel);
-  const r = relative(root, full);
-  if (r === "") throw forbidden("Choose a folder inside the project, e.g. res://qa/evidence/<name>, not the project root.");
-  if (isOutside(r)) throw forbidden(`${path} is outside the project.`);
-  if (isProtected(r)) throw forbidden(`Writing under ${protectedFolder(r)}/ is not allowed.`);
-
-  // The deepest part of the path that exists must resolve inside the project (symbolic links).
-  let probe = full;
-  for (;;) {
-    try {
-      lstatSync(probe);
-      break;
-    } catch {
-      probe = dirname(probe);
-    }
-  }
-  let real: string;
-  try {
-    real = realpathSync(probe);
-  } catch {
-    throw forbidden(`${path} goes through a broken symbolic link.`);
-  }
-  const rr = relative(root, real);
-  if (isOutside(rr) || isProtected(rr) || (probe === full && rr === "")) {
-    throw forbidden(`${path} resolves outside the project, to its root, or into a protected folder (symbolic link).`);
-  }
-  if (probe === full && !statSync(real).isDirectory()) {
+  const folder = projectFilePath(projectPath, path, { write: true, allowRoot: false });
+  if (existsSync(folder.abs) && !statSync(folder.abs).isDirectory()) {
     throw new BridgeError("INVALID_PARAMS", `${path} is a file; save_to needs a folder.`);
   }
-  const res = `res://${r.split(sep).join("/")}`;
   if (!create) {
-    if (probe === full) ownedFiles(real, res);
-    return { abs: full, res };
+    if (existsSync(folder.abs)) ownedFiles(folder.abs, folder.res);
+    return folder;
   }
-  mkdirSync(full, { recursive: true });
-  const made = relative(root, realpathSync(full));
-  if (isOutside(made) || isProtected(made) || made === "") throw forbidden(`${path} resolves outside the project.`);
-  return { abs: full, res };
+  mkdirSync(folder.abs, { recursive: true });
+  // Re-check the path created by mkdir; an actively racing same-user process remains out of scope.
+  return projectFilePath(projectPath, path, { write: true, allowRoot: false });
 }
 
 /** Files listed by this folder's manifests; throws if the folder has other content but no manifest. */
@@ -122,10 +81,11 @@ function ownedFiles(dir: string, res: string): string[] {
   const listed: string[] = [];
   let owned = false;
   for (const name of MANIFESTS) {
-    const file = join(dir, name);
+    // A valid-looking external manifest must never establish ownership of this folder.
+    const file = projectFilePath(dir, name, { write: true, protectedTop: [] }).abs;
     if (!existsSync(file)) continue;
     try {
-      const m = JSON.parse(readFileSync(file, "utf8")) as { generator?: unknown; files?: unknown };
+      const m = JSON.parse(readTextFileBounded(file, FILE_READ_LIMITS.evidence)) as { generator?: unknown; files?: unknown };
       if (m.generator === GENERATOR && Array.isArray(m.files)) {
         owned = true;
         listed.push(...m.files.filter((f): f is string => typeof f === "string"));
@@ -157,6 +117,8 @@ function removePrevious(dir: string, files: string[]): void {
     if (r === "" || isOutside(r)) continue;
     let st;
     try {
+      // Deletion is another sink: a parent link inside this folder is unsafe too, even if it does not escape it.
+      projectFilePath(dir, f, { write: true, allowRoot: false, protectedTop: [] });
       st = lstatSync(target);
       const parent = relative(realDir, realpathSync(dirname(target)));
       if (isOutside(parent)) continue;
@@ -182,6 +144,7 @@ function writeOwn(path: string, data: string | Buffer): void {
   try {
     const st = lstatSync(path);
     if (st.isSymbolicLink()) unlinkSync(path);
+    else if (st.isFile() && st.nlink > 1) throw forbidden(`${basename(path)} is a hard link; refusing to overwrite it.`);
     else if (!st.isFile()) throw forbidden(`${basename(path)} exists and is not a file.`);
   } catch (e) {
     if (e instanceof BridgeError) throw e;
@@ -276,7 +239,7 @@ function writeScenario(
     if (movie.keepFrames) {
       const frames = ownSubdir(dir, "frames");
       for (const f of movie.output.files) {
-        writeOwn(join(frames, basename(f)), readFileSync(f));
+        writeOwn(join(frames, basename(f)), readFileBounded(f, FILE_READ_LIMITS.png));
         files.push(`frames/${basename(f)}`);
       }
       md.push("", `Every frame: [frames/](frames/) (${movie.output.files.length} PNG files).`);

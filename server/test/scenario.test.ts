@@ -73,6 +73,20 @@ steps:
 });
 
 describe("runScenario", () => {
+  it.each(["TIMEOUT", "DISCONNECTED"])("does not pass assert_no_errors when logs.read fails with %s", async (code) => {
+    const { call } = fakeBridge({ "logs.read": () => { throw new BridgeError(code, "controlled log acquisition failure"); } });
+    const report = await runScenario(parseScenario({ name: "unverified logs", steps: [{ assert_no_errors: true }] }), call);
+    expect(report.passed).toBe(false);
+    expect(report.steps[0]!.status).not.toBe("pass");
+    expect(report.steps[0]!.message).toContain(code);
+  });
+
+  it("does not equate a missing log envelope with verified empty error logs", async () => {
+    const { call } = fakeBridge({ "logs.read": () => null });
+    const report = await runScenario(parseScenario({ name: "invalid logs", steps: [{ assert_no_errors: true }] }), call);
+    expect(report.passed).toBe(false);
+    expect(report.steps[0]!.message).toContain("BAD_RESPONSE");
+  });
   it("records a movie when asked: game.run gets the frame rate, the game is ended gracefully even with keep_running", async () => {
     const { call, calls } = fakeBridge({
       "game.run": (p) => ({ running: true, movie: { dir: "/proj/.godot/mcp_loop/movie", fps: (p.movie as { fps: number }).fps } }),

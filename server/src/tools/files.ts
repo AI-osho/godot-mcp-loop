@@ -1,3 +1,4 @@
+import { FILE_READ_LIMITS, readTextFileBounded } from "../bounded-io.js";
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
@@ -61,7 +62,7 @@ export const FILE_TOOLS: ForwardToolDef[] = [
       let text = typeof args.content === "string" ? args.content : undefined;
       if (text === undefined) {
         try {
-          text = readFileSync(resolveProjectFile(conn.projectPath, String(args.path)), "utf8");
+          text = readTextFileBounded(resolveProjectFile(conn.projectPath, String(args.path)), FILE_READ_LIMITS.text);
         } catch {
           return result;
         }

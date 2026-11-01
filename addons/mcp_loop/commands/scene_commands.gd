@@ -76,6 +76,9 @@ func _save(_p: Dictionary) -> Dictionary:
 		return ctx.no_scene_error()
 	if root.scene_file_path == "":
 		return Protocol.err(Protocol.INVALID_PARAMS, "The edited scene has never been saved and has no path.")
+	var reason: String = ctx.native_save_reason()
+	if reason != "":
+		return Protocol.err(Protocol.PATH_FORBIDDEN, reason)
 	var err := EditorInterface.save_scene()
 	if err != OK:
 		return Protocol.err(Protocol.INTERNAL, "Saving failed: %s" % error_string(err))

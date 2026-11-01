@@ -18,6 +18,7 @@ const OVERVIEW_PROPS := ["position", "global_position", "rotation", "scale", "vi
 var _tree: SceneTree
 ## True when the game records a movie (Movie Maker); waits then count game time, see movie_frame_ms().
 var _movie := false
+var _simulation_busy := false
 
 
 func _init(tree: SceneTree) -> void:
@@ -42,11 +43,23 @@ func _clock_ms(frame_ms: float) -> int:
 
 
 func handle(method: String, p: Dictionary) -> Dictionary:
+	if method in ["step", "input", "pause"]:
+		if _simulation_busy:
+			return Protocol.err(Protocol.BUSY, "Another step, input or pause operation owns the simulation.", "Wait for that operation to finish; read-only queries remain available.")
+		_simulation_busy = true
+		var result: Dictionary
+		if method == "step":
+			result = await _step(p)
+		elif method == "input":
+			result = await _input(p)
+		else:
+			result = _pause(p)
+		_simulation_busy = false
+		return result
 	match method:
 		"query":
 			return _query(p)
-		"input":
-			return await _input(p)
+
 		"wait_for":
 			return await _wait_for(p)
 		"screenshot":
@@ -55,10 +68,7 @@ func handle(method: String, p: Dictionary) -> Dictionary:
 			return _set_properties(p)
 		"call":
 			return await _call_method(p)
-		"pause":
-			return _pause(p)
-		"step":
-			return await _step(p)
+
 		"ui.audit":
 			return _ui_audit(p)
 		"in_view":
@@ -338,7 +348,7 @@ func _pause(p: Dictionary) -> Dictionary:
 ## Runs exactly N physics frames, then leaves the game paused.
 func _step(p: Dictionary) -> Dictionary:
 	var raw: Variant = p.get("frames", 1)
-	if typeof(raw) not in [TYPE_INT, TYPE_FLOAT] or int(raw) < 1 or int(raw) > MAX_STEP_FRAMES:
+	if not _valid_integer(raw, MAX_STEP_FRAMES, 1):
 		return Protocol.err(Protocol.INVALID_PARAMS, "'frames' must be between 1 and %d." % MAX_STEP_FRAMES)
 	var frames := int(raw)
 	var input := {}
@@ -353,6 +363,8 @@ func _step(p: Dictionary) -> Dictionary:
 	for a in input.press + input.tap:
 		if input.release.has(a):
 			return Protocol.err(Protocol.INVALID_PARAMS, "'%s' is both pressed and released in one step." % a)
+	# A one-frame tap cannot own the release of an explicit hold, or replace its analog strength.
+	input.tap = input.tap.filter(func(a: String) -> bool: return not input.press.has(a) and not Input.is_action_pressed(a))
 	var has_input: bool = not (input.press.is_empty() and input.release.is_empty() and input.tap.is_empty())
 	if has_input and Engine.is_in_physics_frame():
 		# Input must arrive between frames to count as pressed in the next one.
@@ -382,6 +394,9 @@ func _steps_need_frames(steps: Array) -> bool:
 	for s in steps:
 		if typeof(s) != TYPE_DICTIONARY:
 			continue
+		# An inline operation does not erase an explicit timed wait on the same step.
+		if s.get("wait_frames", 0) > 0 or s.get("wait_ms", 0) > 0:
+			return true
 		var time_free := false
 		for k in TIME_FREE_KINDS:
 			if s.has(k):
@@ -390,6 +405,14 @@ func _steps_need_frames(steps: Array) -> bool:
 		if not time_free:
 			return true
 	return false
+
+
+func _finite_number(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value))
+
+
+func _valid_integer(value: Variant, maximum: int, minimum: int = 0) -> bool:
+	return _finite_number(value) and float(value) >= minimum and float(value) <= maximum and float(value) == floorf(float(value))
 
 
 func _validate_steps(steps: Array) -> String:
@@ -401,11 +424,18 @@ func _validate_steps(steps: Array) -> String:
 		if typeof(s) != TYPE_DICTIONARY:
 			return "Step %d must be an object." % n
 		for k in ["hold_ms", "wait_ms"]:
-			if s.has(k) and (int(s[k]) < 0 or int(s[k]) > MAX_STEP_MS):
-				return "Step %d: %s must be between 0 and %d." % [n, k, MAX_STEP_MS]
+			if s.has(k) and not _valid_integer(s[k], MAX_STEP_MS):
+				return "Step %d: %s must be an integer between 0 and %d." % [n, k, MAX_STEP_MS]
 		for k in ["hold_frames", "wait_frames"]:
-			if s.has(k) and (typeof(s[k]) not in [TYPE_INT, TYPE_FLOAT] or int(s[k]) < 0 or int(s[k]) > MAX_STEP_FRAMES):
-				return "Step %d: %s must be between 0 and %d." % [n, k, MAX_STEP_FRAMES]
+			if s.has(k) and not _valid_integer(s[k], MAX_STEP_FRAMES):
+				return "Step %d: %s must be an integer between 0 and %d." % [n, k, MAX_STEP_FRAMES]
+		for k in ["press", "release"]:
+			if s.has(k) and typeof(s[k]) != TYPE_BOOL:
+				return "Step %d: %s must be true or false." % [n, k]
+		if s.get("press", false) and s.get("release", false):
+			return "Step %d: press and release cannot both be true." % n
+		if s.has("strength") and (not _finite_number(s.strength) or float(s.strength) < 0.0 or float(s.strength) > 1.0):
+			return "Step %d: strength must be a finite number between 0 and 1." % n
 		if s.has("hold_ms") and s.has("hold_frames"):
 			return "Step %d: give hold_ms or hold_frames, not both." % n
 		if s.has("wait_ms") and s.has("wait_frames"):
@@ -424,15 +454,19 @@ func _validate_steps(steps: Array) -> String:
 					(typeof(body.get("property")) != TYPE_STRING and typeof(body.get("method")) != TYPE_STRING)):
 				return "Step %d: %s needs {node, property (or method), op, value}." % [n, kind]
 		elif s.has("action"):
-			if not InputMap.has_action(StringName(s.action)):
+			if typeof(s.action) != TYPE_STRING or not InputMap.has_action(StringName(s.action)):
 				return "Step %d: unknown input action '%s'. Use project_info to list actions." % [n, s.action]
 		elif s.has("key"):
-			if OS.find_keycode_from_string(String(s.key)) == KEY_NONE:
+			if typeof(s.key) != TYPE_STRING or OS.find_keycode_from_string(String(s.key)) == KEY_NONE:
 				return "Step %d: unknown key '%s' (examples: 'Space', 'A', 'Escape', 'Left')." % [n, s.key]
 		elif s.has("mouse_click") or s.has("mouse_move"):
 			var pos: Variant = s.get("mouse_click", s.get("mouse_move"))
 			if typeof(pos) != TYPE_ARRAY or pos.size() != 2:
 				return "Step %d: mouse position must be [x, y]." % n
+			if not _finite_number(pos[0]) or not _finite_number(pos[1]) or not Vector2(pos[0], pos[1]).is_finite():
+				return "Step %d: mouse position must contain two finite coordinates." % n
+			if s.has("button") and (typeof(s.button) != TYPE_STRING or s.button not in ["left", "right"]):
+				return "Step %d: mouse button must be left or right." % n
 		elif not s.has("wait_ms") and not s.has("wait_frames"):
 			return "Step %d: expected one of action, key, mouse_click, mouse_move, wait_ms, wait_frames, set, call, assert, wait_for." % n
 	return ""
@@ -673,9 +707,12 @@ func _run_steps(steps: Array) -> Dictionary:
 				_send_action(action, true, strength)
 				held[action] = true
 			else:
-				_send_action(action, true, strength)
+				var already_held := Input.is_action_pressed(action)
+				if not already_held:
+					_send_action(action, true, strength)
 				await _hold(s, 100)
-				_send_action(action, false, 0.0)
+				if not already_held:
+					_send_action(action, false, 0.0)
 		elif s.has("key"):
 			var code := OS.find_keycode_from_string(String(s.key))
 			_send_key(code, true)
@@ -713,24 +750,33 @@ func _hold(s: Dictionary, default_ms: int) -> void:
 ## Physics ticks are what game logic in _physics_process counts, independent of
 ## rendering hitches or a throttled window.
 func _physics_frames(n: int) -> void:
-	for i in n:
-		await _tree.physics_frame
+	if n <= 0:
+		return
+	# physics_frame emits before game nodes run. Releasing there makes a one-frame hold invisible to them.
+	# Use the same last-priority completion point as game_step without pausing or waiting for a rendered frame.
+	var waiter: Node = Stepper.new(n, [], false)
+	_tree.root.add_child(waiter)
+	await waiter.finished
+	waiter.queue_free()
 
 
 func _sleep(ms: int) -> void:
 	if ms <= 0:
 		await _tree.process_frame
 		return
-	# process_always + ignore time_scale so paused games and slow-mo still advance.
+	if not _movie:
+		# A newly created SceneTreeTimer can consume the current frame's entire
+		# delta immediately, even though that wall time preceded this call.
+		var deadline := Time.get_ticks_msec() + ms
+		while Time.get_ticks_msec() < deadline:
+			await _tree.process_frame
+		return
+	# Movie Maker keeps its existing fixed-step game-time clock; ignore slow-mo.
 	await _tree.create_timer(ms / 1000.0, true, false, true).timeout
 
 
 func _send_action(action: StringName, pressed: bool, strength: float) -> void:
-	var ev := InputEventAction.new()
-	ev.action = action
-	ev.pressed = pressed
-	ev.strength = strength
-	Input.parse_input_event(ev)
+	Stepper._send(String(action), pressed, strength)
 
 
 func _send_key(code: Key, pressed: bool) -> void:

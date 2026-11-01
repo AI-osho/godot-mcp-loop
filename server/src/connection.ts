@@ -15,6 +15,10 @@ export interface GodotConnectionOptions {
 
 const SWITCH_HINT = "Or switch to another project: project_list shows them, project_connect {path} connects.";
 
+function sameSession(a: SessionInfo | undefined, b: SessionInfo): boolean {
+  return a !== undefined && a.pid === b.pid && a.port === b.port && a.token === b.token && a.protocol === b.protocol;
+}
+
 /**
  * Lazily connected, self-healing handle to the editor bridge. Each call
  * (re)connects if needed, re-reading the session file so editor restarts
@@ -26,10 +30,12 @@ export class GodotConnection {
   private readonly readSessionFn: (projectPath: string) => SessionInfo;
   private readonly requestTimeoutMs: number | undefined;
   private client: BridgeClient | undefined;
+  private connectedSession: SessionInfo | undefined;
   private info: HelloResult | undefined;
   private connecting: Promise<BridgeClient> | undefined;
   /** Bumped by switchProject, so a connect started for the previous project is discarded. */
   private generation = 0;
+  private projectLeases = 0;
   private readonly listeners = new Set<EventListener>();
 
   constructor(opts: GodotConnectionOptions) {
@@ -50,10 +56,20 @@ export class GodotConnection {
 
   /** Points the connection at another project: drops the current editor connection; the next call connects anew. */
   switchProject(projectPath: string): void {
+    if (this.projectLeases > 0) {
+      throw new BridgeError("BUSY", "A project operation is still running; its editor and evidence destination cannot be switched.", "Wait for the scenario, export, or editor operation to finish, then call project_connect again.");
+    }
     this.generation += 1;
     this.connecting = undefined;
     this.close();
     this.currentProject = projectPath;
+  }
+
+  /** Hold the project across multi-step operations, including idle waits between bridge requests. */
+  async withProjectLease<T>(run: () => Promise<T>): Promise<T> {
+    this.projectLeases += 1;
+    try { return await run(); }
+    finally { this.projectLeases -= 1; }
   }
 
   isConnected(): boolean {
@@ -69,14 +85,32 @@ export class GodotConnection {
     return () => this.listeners.delete(listener);
   }
 
-  async call(method: string, params: Record<string, unknown> = {}, opt: { timeoutMs?: number } = {}): Promise<unknown> {
-    const client = await this.ensureConnected();
+  async call(method: string, params: Record<string, unknown> = {}, opt: { timeoutMs?: number; expectedEditorPid?: number } = {}): Promise<unknown> {
+    const generation = this.generation;
+    let client = await this.ensureConnected();
+    if (opt.expectedEditorPid !== undefined) {
+      const session = this.readSessionOf(this.currentProject);
+      if (session.pid !== opt.expectedEditorPid) {
+        throw new BridgeError("DISCONNECTED", "The published bridge no longer belongs to the owned editor process.");
+      }
+      if (!sameSession(this.connectedSession, session)) {
+        this.close();
+        client = await this.ensureConnected();
+      }
+      // Handshake awaits admit another editor/session. Bind the actual cached
+      // client to fresh metadata immediately before sending; never retry a send.
+      const fresh = this.readSessionOf(this.currentProject);
+      if (generation !== this.generation || client !== this.client || fresh.pid !== opt.expectedEditorPid || !sameSession(this.connectedSession, fresh)) {
+        throw new BridgeError("DISCONNECTED", "The owned editor session changed before the request could be sent.");
+      }
+    }
     return client.request(method, params, opt);
   }
 
   close(): void {
     this.client?.close();
     this.client = undefined;
+    this.connectedSession = undefined;
     this.info = undefined;
   }
 
@@ -101,7 +135,7 @@ export class GodotConnection {
     const project = this.currentProject;
     let s: SessionInfo;
     try {
-      s = this.readSessionFn(project);
+      s = { ...this.readSessionFn(project) };
     } catch (e) {
       if (e instanceof BridgeError && e.code === "GODOT_NOT_RUNNING" && this.projectsRoots.length > 0) {
         throw new BridgeError(e.code, e.message, e.hint ? `${e.hint} ${SWITCH_HINT}` : SWITCH_HINT);
@@ -136,6 +170,7 @@ export class GodotConnection {
     }
     this.info = info;
     this.client = client;
+    this.connectedSession = s;
     return client;
   }
 }

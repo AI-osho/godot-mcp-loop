@@ -14,7 +14,8 @@ describe("readSession", () => {
 
   function write(data: unknown): void {
     mkdirSync(join(project, ".godot", "mcp_loop"), { recursive: true });
-    writeFileSync(sessionFilePath(project), JSON.stringify(data));
+    const metadata = data !== null && typeof data === "object" && !Array.isArray(data) ? { project_path: project, ...data } : data;
+    writeFileSync(sessionFilePath(project), JSON.stringify(metadata));
   }
 
   it("reads port and token of a live editor", () => {

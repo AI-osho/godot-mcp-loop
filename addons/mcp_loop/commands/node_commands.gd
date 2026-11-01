@@ -65,7 +65,11 @@ func _add(p: Dictionary) -> Dictionary:
 	if not decoded.ok:
 		node.free()
 		return ctx.invalid_properties(decoded.errors)
-	var values: Dictionary = ctx.merge_indexed(node, decoded.values)
+	var merge_errors: Array = []
+	var values: Dictionary = ctx.merge_indexed(node, decoded.values, merge_errors)
+	if not merge_errors.is_empty():
+		node.free()
+		return ctx.invalid_properties(merge_errors)
 	for k in values:
 		node.set(k, values[k])
 
@@ -185,7 +189,10 @@ func _set_props(p: Dictionary) -> Dictionary:
 	var decoded: Dictionary = ctx.decode_properties(node, props)
 	if not decoded.ok:
 		return ctx.invalid_properties(decoded.errors)
-	var new_values: Dictionary = ctx.merge_indexed(node, decoded.values)
+	var merge_errors: Array = []
+	var new_values: Dictionary = ctx.merge_indexed(node, decoded.values, merge_errors)
+	if not merge_errors.is_empty():
+		return ctx.invalid_properties(merge_errors)
 	var changes := {}
 	for k in decoded.values:
 		changes[k] = {"before": Codec.encode(node.get_indexed(NodePath(k))), "after": Codec.encode(decoded.values[k])}

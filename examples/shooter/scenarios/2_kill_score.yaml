@@ -7,23 +7,34 @@ steps:
   - input: { action: shooter_start, hold_ms: 100, wait_ms: 50 }
   - wait_for: { node: ., property: state, op: "==", value: play, timeout_ms: 1000 }
   - assert: { node: ., property: score, op: "==", value: 0 }
+  # Freeze observation boundaries: the explosion lives only20 physics ticks.
+  # The sample uses60 physics ticks/second; remote calls must not consume that budget.
+  - pause: true
   # straight-flying enemy (100 pts) right above the ship
   - call: { node: ., method: spawn_enemy, args: [a, 128, 110] }
+  - step: 1 # publish the spawned enemy count
   - assert: { node: ., property: enemy_count, op: "==", value: 1 }
-  - input: { action: shooter_fire, hold_ms: 60 }
+  - step: { frames: 4, press: [shooter_fire] } #60ms, rounded to physics ticks
+  - step: { frames: 1, release: [shooter_fire] }
+  - step: 8 # allow the shot to reach the enemy without transport-time drift
   - wait_for: { node: ., property: kills, op: "==", value: 1, timeout_ms: 1000 }
   - assert: { node: ., property: score, op: "==", value: 100 }
   - assert: { node: ., property: enemy_count, op: "==", value: 0 }
   - assert: { node: ., property: explosions_spawned, op: "==", value: 1 }
+  # Advance the animation, then inspect the frozen original condition.
+  - step: 8
   # the explosion animates through its 5 frames, then disappears
   - wait_for: { node: Effects/fx_1, property: frame, op: ">=", value: 2, timeout_ms: 500 }
   - screenshot: explosion
+  - step: 20
   - wait_for: { node: ., property: explosion_count, op: "==", value: 0, timeout_ms: 1000 }
   # armoured gunner: 3 hits, 300 pts (invincible so its aimed shot cannot interfere)
   - set: { node: ., properties: { invincible: true } }
   - call: { node: ., method: spawn_enemy, args: [d, 128, 60] }
-  - input: { action: shooter_fire, hold_ms: 400 }
+  - step: { frames: 24, press: [shooter_fire] } #400ms at60Hz
+  - step: { frames: 1, release: [shooter_fire] }
   - assert: { node: ., property: score, op: "==", value: 100 }
+  - pause: false
   - wait_for: { node: ., property: kills, op: "==", value: 2, timeout_ms: 1500 }
   - assert: { node: ., property: score, op: "==", value: 400 }
   - assert: { node: ., property: hi_score, op: "==", value: 400 }

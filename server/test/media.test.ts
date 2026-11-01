@@ -118,6 +118,14 @@ describe("GIF", () => {
     expect(rgbAt(2, 7, 5)).toEqual([0, 128, 255]);
   });
 
+  it.each([128, 4096])("refuses an encoded GIF beyond its byte budget (%i)", (maxBytes) => {
+    const img = solid(64, 64, [0, 0, 0, 255]);
+    let seed = 1;
+    for (let i = 0; i < 64 * 64; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; const c = seed >>> 24; img.data.set([c, c, c, 255], i * 4); }
+    const palette = { palette: Array.from({ length: 256 }, (_, c) => [c, c, c]), map: (r: number) => r };
+    expect(() => encodeGif([img], { delaysCs: [10], palette, maxBytes })).toThrowError(expect.objectContaining({ code: "INVALID_PARAMS" }));
+  });
+
   it("encodes long, noisy frames (dictionary resets past 4096 codes)", () => {
     const img: RgbaImage = { width: 200, height: 120, data: new Uint8Array(200 * 120 * 4) };
     let seed = 1;

@@ -59,6 +59,18 @@ describe("scenario_run tool", () => {
     expect(JSON.stringify(json)).not.toContain("QUJD"); // images are not duplicated in JSON
   });
 
+  it.each(["single", "list", "folder"] as const)("keeps screenshot baseline project identity in the %s scenario route", async (mode) => {
+    const capture = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) });
+    addon.handlers.set("screenshot", () => ({ ok: true, result: { png_base64: capture.toString("base64"), width: 2, height: 2, target: "game" } }));
+    write("visual/check.yaml", "name: visual route\nsteps:\n  - match_screenshot: {baseline: 'res://qa/baseline.png'}\n");
+    const where = mode === "single" ? { path: "res://visual/check.yaml" } : mode === "list" ? { paths: ["res://visual/check.yaml"] } : { path: "res://visual" };
+    const res = await client.callTool({ name: "scenario_run", arguments: { ...where, report: "full", include_screenshots: false } });
+    expect(res.isError, textOf(res)).toBeFalsy();
+    expect(textOf(res)).toMatch(/PASSED|1\/1 passed/);
+    expect(existsSync(join(project, "qa/baseline.png"))).toBe(true);
+    expect(readFileSync(join(project, "qa/baseline.png"))).toEqual(capture);
+  });
+
   it("checks the movie step range before starting the game", async () => {
     write("tests/two.yaml", "name: two\nsteps:\n  - assert: { node: Player, property: x, op: '>', value: 0 }\n  - assert: { node: Player, property: x, op: '>', value: 1 }\n");
     const res = await client.callTool({

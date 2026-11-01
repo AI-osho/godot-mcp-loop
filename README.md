@@ -10,7 +10,7 @@ An MCP server + Godot editor addon focused on the verification loop: **change �
 There are many Godot MCP servers that let an agent edit scenes. Few let it **find out whether the edit worked**.
 godot-mcp-loop gives the agent a play-tester's toolkit — launch the game, send real input, wait for conditions,
 read live state, take screenshots, collect errors — plus declarative scenario tests that return a pass/fail
-report with the failing value. Editing is deliberately conservative: every change is undoable, previewable,
+report with the failing value. Editor changes are deliberately conservative: undoable, previewable,
 validated before it is applied, and sandboxed to your project.
 
 ## What an agent can do
@@ -39,7 +39,7 @@ scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
 - **Doesn't freeze on errors**: Godot's debugger pauses games on script errors; the addon logs the error and
   continues, so the agent sees it instead of hanging.
 - **No extra ports in the game**: the game talks to the editor over Godot's own debugger connection.
-- **41 focused tools** rather than hundreds — easier for models to use well.
+- **48 focused tools** rather than hundreds — easier for models to use well.
 
 ## Requirements
 
@@ -179,6 +179,7 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Scenes | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
 | Nodes | `node_add`, `node_delete`, `node_get`, `node_set` |
 | Scripts | `script_read`, `script_write`, `script_edit`, `script_attach` |
+| Artwork production (development) | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
 | Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set`, `project_setting_set` (main scene, viewport, stretch) |
 | Undo | `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
@@ -186,6 +187,13 @@ with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [exam
 | Judge | `scenario_run` (evidence folder, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4 unit tests) |
 
 Full reference: [docs/tools.md](docs/tools.md).
+
+The new artwork workflow is development-source functionality, not a claim that the published npm package has
+already been updated. It connects a production brief and the client's existing authorized GPT Image 2 medium
+producer to actual PNG receipts, reproducible processing, frame/foot-anchor previews and undoable Godot placement.
+It does not itself generate images. PNG processing needs optional Python 3.11+ and Pillow 13.0.0; existing tools
+do not. Records/builds are append-only artifacts rather than editor undo entries.
+[Workflow, recipes and limitations](docs/art-production.md) · [日本語](docs/art-production.ja.md).
 
 ## Headless / CI
 

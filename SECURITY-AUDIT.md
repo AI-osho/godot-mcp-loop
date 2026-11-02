@@ -94,12 +94,26 @@ job-private `runner.temp` as `TMPDIR`. This is a caller-environment correction, 
 The original failure is retained, and the corrected exact head must complete all remote gates before release.
 
 The corrected Linux head passed all288 Godot units but failed two integration cases (142 passed,2 failed,21 skipped):
-the current-scene-change refusal control and the exit-zero/successful-XML control. Release remains **NO_GO**.
-On renewed user authorization, one bounded diagnosis cycle targets only those two cases. A fresh macOS source copy
-passed both unchanged files (16 tests), which does not establish a Linux cause. The next diagnostic head retains
-the original launch order/waits/refusal/native-error predicates, records scene/root/preflight observations, and
-reports only closed native-error categories/counts/source-line numbers rather than raw child output. No production
-repair or Linux success is claimed at this checkpoint.
+the current-scene-change refusal control and the exit-zero/successful-XML control. That failed result is retained.
+On renewed user authorization, one bounded diagnosis cycle targeted only those two cases. A fresh macOS source copy
+passed both unchanged files (16 tests), which did not establish a Linux cause. The diagnostic change retains the
+original launch order/waits/refusal/native-error predicates, records scene/root/preflight observations, and reports
+only closed native-error categories/counts/source-line numbers rather than raw child output. A deliberately
+raw-output formatter was rejected by the new diagnostic test in a private copy and passed after restoration.
+
+The diagnostic head `bc778830ab66b7760ef4bc5235744ce07769c721` then passed all seven remote required checks:
+Node20/24, Godot units288/0, Linux integration145 passed/21 skipped (including the new diagnostic-only unit),
+windowed samples/movie and CodeQL. Its fresh local checks also passed Node468, Godot288 and integration154/12 skipped.
+An independent diagnostics-only source delta review covered six full files plus the current report section at
+that diagnostic freeze; it found no blocking issue and is not represented as a new full audit or Linux execution
+certification.
+
+**No causal production-fix claim:** only test diagnostics and this report changed, not runtime/package source.
+The previous two failures did not reproduce at the diagnostic head, but their exact initiating conditions remain
+unknown. A passing re-execution does not establish why the earlier execution failed. Preserve both outcomes and
+the diagnostic observations for any recurrence; do not claim universal timing/platform robustness or erase the
+old failures. The final report-only head must pass the same remote gates before merge/tag, and released artifacts
+and npm approval/integrity remain separate gates.
 
 Locally qualified archives (remote archives are checked independently after release):
 

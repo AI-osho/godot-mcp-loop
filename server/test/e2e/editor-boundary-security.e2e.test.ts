@@ -81,7 +81,7 @@ var requested := "main"
 var observations: Array[Dictionary] = []
 func _qa_state(event: String) -> Dictionary:
   var root := EditorInterface.get_edited_scene_root()
-  return {"event": event, "time_ms": Time.get_ticks_msec(), "root_id": root.get_instance_id() if root != null else 0, "root_path": root.scene_file_path if root != null else "", "scanning": EditorInterface.get_resource_filesystem().is_scanning(), "playing": EditorInterface.is_playing_scene()}
+  return {"event": event, "time_ms": Time.get_ticks_msec(), "root_id": root.get_instance_id() if root != null else 0, "root_path": root.scene_file_path if root != null else "", "main_scene": String(ProjectSettings.get_setting("application/run/main_scene", "")), "scanning": EditorInterface.get_resource_filesystem().is_scanning(), "playing": EditorInterface.is_playing_scene()}
 func _init(context: RefCounted, bridge: EditorDebuggerPlugin, scene_tree: SceneTree) -> void:
   super(context, bridge, scene_tree)
 func _run(p: Dictionary) -> Dictionary:
@@ -107,6 +107,9 @@ func _preflight_run_target(kind: String, target: String, current_id: int) -> Dic
   return result
 func _wait_until(cond: Callable, timeout_ms: int) -> bool:
   observations.append(_qa_state("wait_enter"))
+  # Keep the target captured before the wait, but do not let initial import's
+  # scene restoration undo the deliberate change before the checked boundary.
+  var ready: bool = await super._wait_until(cond, timeout_ms)
   if not injected and requested in ["main", "current"]:
     injected = true
     if requested == "current":
@@ -120,7 +123,6 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
     else:
       ProjectSettings.set_setting("application/run/main_scene", "res://qa/other.tscn")
     observations.append(_qa_state("after_injection"))
-  var ready: bool = await super._wait_until(cond, timeout_ms)
   observations.append(_qa_state("wait_return"))
   return ready
 `,
@@ -142,6 +144,10 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
     const refused = await client.callTool({ name: "game_run", arguments: { scene: kind, restart } });
     const tracePath = join(h.projectPath, "qa/target-observations.json");
     const observations = existsSync(tracePath) ? JSON.parse(readFileSync(tracePath, "utf8")) : "missing fixture trace";
+    expect(Array.isArray(observations), "fixture must retain its native target-change observation").toBe(true);
+    const injected = observations.find((entry: any) => entry.event === "after_injection");
+    expect(kind === "current" ? injected?.root_path : injected?.main_scene,
+      "fixture must actually select the changed target after initial restoration").toBe("res://qa/other.tscn");
     expect(refused.isError, JSON.stringify({ result: textOf(refused), observations })).toBe(true);
     expect(textOf(refused)).toMatch(/changed/i);
     const status = await client.callTool({ name: "godot_status", arguments: {} });

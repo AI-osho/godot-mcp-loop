@@ -1,6 +1,32 @@
 import { expect, it } from "vitest";
+import { existsSync, readFileSync, renameSync } from "node:fs";
+import { join } from "node:path";
 import { connectClient } from "../helpers.js";
 import { startHeadlessEditor } from "./godot-harness.js";
+
+// Bridge admission precedes the editor's first persisted UID cache. An immediate
+// SceneTree runner must not inherit an unresolved UID-based runtime autoload.
+async function waitForFixtureResources(projectPath: string): Promise<void> {
+  const deadline = Date.now() + 10000;
+  let previous: Buffer | undefined;
+  while (Date.now() < deadline) {
+    let bytes: Buffer | undefined;
+    try { bytes = readFileSync(join(projectPath, ".godot/uid_cache.bin")); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    if (bytes?.includes(Buffer.from("addons/mcp_loop/runtime/runtime_agent.gd"))) {
+      if (previous?.equals(bytes)) return;
+      previous = bytes;
+    } else previous = undefined;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error("Fixture runtime-autoload UID cache was not published before test_run");
+}
+
+async function startRunner(script: string) {
+  const h = await startHeadlessEditor({ extraFiles: { "addons/gut/gut_cmdln.gd": script, "test/placeholder.gd": "extends Node\n" } });
+  try { await waitForFixtureResources(h.projectPath); return h; }
+  catch (error) { await h.stop(); throw error; }
+}
 
 // Publish closed diagnostic categories, never the child-controlled raw log or report.
 function nativeDiagnostics(report: Record<string, any>): string {
@@ -56,7 +82,7 @@ func _initialize() -> void:
 
 it("rejects an actual native error with exit zero and a successful JUnit case", async () => {
   const noisy = runner(0).replace("  quit(0)", '  push_error("CONTROLLED_NATIVE_RUNNER_ERROR")\n  quit(0)');
-  const h = await startHeadlessEditor({ extraFiles: { "addons/gut/gut_cmdln.gd": noisy, "test/placeholder.gd": "extends Node\n" } });
+  const h = await startRunner(noisy);
   const client = await connectClient(h.conn);
   try {
     const result = await client.callTool({ name: "test_run", arguments: { framework: "gut", path: "res://test", report: "full", timeout_ms: 10000 } });
@@ -71,8 +97,43 @@ it("rejects an actual native error with exit zero and a successful JUnit case", 
   } finally { await client.close(); await h.stop(); }
 }, 120_000);
 
+it("rejects an unresolved native autoload, waits for its persisted UID cache, and recovers", async () => {
+  const h = await startRunner(runner(0));
+  const client = await connectClient(h.conn);
+  const cache = join(h.projectPath, ".godot/uid_cache.bin");
+  const held = cache + ".fixture-held";
+  let pending: Promise<void> | undefined;
+  try {
+    expect(readFileSync(join(h.projectPath, "project.godot"), "utf8")).toMatch(/MCPLoopRuntime="\*uid:\/\//);
+    renameSync(cache, held);
+    const run = async () => {
+      const result = await client.callTool({ name: "test_run", arguments: { framework: "gut", path: "res://test", report: "full", timeout_ms: 10000 } });
+      expect(result.isError).toBeFalsy();
+      return JSON.parse((result.content as Array<{ type: string; text: string }>).filter(x => x.type === "text")[1]!.text);
+    };
+    const unavailable = await run();
+    expect(unavailable.exit_code).toBe(0);
+    expect(unavailable.totals.passed).toBe(1);
+    expect(unavailable.passed, nativeDiagnostics(unavailable)).toBe(false);
+    expect(unavailable.log_errors.some((line: string) => /autoload/i.test(line))).toBe(true);
+    let ready = false;
+    pending = waitForFixtureResources(h.projectPath).then(() => { ready = true; });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(ready, "missing runtime UID must not satisfy fixture readiness").toBe(false);
+    renameSync(held, cache);
+    await pending;
+    const recovered = await run();
+    expect(recovered.log_errors?.length ?? 0, nativeDiagnostics(recovered)).toBe(0);
+    expect(recovered.passed, nativeDiagnostics(recovered)).toBe(true);
+  } finally {
+    if (existsSync(held)) renameSync(held, cache);
+    await pending?.catch(() => {});
+    await client.close(); await h.stop();
+  }
+}, 120_000);
+
 it.each([0, 1])("uses the real child exit code %i even when its XML reports success", async (exitCode) => {
-  const h = await startHeadlessEditor({ extraFiles: { "addons/gut/gut_cmdln.gd": runner(exitCode), "test/placeholder.gd": "extends Node\n" } });
+  const h = await startRunner(runner(exitCode));
   const client = await connectClient(h.conn);
   try {
     const result = await client.callTool({ name: "test_run", arguments: { framework: "gut", path: "res://test", report: "full", timeout_ms: 10000 } });
@@ -81,6 +142,7 @@ it.each([0, 1])("uses the real child exit code %i even when its XML reports succ
     const report = JSON.parse(blocks[1]!.text);
     expect(report.totals).toEqual({ tests: 1, passed: 1, failed: 0, errors: 0, skipped: 0 });
     expect(report.exit_code).toBe(exitCode);
+    expect(report.log_errors?.length ?? 0, nativeDiagnostics(report)).toBe(0);
     expect(report.passed, nativeDiagnostics(report)).toBe(exitCode === 0);
     expect(blocks[0]!.text).toContain(exitCode === 0 ? ": PASSED" : ": FAILED");
   } finally {
@@ -95,7 +157,7 @@ it.each([
   ["multiple roots", '<testsuite><testcase name="reported_success"/></testsuite><testsuite/>'],
   ["trailing text", '<testsuite><testcase name="reported_success"/></testsuite>not XML'],
 ])("rejects a real exit-zero runner's %s report", async (_kind, xml) => {
-  const h = await startHeadlessEditor({ extraFiles: { "addons/gut/gut_cmdln.gd": runner(0, xml), "test/placeholder.gd": "extends Node\n" } });
+  const h = await startRunner(runner(0, xml));
   const client = await connectClient(h.conn);
   try {
     const result = await client.callTool({ name: "test_run", arguments: { framework: "gut", path: "res://test", report: "full", timeout_ms: 10000 } });

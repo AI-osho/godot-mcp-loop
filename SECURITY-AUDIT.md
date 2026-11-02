@@ -11,10 +11,10 @@ The local source-review, native, rendering, sample-replay and real-package gates
 
 Its inventory contains 473 files with stored-byte SHA-256 and file-mode bindings. The writer, frozen source and
 qualification copy were compared directly; the pre-existing index was preserved throughout qualification.
-The post-freeze deltas are this report, the CI caller's `TMPDIR` environment binding and diagnostic-only changes
-to the two Linux-failing integration-test files. They are inventoried separately before commit. Runtime and package
-source remain byte-identical to the qualified candidate; original test predicates and operational limits remain
-intact. Diagnostic changes are not represented as production repairs or retrospective qualification.
+The post-freeze deltas are this report, the CI caller's `TMPDIR` environment binding and diagnostic/fixture-startup
+changes to the two Linux-failing integration-test files. They are inventoried separately before commit. Runtime and
+package source remain byte-identical to the qualified candidate; original acceptance predicates and operational
+limits remain intact. Fixture corrections are not represented as production repairs or retrospective qualification.
 
 **Remote release gates remain separate:** the exact final PR head must pass the required CI and CodeQL checks;
 the merged tree must match the approved tree; released assets must be downloaded and checked; npm requires the
@@ -108,12 +108,27 @@ An independent diagnostics-only source delta review covered six full files plus 
 that diagnostic freeze; it found no blocking issue and is not represented as a new full audit or Linux execution
 certification.
 
-**No causal production-fix claim:** only test diagnostics and this report changed, not runtime/package source.
-The previous two failures did not reproduce at the diagnostic head, but their exact initiating conditions remain
-unknown. A passing re-execution does not establish why the earlier execution failed. Preserve both outcomes and
-the diagnostic observations for any recurrence; do not claim universal timing/platform robustness or erase the
-old failures. The final report-only head must pass the same remote gates before merge/tag, and released artifacts
-and npm approval/integrity remain separate gates.
+That success was not treated as a causal fix: the report-only head
+`ea518050a30fb75561a4b51119b59b70e71ce1ff` reproduced both original failures (143 passed,2 failed,21 skipped).
+Its scene trace observed `other.tscn` while scanning, then the original `first.tscn` root29ms later when the scan
+finished; both production preflights correctly saw the captured first root. The fixture's transient selection was
+not the changed final target its assertion assumed. The fixture now completes the intercepted native wait first,
+then changes the still-captured target before returning to preflight, explicitly requiring that change to exist.
+
+The exit-zero control recorded two native errors classified as resource/file and autoload/load, not evidence for
+the earlier queue-free speculation. A private native three-case probe observed the real runtime autoload saved
+as a UID while its disk cache could still be absent at bridge admission. Holding that cache absent reproduced
+exit0, successful XML and the matching two resource/autoload error classes; the same UID with its cache passed.
+This is a controlled cache-boundary reproduction, not recovery of the old deleted CI child's exact UID bytes.
+Successful synthetic-runner fixtures now require a stable published cache containing their runtime-autoload path
+before spawning; positive exit controls explicitly require zero native errors. A real missing-cache failure and
+same-client recovery remain checked. Native-error rejection, actual exit/XML predicates and original120s test
+limits are unchanged; no autoload is disabled and no production error is ignored.
+
+The corrected-fixture freeze is not release approval: full local qualification, an independent scoped delta
+review and all exact-head remote checks are required before merge/tag. Both the prior success and renewed failure
+are retained. Do not erase the old failures or claim universal startup/timing/platform robustness; actual released
+assets and npm approval/integrity remain separate gates.
 
 Locally qualified archives (remote archives are checked independently after release):
 

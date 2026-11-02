@@ -78,12 +78,35 @@ it.each([["main", false], ["current", false], ["main", true], ["current", true]]
 extends "res://addons/mcp_loop/commands/play_commands.gd"
 var injected := false
 var requested := "main"
+var observations: Array[Dictionary] = []
+func _qa_state(event: String) -> Dictionary:
+  var root := EditorInterface.get_edited_scene_root()
+  return {"event": event, "time_ms": Time.get_ticks_msec(), "root_id": root.get_instance_id() if root != null else 0, "root_path": root.scene_file_path if root != null else "", "scanning": EditorInterface.get_resource_filesystem().is_scanning(), "playing": EditorInterface.is_playing_scene()}
 func _init(context: RefCounted, bridge: EditorDebuggerPlugin, scene_tree: SceneTree) -> void:
   super(context, bridge, scene_tree)
 func _run(p: Dictionary) -> Dictionary:
   requested = String(p.get("scene", "main"))
-  return await super._run(p)
+  observations.clear()
+  observations.append(_qa_state("run_enter"))
+  var result: Dictionary = await super._run(p)
+  observations.append(_qa_state("run_return"))
+  if requested in ["main", "current"]:
+    # Write only after the operation, not inside its target-change window.
+    var trace := FileAccess.open("res://qa/target-observations.json", FileAccess.WRITE)
+    if trace != null:
+      trace.store_string(JSON.stringify(observations))
+      trace.close()
+  return result
+func _preflight_run_target(kind: String, target: String, current_id: int) -> Dictionary:
+  var state := _qa_state("preflight")
+  state["target"] = target
+  state["captured_root_id"] = current_id
+  var result: Dictionary = super._preflight_run_target(kind, target, current_id)
+  state["accepted"] = result.ok
+  observations.append(state)
+  return result
 func _wait_until(cond: Callable, timeout_ms: int) -> bool:
+  observations.append(_qa_state("wait_enter"))
   if not injected and requested in ["main", "current"]:
     injected = true
     if requested == "current":
@@ -96,7 +119,10 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
         await tree.process_frame
     else:
       ProjectSettings.set_setting("application/run/main_scene", "res://qa/other.tscn")
-  return await super._wait_until(cond, timeout_ms)
+    observations.append(_qa_state("after_injection"))
+  var ready: bool = await super._wait_until(cond, timeout_ms)
+  observations.append(_qa_state("wait_return"))
+  return ready
 `,
       "qa/first.tscn": scene,
       "qa/other.tscn": '[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://qa/other.gd" id="1"]\n[node name="Other" type="Node"]\nscript = ExtResource("1")\n',
@@ -114,7 +140,9 @@ func _wait_until(cond: Callable, timeout_ms: int) -> bool:
       expect(initial.isError, textOf(initial)).toBeFalsy();
     }
     const refused = await client.callTool({ name: "game_run", arguments: { scene: kind, restart } });
-    expect(refused.isError, textOf(refused)).toBe(true);
+    const tracePath = join(h.projectPath, "qa/target-observations.json");
+    const observations = existsSync(tracePath) ? JSON.parse(readFileSync(tracePath, "utf8")) : "missing fixture trace";
+    expect(refused.isError, JSON.stringify({ result: textOf(refused), observations })).toBe(true);
     expect(textOf(refused)).toMatch(/changed/i);
     const status = await client.callTool({ name: "godot_status", arguments: {} });
     expect(JSON.parse(textOf(status)).playing).toBe(false);

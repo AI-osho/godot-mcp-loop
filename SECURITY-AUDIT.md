@@ -11,9 +11,10 @@ The local source-review, native, rendering, sample-replay and real-package gates
 
 Its inventory contains 473 files with stored-byte SHA-256 and file-mode bindings. The writer, frozen source and
 qualification copy were compared directly; the pre-existing index was preserved throughout qualification.
-The final deltas after that freeze are this report and the CI caller's `TMPDIR` environment binding only. They are
-inventoried separately before commit; runtime, tests/assertions and package source remain byte-identical to the
-qualified candidate, rather than being silently changed or given a new retrospective review claim.
+The post-freeze deltas are this report, the CI caller's `TMPDIR` environment binding and diagnostic-only changes
+to the two Linux-failing integration-test files. They are inventoried separately before commit. Runtime and package
+source remain byte-identical to the qualified candidate; original test predicates and operational limits remain
+intact. Diagnostic changes are not represented as production repairs or retrospective qualification.
 
 **Remote release gates remain separate:** the exact final PR head must pass the required CI and CodeQL checks;
 the merged tree must match the approved tree; released assets must be downloaded and checked; npm requires the
@@ -91,6 +92,14 @@ Both failures were the unchanged hardlink tests' explicit `TMPDIR` precondition,
 `test requires its caller's isolated TMPDIR`. The CI caller had supplied only `GODOT_BIN`; it now also supplies the
 job-private `runner.temp` as `TMPDIR`. This is a caller-environment correction, not a production/test-predicate repair.
 The original failure is retained, and the corrected exact head must complete all remote gates before release.
+
+The corrected Linux head passed all288 Godot units but failed two integration cases (142 passed,2 failed,21 skipped):
+the current-scene-change refusal control and the exit-zero/successful-XML control. Release remains **NO_GO**.
+On renewed user authorization, one bounded diagnosis cycle targets only those two cases. A fresh macOS source copy
+passed both unchanged files (16 tests), which does not establish a Linux cause. The next diagnostic head retains
+the original launch order/waits/refusal/native-error predicates, records scene/root/preflight observations, and
+reports only closed native-error categories/counts/source-line numbers rather than raw child output. No production
+repair or Linux success is claimed at this checkpoint.
 
 Locally qualified archives (remote archives are checked independently after release):
 

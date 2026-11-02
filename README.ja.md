@@ -40,6 +40,17 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 - **ゲーム側に追加ポート不要**: ゲームとエディタは Godot 標準のデバッガ接続で通信します。
 - **厳選した 48 ツール**: 数百のツールより、モデルが迷わず使える粒度を重視。
 
+## 導入診断（0.11.0 以降）
+
+`doctor <project> [--json] [--artwork]` で、設定を変更せず不足・版ずれ・判別不能を調べ、次の手動操作を案内します。
+エディターの起動、接続、修復はせず、実行時の動作は未確認と明示します。
+
+```sh
+npx -y godot-mcp-loop@0.11.0 doctor /ABS/my-game --json
+```
+
+Python/Pillow は `--artwork` 指定時だけ確認します。[日本語の診断ガイド](docs/doctor.ja.md)を参照してください。
+
 ## 動作環境
 
 - Godot **4.7**（4.7.2 で検証済み）。4.5〜4.6 でも動く見込み（4.5 で追加された `Logger` API を使用）ですが未検証です。
@@ -66,7 +77,7 @@ scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
 
 1. **アドオン** — アドオンはサーバーと同じバージョンが必要です。サーバー自身にコピーと有効化をさせます。
    ```bash
-   npx -y godot-mcp-loop@latest install-addon /絶対パス/my-game --skill
+   npx -y godot-mcp-loop@0.11.0 install-addon /絶対パス/my-game --skill
    ```
    `--skill` を付けると、エージェント用スキル(下の手順 5)も入ります。次の手順で使うバージョンが表示されます。
 2. **クライアント** — 表示されたバージョンでサーバーを登録します。例: Claude Code
@@ -130,10 +141,10 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 
 1. **アドオンを入れる**（`addons/mcp_loop` をコピーし、プラグインを有効化し、エージェント用のスキルも配置します）:
    ```bash
-   cd my-game && npx -y godot-mcp-loop@latest install-addon . --skill
+   cd my-game && npx -y godot-mcp-loop@0.11.0 install-addon . --skill
    ```
 2. **Godot（4.5 以上）でプロジェクトを開く**: `godot -e --path .` — エディタと一緒にブリッジが 127.0.0.1 で待ち受けます。
-3. **MCP クライアントを接続**: `npx -y godot-mcp-loop@latest --project /絶対パス/my-game` を登録し、`godot_status` を
+3. **MCP クライアントを接続**: `npx -y godot-mcp-loop@0.11.0 --project /絶対パス/my-game` を登録し、`godot_status` を
    呼びます。Godot の版、プロジェクト、開いているシーンが返れば成功です。
 4. **1 つ変更して、1 つ確かめる**: 「コインを 1 枚追加して、`scenario_run {"path": "res://scenarios/coins.yaml"}` を
    実行して」と頼みます。失敗したステップは、実際の値とスクリーンショット付きで返ります。
@@ -160,13 +171,13 @@ Godot で開き、サーバーの `--project` をリポジトリのルートに�
 3D サンプルはパッケージに同梱されているので、このリポジトリを clone しなくても開けます。
 
 ```bash
-npx -y godot-mcp-loop@latest sample marble-3d ./marble-3d
-cd marble-3d && npx -y godot-mcp-loop@latest install-addon . --skill && godot -e --path .
+npx -y godot-mcp-loop@0.11.0 sample marble-3d ./marble-3d
+cd marble-3d && npx -y godot-mcp-loop@0.11.0 install-addon . --skill && godot -e --path .
 ```
 
 3D 向けの道具（`game_in_view` / `game_ray` / `game_contacts` / 3D の値の JSON 化）は、このゲームで必要になった
 ものばかりです。シナリオは 7 本で、`7_gap_needs_jump.yaml` が「転がるだけでは渡れない・ジャンプなら渡れる」を
-検証します。同梱物の一覧は `npx -y godot-mcp-loop@latest sample` で表示されます。
+検証します。同梱物の一覧は `npx -y godot-mcp-loop@0.11.0 sample` で表示されます。
 
 `game_run {"scene": "res://examples/shooter/shooter.tscn"}` で起動でき（シーンを開いて F6 でも可）、
 `scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` で検証を再実行できます

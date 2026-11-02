@@ -158,7 +158,7 @@ describe("npm package contents (#16)", () => {
     execFileSync("node", ["scripts/bundle-assets.mjs"], { cwd: serverDir });
     const json = execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: serverDir, encoding: "utf8" });
     const files = (JSON.parse(json)[0].files as Array<{ path: string }>).map((f) => f.path);
-    for (const f of ["dist/index.js", "dist/cli.js", "addon/mcp_loop/plugin.cfg", "addon/mcp_loop/runtime/runtime_agent.gd", "skill/godot-mcp-loop/SKILL.md", "README.md", "LICENSE", "package.json"]) {
+    for (const f of ["dist/index.js", "dist/cli.js", "dist/doctor.js", "addon/mcp_loop/plugin.cfg", "addon/mcp_loop/runtime/runtime_agent.gd", "skill/godot-mcp-loop/SKILL.md", "README.md", "LICENSE", "package.json"]) {
       expect(files, f).toContain(f);
     }
     expect(files.some((f) => f.startsWith("test/") || f.startsWith("src/"))).toBe(false);

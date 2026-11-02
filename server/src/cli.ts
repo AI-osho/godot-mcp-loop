@@ -26,6 +26,7 @@ export const USAGE = `Usage:
       --no-enable   do not edit project.godot (enable it in Project Settings > Plugins)
   godot-mcp-loop sample                                 list the bundled sample projects
   godot-mcp-loop sample <name> <dir>                    copy a sample project (e.g. marble-3d) into <dir>
+  godot-mcp-loop doctor <dir> [--json] [--artwork]       diagnose static installation settings without changing them
   godot-mcp-loop --version`;
 
 /** In a checkout of the repository the addon and skill come from it; in the npm package from the bundled copies. */

@@ -12,7 +12,7 @@ Full documentation: <https://github.com/AI-osho/godot-mcp-loop>
 1. Add the editor addon to your Godot 4 project. It must be the same version as the server, so let the server copy it:
 
    ```bash
-   npx -y godot-mcp-loop@latest install-addon ~/games/my-game --skill
+   npx -y godot-mcp-loop@0.11.0 install-addon ~/games/my-game --skill
    ```
 
    `--skill` also adds the agent skill (`.claude/skills/godot-mcp-loop`). The command prints the exact version to use
@@ -42,6 +42,15 @@ Full documentation: <https://github.com/AI-osho/godot-mcp-loop>
 4. Ask the agent to call `godot_status`, then describe the game you want.
 
 To update, run step 1 again with `--force` and change the version in step 3.
+
+## Installation diagnosis (0.11.0+)
+
+`godot-mcp-loop doctor <project> [--json] [--artwork]` checks static setup without changing the project,
+launching an editor, connecting to the bridge or installing dependencies. Python/Pillow is checked only when
+requested. An `ok` result does not certify runtime or full addon integrity; runtime always remains unchecked.
+Run `npx -y godot-mcp-loop@0.11.0 doctor /ABS/my-game --json` (add `--artwork` for Python/Pillow checks).
+Doctor is a standalone CLI command, not an additional MCP tool or a server registration command.
+[Doctor guide](https://github.com/AI-osho/godot-mcp-loop/blob/main/docs/doctor.md).
 
 ## What the agent gets
 

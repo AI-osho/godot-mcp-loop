@@ -130,6 +130,15 @@ review and all exact-head remote checks are required before merge/tag. Both the 
 are retained. Do not erase the old failures or claim universal startup/timing/platform robustness; actual released
 assets and npm approval/integrity remain separate gates.
 
+The corrected-fixture head `4bfd85d78f5fd421fc822c58099a466c578d2b94` passed all seven remote checks, including
+Godot288/0 and Linux integration146 passed/21 skipped. Its actual uploaded screenshots/movie contact sheets were
+downloaded and inspected. Frames, ASCII HUDs and game-state headings were present, but the unchanged RPG's Japanese
+labels appeared as replacement glyphs on the minimal Linux image. That sample already selects `Noto Sans CJK JP`
+through `SystemFont`; the CI display job now installs `fonts-noto-cjk` alongside its existing display dependencies.
+This supplies the existing sample's environment dependency, not new game/font assets or an additional production
+repair. The CI-only font/report delta retains all corrected test/runtime/package bytes and must pass exact-head
+checks and an actual updated-image inspection before merge; no global user-machine installation is performed.
+
 Locally qualified archives (remote archives are checked independently after release):
 
 - npm tarball SHA-256: `92ef970437910458e36b86df78f81471ab803cd03e6272ad448adc631e79e5f1`

@@ -3,6 +3,22 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [0.11.0] - 2026-11-02
+
+### Added
+- Read-only `doctor <project> [--json] [--artwork]` CLI with static installation checks, stable diagnostic codes,
+  actionable hints and explicit runtime-not-checked output. It never launches the editor or connects/repairs.
+- Bounded metadata inspection, conservative ambiguous-setting classification, fixed trusted version probes,
+  and opt-in Python/Pillow checks; English/Japanese usage and safety guides.
+
+### Security
+- Refuse Unicode syntax whitespace instead of normalizing different native keys/values into a false installation
+  pass. Preserve quoted Unicode and handle a leading project BOM separately from ConfigFile addon metadata.
+- Keep diagnosis on the standalone CLI branch, with no project code loading, bridge contact or automatic repair;
+  native literal-decoder/ProjectSettings regressions and actual installed-package checks cover the new command.
+
 ## [0.10.0] - 2026-11-01
 
 ### Added

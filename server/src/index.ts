@@ -2,6 +2,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { existsSync } from "node:fs";
 import { runCli, USAGE } from "./cli.js";
+import { runDoctorCli } from "./doctor.js";
 import { GodotConnection } from "./connection.js";
 import { EditorLauncher } from "./editor-launcher.js";
 import { parseServerArgs } from "./projects.js";
@@ -9,6 +10,7 @@ import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+  if (argv[0] === "doctor") process.exit(await runDoctorCli(argv.slice(1)));
   if (argv[0] === "install-addon" || argv[0] === "sample") process.exit(runCli(argv));
   const args = parseServerArgs(argv);
   if (args.version) {

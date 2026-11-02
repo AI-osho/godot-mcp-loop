@@ -1,3 +1,82 @@
+# Security audit — 0.11.0 release candidate
+
+Date: 2026-11-03. This is a bounded doctor-CLI release assessment, not a blanket safety guarantee.
+The previous 0.10.0 audit below is preserved as history; its counts and pending gates are not current-release claims.
+
+## Changed surface and source binding
+
+- The new standalone `doctor <project> [--json] [--artwork]` CLI performs bounded static installation diagnosis.
+  It adds no MCP tool or bridge listener (48 tools remain). It does not load native Variant/project/plugin code,
+  connect to the editor, read session/client credentials, repair settings or install dependencies.
+- It executes fixed version probes only through operator-trusted Godot and optional Python/Pillow, without a shell,
+  with a small environment allowlist and bounded output/direct-process time. Python is not started without opt-in.
+- Static success never certifies a live connection, imports, gameplay or full addon authenticity; runtime is always
+  `not_checked`. Unsupported/ambiguous syntax is unverified, not silently accepted. Unicode syntax whitespace is not
+  normalized into valid native keys/values; quoted Unicode and reader-specific project BOM handling are preserved.
+- The doctor implementation and native regression are byte-identical to the independently reviewed local D2 repair.
+  Its observed Unicode false-positive was in unpublished development snapshots, not in the published 0.10.0 package.
+  Release-only changes update version parity, pinned launch examples, public availability, security documentation,
+  and the permanent package-membership assertion. Dependency constraints/lock contents are unchanged except the
+  package's two root version fields. Addon scripts, games, samples and authoring code are unchanged.
+
+The exact functional qualification freeze is
+`GML-DOCTOR-RELEASE-R1:4bc1830abc80d66e85683fc7da48637665ab75f1a1b2beeb47891a2d5abd2bb5`.
+It binds 478 source paths by stored bytes/modes. This new report is the sole documentary delta after that freeze;
+all other paths and executable package members are compared directly before the final release snapshot/commit.
+The complete final tree and required/read coverage are recorded by the release PR and its scoped delta review.
+Earlier D1/D2 source opinions are composed with unchanged-file proofs, not presented as a fresh whole-product audit.
+
+## Executed local gates (0.11.0 payload)
+
+macOS; Node24; Godot4.7.2; private Python3.13/Pillow13.0.0. Existing user games/editors, authentication, MCP
+registrations, global installs and other profiles were not changed; native work used controlled owned fixtures.
+
+| Gate | Observed result |
+|---|---|
+| Type check/build | Succeeded |
+| Node suite | 527 passed |
+| Godot units | 288 passed, 0 failed; no native-error prefix |
+| Real editor/runtime integration | 157 passed, 12 opt-in skips (not counted as passes) |
+| Installed real doctor CLI | 56 cases passed; fixture bytes/modes preserved and synthetic opaque text not echoed |
+| Static configuration corpus | 55 cases, 48 explicit expectations, no expectation mismatch; 46 literal native inputs |
+| Actual installed consumer | 9 states, packaged installer/sample, actual optional Python/Pillow and shadow-module refusal |
+| MCP/native compatibility | 48 tools; real connection; server/addon0.11.0; live doctor left runtime unchecked; owned children exited |
+| Real release archives | 189 npm members and 64 addon-ZIP members match qualified bytes/modes; anonymous fresh-prefix install verified |
+| Dependency/security scans | npm all/production advisories0; source gitleaks raw1, confirmed real secrets0 (unchanged fixed synthetic unit-test sentinel) |
+
+The original strict installed-CLI NBSP reproducer now passes with native ProjectSettings confirming that the
+expected plugin is not enabled. Native literal controls exclude Object/Resource forms and project code; actual
+ProjectSettings controls require editor_hint=false. Deliberate malformed values are decoded only in a neutral data
+fixture, not bootstrapped into an editor fallback. Unexpected native/script errors remain fatal.
+
+A newly added package test initially demanded a nonexistent `.d.ts`; the build declares `declaration:false` and
+emits `.js`/`.js.map`. That test-oracle mistake is preserved as a failed verifier attempt, not a product defect or
+successful qualification. The corrected contract requires the real `dist/doctor.js` module. A disposable generated
+module-removal control failed that assertion and passed after exact restoration; no package chmod was used to
+manufacture identity. npm's declared-bin0644-to0755 normalization is recorded separately; all bytes remain exact.
+
+Local npm tarball SHA-256: `0d5cb7c0e7c59b707ea378ed5963b1587e9922aac32c98059be6196c31f5614e`.
+Local addon ZIP SHA-256: `3aea3e822059c8db4ccba44d6101a6bfa83c96ba85a77c53456eb19d98e3e65c`.
+ZIP container timestamps may differ across hosts; complete payload/modes and archive identity are separate checks.
+
+## Remaining remote release gates and limits
+
+Before tagging: scoped release-delta review, exact-head PR CI/CodeQL (including Linux native and samples/movie),
+merge-tree equality and exact-main checks must pass. GitHub assets must then be downloaded and checked; npm needs
+maintainer-only staged approval with2FA, registry/GitHub tarball equality and a fresh empty-cache npx/native run.
+These gates are not claimed complete by the local tests above. User publication approval is separate from CI success.
+Current readable GitHub secret/dependency/code-scanning alerts were0; protected version tags prohibit deletion and
+force-updates with no bypass actors. No protection was relaxed and published tags/history will not be rewritten.
+
+No new Windows native execution or hostile same-user race/process-tree containment certification is claimed.
+Selected executables and Python startup/site packages remain trusted. The earlier three minor D2 review suggestions
+(including an unobserved slow-CI test-timeout concern) remain recorded; a source opinion is not execution evidence.
+No image/provider credential, billing, licensing or whole-addon-integrity guarantee follows from doctor success.
+
+---
+
+## Historical record: 0.10.0 release assessment (unchanged below)
+
 # Security audit — 0.10.0 release candidate
 
 Date: 2026-11-02. This is a bounded assessment, not a guarantee that the repository or an arbitrary project is safe.

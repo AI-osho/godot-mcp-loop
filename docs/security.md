@@ -17,6 +17,23 @@ it is **not** a promise of no code execution: validation, resource loading, cons
 execute project callbacks before the edit is committed. Disabling the submitted script's `@tool` annotation during
 validation does not sandbox its dependencies.
 
+## Static installation diagnosis (`doctor`)
+
+The standalone `doctor <project> [--json] [--artwork]` CLI (0.11.0+) reads bounded project/addon metadata with a
+conservative lexer, not Godot's Variant/project loader. It does not load project/plugin code, contact the bridge,
+read session/client credentials, launch an editor, install dependencies or repair files. Unsupported syntax,
+including Unicode syntax whitespace that would change native keys/values, remains unverified rather than a false
+pass. Legitimate quoted Unicode is preserved; project and addon metadata BOM handling follows separate readers.
+An `ok` static result is not a connection/gameplay/full-addon-integrity certificate: runtime remains `not_checked`.
+
+It executes only fixed version probes through operator-trusted Godot and optional Python/Pillow executables,
+without a shell, with bounded output/time and a small environment allowlist. The installed executables and Python
+startup/site packages are trusted; this is not an OS sandbox or hostile-descendant containment. Python is not
+started without `--artwork`. No raw config values, arguments, probe output or exceptions are echoed. As with the
+other direct-I/O guards, hostile same-user filesystem replacement races are outside the guarantee.
+See [the doctor guide](doctor.md) for limits and result codes. `npx`/`npm install` package preparation is separate
+from read-only diagnosis and may itself fetch dependencies.
+
 ## Bridge (MCP server ↔ editor)
 
 | Protection | Details |

@@ -1,0 +1,151 @@
+name: "3_pit_gameover"
+description: "Pit fall costs a life, three misses cause game over, Enter restarts at the start position."
+scene: "res://examples/action/action_game.tscn"
+steps:
+  - set:
+      node: "."
+      properties:
+        timer_frozen: true
+  - call:
+      node: "."
+      method: "start_at"
+      args: [24, 189]
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 3
+  # --- First fall into the pit at x=420..484.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [450, 189]
+  - wait_for:
+      node: "."
+      property: "falls"
+      op: "=="
+      value: 1
+      timeout_ms: 3000
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 2
+  - assert:
+      node: "."
+      property: "last_cause"
+      op: "=="
+      value: "pit"
+  - assert:
+      node: "."
+      property: "player_x"
+      op: "=="
+      value: 24
+  # Wait out invulnerability so the next fall costs a life too.
+  - wait_for:
+      node: "."
+      property: "invuln"
+      op: "=="
+      value: 0
+      timeout_ms: 5000
+  # --- Second fall.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [450, 189]
+  - wait_for:
+      node: "."
+      property: "falls"
+      op: "=="
+      value: 2
+      timeout_ms: 3000
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 1
+  - wait_for:
+      node: "."
+      property: "invuln"
+      op: "=="
+      value: 0
+      timeout_ms: 5000
+  # --- Third fall: lives reach 0 -> game over.
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [450, 189]
+  - wait_for:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "gameover"
+      timeout_ms: 3000
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "falls"
+      op: "=="
+      value: 3
+  - assert:
+      node: "."
+      property: "game_overs"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "last_cause"
+      op: "=="
+      value: "pit"
+  - screenshot: "gameover"
+  # --- Restart with Enter after the overlay has been up long enough.
+  - wait_ms: 700
+  - input:
+      action: action_start
+      hold_ms: 100
+  - wait_for:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "play"
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 3
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "coins"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "falls"
+      op: "=="
+      value: 0
+  - assert:
+      node: "."
+      property: "restarts"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "player_x"
+      op: "=="
+      value: 24
+  - assert:
+      node: "."
+      property: "time_left"
+      op: "=="
+      value: 300
+  - assert_no_errors: true

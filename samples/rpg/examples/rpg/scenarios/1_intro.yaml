@@ -1,0 +1,38 @@
+# 1. Title -> scrolling opening -> automatic fade -> field -> world map.
+# Verifies the state machine, the PRESS START input, the fixed-frame opening and the map warp hook.
+name: "1 intro: title to opening to field"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - wait_for: { node: ., property: state, op: "==", value: title, timeout_ms: 5000 }
+  - assert: { node: ., property: map_name, op: "==", value: castle }
+  - assert: { node: ., property: tile, op: "==", value: [7, 9] }
+  - screenshot: title
+  - input: { action: rpg_confirm, hold_frames: 1, wait_frames: 5 }
+  - wait_for: { node: ., property: state, op: "==", value: opening, timeout_ms: 2000 }
+  - wait_for: { node: ., property: state_frame, op: ">=", value: 60, timeout_ms: 3000 }
+  - screenshot: opening_scroll
+  # Push the scroll near its end so the automatic fade-to-field runs now.
+  - set: { node: ., properties: { _opening_y: -400.0 } }
+  - wait_for: { node: ., property: state, op: "==", value: field, timeout_ms: 3000 }
+  - wait_for: { node: ., property: fade_alpha, op: "<=", value: 0.01, timeout_ms: 3000 }
+  # Float comparison with an explicit tolerance instead of an exact bit pattern.
+  - assert: { node: ., property: fade_alpha, op: "==", value: 0.0, tolerance: 0.001 }
+  - assert: { node: ., property: map_name, op: "==", value: castle }
+  - assert: { node: ., property: tile, op: "==", value: [7, 9] }
+  - assert: { node: ., property: facing, op: "==", value: up }
+  - screenshot: field_castle
+  - call: { node: ., method: warp, args: [world, 6, 11] }
+  - wait_for: { node: ., property: map_name, op: "==", value: world, timeout_ms: 2000 }
+  - assert: { node: ., property: state, op: "==", value: field }
+  - screenshot: field_world
+  # Real map warp: the town gate tile north of the return point leads into town,
+  # and the exit tile at the town's south edge leads back to the world map.
+  - input: { action: rpg_up, hold_frames: 1, wait_frames: 12 }
+  - wait_for: { node: ., property: map_name, op: "==", value: town, timeout_ms: 2000 }
+  - assert: { node: ., property: tile, op: "==", value: [7, 12] }
+  - assert: { node: ., property: state, op: "==", value: field }
+  - screenshot: town_gate
+  - input: { action: rpg_down, hold_frames: 1, wait_frames: 12 }
+  - wait_for: { node: ., property: map_name, op: "==", value: world, timeout_ms: 2000 }
+  - assert: { node: ., property: tile, op: "==", value: [6, 11] }
+  - assert_no_errors: true

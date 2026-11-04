@@ -1,0 +1,151 @@
+[gd_scene format=3 uid="uid://b5cp4kldtuftx"]
+
+[ext_resource type="Texture2D" path="res://examples/tower-defense/assets/title_vista.png" id="1_4ignj"]
+[ext_resource type="Script" uid="uid://dhbgx7rjj7oil" path="res://examples/tower-defense/scripts/title.gd" id="1_wosw1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wosw1"]
+bg_color = Color(0.078431375, 0.17254902, 0.21960784, 0.9490196)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.52156866, 0.5372549, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="Title" type="Control" unique_id=743548875]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_wosw1")
+
+[node name="Screen" type="Control" parent="." unique_id=217348012]
+anchors_preset = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+
+[node name="Vista" type="Sprite2D" parent="Screen" unique_id=195443680]
+scale = Vector2(2, 2)
+texture = ExtResource("1_4ignj")
+centered = false
+
+[node name="Veil" type="ColorRect" parent="Screen" unique_id=1689229550]
+layout_mode = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+color = Color(0.0627451, 0.15294118, 0.20784314, 0.13333334)
+
+[node name="Eyebrow" type="Label" parent="Screen" unique_id=1623642420]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 38.0
+offset_right = 498.0
+offset_bottom = 70.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 16
+text = "小さな庭のタワーディフェンス"
+vertical_alignment = 1
+
+[node name="Name" type="Label" parent="Screen" unique_id=653761282]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 78.0
+offset_right = 548.0
+offset_bottom = 144.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 48
+text = "灯畑の番人"
+vertical_alignment = 1
+
+[node name="Tagline" type="Label" parent="Screen" unique_id=189033488]
+layout_mode = 0
+offset_left = 52.0
+offset_top = 150.0
+offset_right = 502.0
+offset_bottom = 196.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 23
+text = "ひかりの実を、夜明けまで。"
+vertical_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="Screen" unique_id=1014790928]
+layout_mode = 0
+offset_left = 550.0
+offset_top = 58.0
+offset_right = 920.0
+offset_bottom = 578.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_wosw1")
+
+[node name="How" type="Label" parent="Screen" unique_id=1994481398]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 84.0
+offset_right = 890.0
+offset_bottom = 126.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 25
+text = "夜の庭をまもろう"
+vertical_alignment = 1
+
+[node name="Instructions" type="Label" parent="Screen" unique_id=2104865600]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 144.0
+offset_right = 890.0
+offset_bottom = 330.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 17
+text = "煤虫が曲がり道を進んできます。
+
+塔を選び、石台 A〜H に配置。
+灯火で攻撃、霧鈴で足止め。
+
+3ウェーブをしのげば勝利。
+種小屋の耐久が0になると敗北。"
+vertical_alignment = 1
+
+[node name="Controls" type="Label" parent="Screen" unique_id=1563767719]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 354.0
+offset_right = 890.0
+offset_bottom = 426.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 16
+text = "操作：左クリックだけで遊べます
+右クリック：塔の選択を解除
+上部で一時停止、中央で再開"
+vertical_alignment = 1
+
+[node name="Start" type="Button" parent="Screen" unique_id=476449612]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 450.0
+offset_right = 890.0
+offset_bottom = 508.0
+theme_override_font_sizes/font_size = 18
+text = "庭をまもる  →"
+
+[node name="Quit" type="Button" parent="Screen" unique_id=1093302669]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 522.0
+offset_right = 890.0
+offset_bottom = 560.0
+theme_override_font_sizes/font_size = 18
+text = "終了"
+
+[node name="Footer" type="Label" parent="Screen" unique_id=1587093588]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 592.0
+offset_right = 904.0
+offset_bottom = 618.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "1つの庭  /  2つの塔  /  3つの波   ·   音が出ます"
+vertical_alignment = 1

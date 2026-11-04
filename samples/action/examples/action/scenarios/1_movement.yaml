@@ -1,0 +1,98 @@
+name: "1_movement"
+description: "Acceleration to max speed, deceleration to rest, short vs long jump height, facing flip."
+scene: "res://examples/action/action_game.tscn"
+steps:
+  - assert:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "play"
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 3
+  - assert:
+      node: "."
+      property: "player_x"
+      op: "=="
+      value: 24
+  - assert:
+      node: "."
+      property: "on_ground"
+      op: "=="
+      value: true
+  # Hold right: acceleration must reach the 2.0 px/frame cap.
+  - input:
+      action: action_right
+      hold_ms: 500
+  - wait_for:
+      node: "."
+      property: "max_speed_reached"
+      op: ">="
+      value: 1.99
+      timeout_ms: 1000
+  # Release: friction must bring the player to a stop.
+  - wait_for:
+      node: "."
+      property: "player_vx"
+      op: "=="
+      value: 0
+      timeout_ms: 2000
+  - wait_for:
+      node: "."
+      property: "on_ground"
+      op: "=="
+      value: true
+      timeout_ms: 1000
+  # Short tap -> low jump.
+  - input:
+      action: action_jump
+      hold_ms: 50
+  - wait_for:
+      node: "."
+      property: "on_ground"
+      op: "=="
+      value: true
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "last_jump_height"
+      op: ">="
+      value: 5
+  - assert:
+      node: "."
+      property: "last_jump_height"
+      op: "<="
+      value: 35
+  - wait_ms: 150
+  # Long hold -> higher jump (roughly 2-3x the short one).
+  - input:
+      action: action_jump
+      hold_ms: 450
+  - wait_for:
+      node: "."
+      property: "on_ground"
+      op: "=="
+      value: true
+      timeout_ms: 3000
+  - assert:
+      node: "."
+      property: "last_jump_height"
+      op: ">="
+      value: 45
+  # Facing: run left, sprite must flip.
+  - input:
+      action: action_left
+      hold_ms: 300
+  - assert:
+      node: "."
+      property: "facing"
+      op: "=="
+      value: -1
+  - assert:
+      node: "Player"
+      property: "flip_h"
+      op: "=="
+      value: true
+  - assert_no_errors: true

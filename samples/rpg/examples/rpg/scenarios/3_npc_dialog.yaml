@@ -1,0 +1,52 @@
+# 3. NPC dialogue: facing + confirm, multi-page text, gifts and repeat lines.
+name: "3 NPC dialogue and gifts"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounter_rate: 0, fast_mode: true, message_instant: true } }
+  # Mina stands south of (3,9) in the town.
+  - call: { node: ., method: warp, args: [town, 3, 9] }
+  - call: { node: ., method: face, args: [down] }
+  - input: { action: rpg_confirm, hold_frames: 1, wait_frames: 3 }
+  - assert: { node: ., property: dialog_active, op: "==", value: true }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "いってらっしゃい" }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "やくそう" }
+  - screenshot: npc_mina
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_index, op: "==", value: 1 }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "星のほこら" }
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_active, op: "==", value: false }
+  - assert: { node: ., property: player:herbs, op: "==", value: 4 }
+  - assert: { node: ., property: flags:mina_gift, op: "==", value: true }
+  # Talking again uses the repeat page and gives no second gift.
+  - input: { action: rpg_confirm, hold_frames: 1, wait_frames: 3 }
+  - assert: { node: ., property: dialog_active, op: "==", value: true }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "だいじょうぶ" }
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_active, op: "==", value: false }
+  - assert: { node: ., property: player:herbs, op: "==", value: 4 }
+  # King north of (7,5): four pages, then 50 gold and one herb.
+  - call: { node: ., method: warp, args: [castle, 7, 5] }
+  - call: { node: ., method: face, args: [up] }
+  - input: { action: rpg_confirm, hold_frames: 1, wait_frames: 3 }
+  - assert: { node: ., property: dialog_active, op: "==", value: true }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "よくきた" }
+  - screenshot: npc_king
+  - call: { node: ., method: advance_dialog }
+  - call: { node: ., method: advance_dialog }
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_active, op: "==", value: true }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "50ゴールド" }
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_active, op: "==", value: false }
+  - assert: { node: ., property: player:gold, op: "==", value: 90 }
+  - assert: { node: ., property: player:herbs, op: "==", value: 5 }
+  - assert: { node: ., property: flags:king_gift, op: "==", value: true }
+  - call: { node: ., method: face, args: [up] }
+  - input: { action: rpg_confirm, hold_frames: 1, wait_frames: 3 }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "星のほこらは 北東" }
+  - call: { node: ., method: advance_dialog }
+  - assert: { node: ., property: dialog_active, op: "==", value: false }
+  - assert: { node: ., property: player:gold, op: "==", value: 90 }
+  - assert_no_errors: true

@@ -1,0 +1,1350 @@
+{
+  "schema_version": 1,
+  "limits": {
+    "nodes": 64,
+    "depth": 8,
+    "properties_per_node": 32,
+    "properties_total": 512,
+    "resources": 64,
+    "resource_depth": 4,
+    "array_items": 64,
+    "string_bytes": 2048,
+    "name_bytes": 64,
+    "path_bytes": 1024,
+    "request_bytes": 131072,
+    "reply_bytes": 131072,
+    "png_references": 16,
+    "png_bytes": 8388608,
+    "png_side": 4096,
+    "png_pixels_total": 16000000
+  },
+  "nodes": {
+    "Node": {},
+    "Node2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      }
+    },
+    "CharacterBody2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "collision_layer": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      },
+      "collision_mask": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      }
+    },
+    "StaticBody2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "collision_layer": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      },
+      "collision_mask": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      }
+    },
+    "Area2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "collision_layer": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      },
+      "collision_mask": {
+        "kind": "int",
+        "min": 0,
+        "max": 4294967295
+      },
+      "monitoring": {
+        "kind": "bool"
+      },
+      "monitorable": {
+        "kind": "bool"
+      }
+    },
+    "Sprite2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "texture": {
+        "kind": "texture",
+        "nullable": true
+      },
+      "centered": {
+        "kind": "bool"
+      },
+      "offset": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "flip_h": {
+        "kind": "bool"
+      },
+      "flip_v": {
+        "kind": "bool"
+      },
+      "modulate": {
+        "kind": "color"
+      }
+    },
+    "CollisionShape2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "shape": {
+        "kind": "resource",
+        "classes": [
+          "RectangleShape2D",
+          "CircleShape2D",
+          "CapsuleShape2D"
+        ],
+        "nullable": true
+      },
+      "disabled": {
+        "kind": "bool"
+      }
+    },
+    "Camera2D": {
+      "position": {
+        "kind": "vector2",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "rotation": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "scale": {
+        "kind": "vector2",
+        "min": -64,
+        "max": 64,
+        "nonzero": true
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "z_index": {
+        "kind": "int",
+        "min": -4096,
+        "max": 4096
+      },
+      "enabled": {
+        "kind": "bool"
+      },
+      "zoom": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 64,
+        "exclusive_min": true
+      },
+      "position_smoothing_enabled": {
+        "kind": "bool"
+      },
+      "position_smoothing_speed": {
+        "kind": "number",
+        "min": 0,
+        "max": 10000
+      }
+    },
+    "CanvasLayer": {
+      "layer": {
+        "kind": "int",
+        "min": -128,
+        "max": 128
+      },
+      "visible": {
+        "kind": "bool"
+      }
+    },
+    "Control": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      }
+    },
+    "ColorRect": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "color": {
+        "kind": "color"
+      }
+    },
+    "Label": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "text": {
+        "kind": "text"
+      },
+      "horizontal_alignment": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "vertical_alignment": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "autowrap_mode": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "theme_override_colors/font_color": {
+        "kind": "color"
+      },
+      "theme_override_font_sizes/font_size": {
+        "kind": "int",
+        "min": 1,
+        "max": 256
+      }
+    },
+    "Button": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "text": {
+        "kind": "text"
+      },
+      "disabled": {
+        "kind": "bool"
+      },
+      "theme_override_font_sizes/font_size": {
+        "kind": "int",
+        "min": 1,
+        "max": 256
+      }
+    },
+    "PanelContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "theme_override_styles/panel": {
+        "kind": "resource",
+        "classes": [
+          "StyleBoxFlat"
+        ],
+        "nullable": false
+      }
+    },
+    "MarginContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "theme_override_constants/margin_left": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "theme_override_constants/margin_top": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "theme_override_constants/margin_right": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "theme_override_constants/margin_bottom": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      }
+    },
+    "VBoxContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "theme_override_constants/separation": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      }
+    },
+    "HBoxContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "theme_override_constants/separation": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      }
+    },
+    "CenterContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      }
+    },
+    "GridContainer": {
+      "anchor_left": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_top": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_right": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "anchor_bottom": {
+        "kind": "number",
+        "min": 0,
+        "max": 1
+      },
+      "offset_left": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_top": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_right": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "offset_bottom": {
+        "kind": "number",
+        "min": -1000000,
+        "max": 1000000
+      },
+      "custom_minimum_size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000
+      },
+      "size_flags_horizontal": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "size_flags_vertical": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "mouse_filter": {
+        "kind": "enum",
+        "values": [
+          0,
+          1,
+          2
+        ]
+      },
+      "visible": {
+        "kind": "bool"
+      },
+      "columns": {
+        "kind": "int",
+        "min": 1,
+        "max": 64
+      },
+      "theme_override_constants/h_separation": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "theme_override_constants/v_separation": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      }
+    }
+  },
+  "resources": {
+    "RectangleShape2D": {
+      "size": {
+        "kind": "vector2",
+        "min": 0,
+        "max": 1000000,
+        "exclusive_min": true
+      }
+    },
+    "CircleShape2D": {
+      "radius": {
+        "kind": "number",
+        "min": 0,
+        "max": 1000000,
+        "exclusive_min": true
+      }
+    },
+    "CapsuleShape2D": {
+      "radius": {
+        "kind": "number",
+        "min": 0,
+        "max": 1000000,
+        "exclusive_min": true
+      },
+      "height": {
+        "kind": "number",
+        "min": 0,
+        "max": 1000000,
+        "exclusive_min": true
+      }
+    },
+    "StyleBoxFlat": {
+      "bg_color": {
+        "kind": "color"
+      },
+      "border_color": {
+        "kind": "color"
+      },
+      "border_width_left": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "border_width_top": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "border_width_right": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "border_width_bottom": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "corner_radius_top_left": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "corner_radius_top_right": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "corner_radius_bottom_left": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "corner_radius_bottom_right": {
+        "kind": "int",
+        "min": 0,
+        "max": 4096
+      },
+      "content_margin_left": {
+        "kind": "number",
+        "min": -1,
+        "max": 4096
+      },
+      "content_margin_top": {
+        "kind": "number",
+        "min": -1,
+        "max": 4096
+      },
+      "content_margin_right": {
+        "kind": "number",
+        "min": -1,
+        "max": 4096
+      },
+      "content_margin_bottom": {
+        "kind": "number",
+        "min": -1,
+        "max": 4096
+      }
+    }
+  },
+  "capsule_defaults": {
+    "height": 30.0,
+    "radius": 10.0
+  }
+}

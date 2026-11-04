@@ -1,0 +1,70 @@
+{
+  "distribution": "unreleased development source, not public npm 0.11.0",
+  "qualified_package_sha256": "2554af1f9b7a02894b58f713b3a9be3aede0a0259d59ceeeb72cb299d26f60bb",
+  "package_payload_files": 448,
+  "captures": "actual native Godot windowed frames, no addon installed at capture",
+  "engine": "4.7.2.stable.official.ed1daf0bf",
+  "thumbnail": "nearest-neighbour aspect-preserving composition; originals linked separately",
+  "human_acceptance": false,
+  "samples": [
+    {
+      "sample": "blocks",
+      "file": "samples-current-blocks.png",
+      "sha256": "92149bccfc0062ee5adab1e4494ede19820769f1530baffa7b26f04e4079fadc",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    },
+    {
+      "sample": "shooter",
+      "file": "samples-current-shooter.png",
+      "sha256": "c6109770a93fe0abe5b9cf68686e99bed46b27be43feb22fbacad60a1b596bbb",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    },
+    {
+      "sample": "action",
+      "file": "samples-current-action.png",
+      "sha256": "11f08012089ac7803650fa9d41c6c4da5c7fb145e59bc05430c29054ad07690a",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    },
+    {
+      "sample": "rpg",
+      "file": "samples-current-rpg.png",
+      "sha256": "e82f63b45dfd597f838d158de9fc1628e36b93eb3da002d551903b7b710fff1a",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    },
+    {
+      "sample": "marble-3d",
+      "file": "samples-current-marble-3d.png",
+      "sha256": "c21788c7aec6dbe7697e573056fa1cd62b402d801fdb2e0dc630d8fb79939e87",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    },
+    {
+      "sample": "tower-defense",
+      "file": "samples-current-tower-defense.png",
+      "sha256": "a5290b88ebfaaed40469fc8dbdd5e74afa27b40960f6c8c401da52c41e8154be",
+      "scope": "fresh standalone startup plus representative ordinary input; RPG capture is prologue, not full game completion"
+    }
+  ],
+  "excluded_from_showcase": [
+    "platformer"
+  ],
+  "gallery": {
+    "columns": 3,
+    "rows": 2,
+    "tiles": 6,
+    "width": 1440,
+    "height": 696,
+    "tile_order": [
+      "blocks",
+      "shooter",
+      "action",
+      "rpg",
+      "marble-3d",
+      "tower-defense"
+    ]
+  },
+  "showcase_revision": "curated six, equal-size tiles; original native captures retained unchanged",
+  "release_presentation": {
+    "release": "0.12.0",
+    "note": "Reuses the original pre-release native captures; the original distribution/package digest identifies capture input, not the new release archive. The game scripts/assets are unchanged."
+  }
+}

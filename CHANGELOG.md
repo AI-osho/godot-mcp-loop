@@ -5,6 +5,46 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-04
+
+Bounded 2D/UI scene construction, six uniformly presented sample games, and clearer installation/documentation.
+The minimal platformer remains an internal compatibility fixture. Existing game rules and source artwork are retained.
+
+### Added
+- `node_add_tree` (available since 0.12.0): strict, bounded, parent-first native 2D/UI subtree construction for an explicitly
+  selected empty Node2D/Control scene. Preview is non-mutating; apply is one undo action; saving stays separate.
+- Shared packaged property/limit policy, selected embedded shapes/styles and imported PNG references, with English/
+  Japanese guides and a typed example in the bundled agent skill. No Python dependency is required by this tool.
+- Addon-free standalone copies of platformer, blocks, shooter, action and RPG, alongside the existing Marble sample.
+  A single-authority generator preserves the original resource paths, input actions, rules and assets.
+- New Tower Defense sample 灯畑の番人: one map, two tower roles, three waves, original artwork/SFX, and three replayable
+  `node_add_tree` plans (13/30/11 added nodes). Ordinary start/win/loss/retry/pause/quit checks remain separate from fixtures.
+- English/Japanese architecture, getting-started, sample catalog and upgrade-comparison guides; per-game play,
+  design and upgrade notes. Public 0.11.0 (48 tools) is distinguished from 0.12.0 (49 tools, six showcased games and a
+  retained internal compatibility fixture).
+
+### Changed
+- Curate the README/gallery/sample guide to six equally presented games; remove the minimal platformer from the showcase while retaining its code, tests, default scene and CLI compatibility.
+- Align repository/package/registry/plugin descriptions with editing, execution, observation and test capabilities; use the selected installer executable rather than a version-label registry fallback in setup guidance.
+- Sample CLI output puts addon-free play first, including the one-time import a fresh copy needs before its first run.
+  Optional MCP setup uses the exact selected distribution's installer,
+  rather than silently directing a source sample to a different public package. The installer's client advice also
+  names that exact executable; a matching version label is not treated as proof of matching registry content.
+- Add cold standalone startup and ordinary TD mouse-route checks to the existing windowed sample test job.
+
+### Fixed
+- Configure the TD sample's own logical canvas as well as physical window size, so repository integration retains 960×640
+  mouse/layout coordinates without changing the root project's main scene or other games.
+- Use path-only relocated texture references when fresh integrated imports receive new UIDs, avoiding stale standalone
+  texture-UID warnings on gameplay/results/retry scenes. The standalone original assets and gameplay remain unchanged.
+
+### Security
+- Validate the complete plan on both server and addon before detached allocation or commit; refuse scripts, custom
+  classes, scene instances, unsupported properties, protected paths and over-budget inputs.
+- Check bounded PNG metadata, current source checksums and confined import remaps before texture loading; never
+  repair imports or silently use an unrestricted policy. Preserve human edits and report ambiguous dispatched state
+  explicitly without automatic replay or rollback.
+
 ## [0.11.0] - 2026-11-02
 
 ### Added

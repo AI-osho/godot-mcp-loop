@@ -10,8 +10,8 @@ describe("artwork runtime distribution", () => {
     const conn = new GodotConnection({ projectPath: "/unused" }); const client = await connectClient(conn);
     try {
       const count = (await client.listTools()).tools.length;
-      expect(Number(/厳選した (\d+) ツール/.exec(read("../../README.ja.md"))?.[1])).toBe(count);
-      expect(Number(/(\d+) focused tools/.exec(read("../../README.md"))?.[1])).toBe(count);
+      expect(Number(/0\.12\.0の(\d+)ツール/.exec(read("../../README.ja.md"))?.[1])).toBe(count);
+      expect(Number(/All (\d+) tools in 0\.12\.0/.exec(read("../../README.md"))?.[1])).toBe(count);
       expect(Number(/(\d+) tools,/.exec(read("../../docs/tools.md"))?.[1])).toBe(count);
     } finally { await client.close(); conn.close(); }
   });

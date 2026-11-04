@@ -1,0 +1,122 @@
+[
+  {
+    "file": "amber_tower.png",
+    "size": [
+      84,
+      36
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "base_hit.wav",
+    "frames": 5733,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "beetle.png",
+    "size": [
+      64,
+      20
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "board.png",
+    "size": [
+      360,
+      260
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "click.wav",
+    "frames": 1543,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "defeat.wav",
+    "frames": 19845,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "heavy.png",
+    "size": [
+      64,
+      20
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "icons.png",
+    "size": [
+      48,
+      16
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "kill.wav",
+    "frames": 3087,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "mist.wav",
+    "frames": 4851,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "mist_tower.png",
+    "size": [
+      84,
+      36
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "place.wav",
+    "frames": 3969,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "runner.png",
+    "size": [
+      64,
+      20
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "seedhouse.png",
+    "size": [
+      40,
+      46
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "shot.wav",
+    "frames": 1984,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  },
+  {
+    "file": "title_vista.png",
+    "size": [
+      480,
+      320
+    ],
+    "kind": "original_pixel_art"
+  },
+  {
+    "file": "victory.wav",
+    "frames": 24696,
+    "rate": 22050,
+    "kind": "original_synth_pcm"
+  }
+]

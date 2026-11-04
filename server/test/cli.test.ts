@@ -36,6 +36,33 @@ describe("sample projects", () => {
     expect(existsSync(join(dest, "scenarios", "7_gap_needs_jump.yaml"))).toBe(true);
   });
 
+  it("separates addon-free play from explicit MCP setup using this exact installation", () => {
+    const lines: string[] = [];
+    const dest = join(out, "play first");
+    expect(runCli(["sample", "marble-3d", dest], (line) => lines.push(line))).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("Play (no addon needed):");
+    expect(text).toContain("godot --path");
+    expect(text).toContain("For MCP editing (explicit project change):");
+    expect(text.indexOf("Play (no addon needed):")).toBeLessThan(text.indexOf("For MCP editing"));
+    expect(text).toContain(join(serverDir, "dist/index.js"));
+    expect(text).not.toContain("npx -y godot-mcp-loop@");
+    expect(existsSync(join(dest, "addons"))).toBe(false);
+  });
+
+  it("imports a fresh copy before the first addon-free run", () => {
+    // A copied sample has no .godot/imported cache; running it directly fails to load every texture.
+    const lines: string[] = [];
+    const dest = join(out, "fresh copy");
+    expect(runCli(["sample", "tower-defense", dest], (line) => lines.push(line))).toBe(0);
+    const text = lines.join("\n");
+    const importAt = text.search(/godot --headless --path \S.* --import\n/);
+    const playAt = text.search(/\n {2}godot --path /);
+    expect(importAt, "the import command is printed").toBeGreaterThan(-1);
+    expect(playAt, "the play command is printed").toBeGreaterThan(importAt);
+    expect(importAt).toBeGreaterThan(text.indexOf("Play (no addon needed):"));
+  });
+
   it("refuses a destination inside the installed package", () => {
     const lines: string[] = [];
     const insidePackage = join(dirname(fileURLToPath(import.meta.url)), "..", "inside-sample");
@@ -142,6 +169,17 @@ describe("install-addon (#16)", () => {
     expect(existsSync(join(project, ".claude/skills/godot-mcp-loop/references/scenario-cookbook.md"))).toBe(true);
   });
 
+  it("keeps installer client guidance on this exact distribution rather than resolving its version label from npm", () => {
+    const out: string[] = [];
+    expect(runCli(["install-addon", project], (line) => out.push(line))).toBe(0);
+    const text = out.join("\n");
+    expect(text).toContain(process.execPath);
+    expect(text).toContain(join(serverDir, "dist/index.js"));
+    expect(text).toContain("this exact server installation");
+    expect(text).not.toContain("npx -y godot-mcp-loop@");
+    expect(text).not.toContain('command "npx"');
+  });
+
   it("runs from the command line with usage errors as exit code 2", () => {
     const out: string[] = [];
     const log = (s: string) => out.push(s);
@@ -158,7 +196,15 @@ describe("npm package contents (#16)", () => {
     execFileSync("node", ["scripts/bundle-assets.mjs"], { cwd: serverDir });
     const json = execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: serverDir, encoding: "utf8" });
     const files = (JSON.parse(json)[0].files as Array<{ path: string }>).map((f) => f.path);
-    for (const f of ["dist/index.js", "dist/cli.js", "dist/doctor.js", "addon/mcp_loop/plugin.cfg", "addon/mcp_loop/runtime/runtime_agent.gd", "skill/godot-mcp-loop/SKILL.md", "README.md", "LICENSE", "package.json"]) {
+    const subtreeFiles = [
+      "dist/tree-policy.js", "dist/tree-policy.js.map",
+      "dist/scene-tree-schema.js", "dist/scene-tree-schema.js.map",
+      "dist/tools/tree.js", "dist/tools/tree.js.map",
+      "addon/mcp_loop/commands/tree_build_plan.gd", "addon/mcp_loop/commands/tree_build_plan.gd.uid",
+      "addon/mcp_loop/commands/tree_commands.gd", "addon/mcp_loop/commands/tree_commands.gd.uid",
+      "addon/mcp_loop/commands/tree_build_policy.json",
+    ];
+    for (const f of ["dist/index.js", "dist/cli.js", "dist/doctor.js", "addon/mcp_loop/plugin.cfg", "addon/mcp_loop/runtime/runtime_agent.gd", "skill/godot-mcp-loop/SKILL.md", "README.md", "LICENSE", "package.json", ...subtreeFiles]) {
       expect(files, f).toContain(f);
     }
     expect(files.some((f) => f.startsWith("test/") || f.startsWith("src/"))).toBe(false);

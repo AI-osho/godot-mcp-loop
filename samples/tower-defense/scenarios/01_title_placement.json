@@ -1,0 +1,16 @@
+{
+  "name":"01 通常タイトルから配置",
+  "scene":"res://tests/test_entry.tscn",
+  "steps":[
+    {"wait_for":{"node":".","method":"summary","property":"state","op":"==","value":"title","timeout_ms":5000}},
+    {"input":{"mouse_click":[735,478],"wait_frames":3}},
+    {"assert":{"node":".","method":"summary","property":"state","op":"==","value":"ready"}},
+    {"assert":{"node":".","method":"summary","property":"coins","op":"==","value":140}},
+    {"input":{"mouse_click":[844,177]}},
+    {"input":{"mouse_click":[162,248]}},
+    {"assert":{"node":".","method":"summary","property":"tower_count","op":"==","value":1}},
+    {"assert":{"node":".","method":"summary","property":"coins","op":"==","value":90}},
+    {"screenshot":"placement"},
+    {"assert_no_errors":true}
+  ]
+}

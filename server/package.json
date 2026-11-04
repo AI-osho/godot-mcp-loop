@@ -1,7 +1,7 @@
 {
   "name": "godot-mcp-loop",
-  "version": "0.11.0",
-  "description": "MCP server that lets AI agents safely edit, run, observe and test Godot 4 projects.",
+  "version": "0.12.0",
+  "description": "Edit, run, inspect and test Godot 4 projects through MCP.",
   "license": "MIT",
   "author": "OSHO",
   "repository": {

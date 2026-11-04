@@ -1,234 +1,140 @@
 # godot-mcp-loop
 
-**AI エージェントが Godot 4 のゲームを編集し、_その結果を自分で確かめられる_ ようにする MCP サーバー + エディタアドオン。**
-「変更 → 実行 → 観察 → 判定」の検証ループに特化しています。
+**MCPクライアントから、Godot 4の編集・実行・動作確認を行うためのツールです。**
+TypeScript製のMCPサーバーとGodotエディタアドオンを使い、AIエージェントがシーンやスクリプトを変更し、
+入力を送り、実行中の状態や画面を調べます。成果物は通常のGodotプロジェクトとして扱えます。
 
-[English README](README.md) · [ツール](docs/tools.md) · [シナリオ](docs/scenarios.md) · [クライアント設定](docs/clients.md) · [セキュリティ](docs/security.md) · [プロトコル](docs/protocol.md)
+[English](README.md) · [はじめに](docs/getting-started.ja.md) · [構成と仕組み](docs/architecture.ja.md) · [サンプル](docs/samples.ja.md) · [旧版からの改善](docs/sample-upgrades.ja.md)
 
-![screenshot ツールで撮影したデモ（エージェントが右移動とジャンプを実行した直後）](docs/images/demo-screenshot.png)
+## 編集して終わらず、動いた結果まで確かめる
 
-シーンを編集できる Godot 向け MCP はすでに多数ありますが、**その編集が本当に動いたかを確かめる** 手段はほとんどありません。
-godot-mcp-loop はエージェントにテストプレイヤーの道具一式を渡します。ゲームの起動、実際の入力送信、条件待機、
-実行中の状態取得、スクリーンショット、エラー収集、そして失敗時の値まで返す宣言的なシナリオテストです。
-エディタの変更は慎重な設計で、Undo 可能・事前プレビュー可能・適用前に検証済み・プロジェクト内に限定されます。
+1. **編集**：シーンを調べ、ノード・GDScript・入力設定などを変更する。
+2. **実行**：ゲームを起動し、Godotのアクション・キー・マウス入力を送る。
+3. **観察**：状態値、画面、UI配置、物理の動き、ログを確認する。
+4. **判定**：期待値と比較し、YAML/JSONのシナリオで同じ確認を繰り返す。
 
-## エージェントができること
+操作を選んで呼び出すのはAIクライアントです。ゲームを自動完成させるクラウドサービスではありません。
+ルール・絵・音・ステージ・遊び心地は作者による設計と検証が必要です。
+対応する編集には事前確認と取り消しがありますが、シーン保存やファイル書き込みはそれぞれ別の操作です。
 
-```text
-godot_status                                    → 接続 OK、Godot 4.7.2、main.tscn を編集中
-script_write res://player.gd (dry_run)          → unified diff。コンパイルエラーがあれば行番号付きで返す
-script_write res://player.gd                    → 書き込み（Undo 可能）
-game_run                                        → ゲーム起動、ランタイム接続
-game_input [{action: move_right, hold_ms: 1000}]
-game_wait_for Player position:x > 250           → 0.8 秒で成立
-screenshot                                      → （画像）
-logs_read source=game min_level=error           → []
-scenario_run res://tests/move_right.yaml        → PASSED（7/7 ステップ）
-```
+## 6作品のサンプル
 
-## 特長
+![0.12.0に含まれる6作品の実機画面](docs/images/samples-current.png)
 
-- **閉じたループ**: `game_run`、`game_input`（アクション・キー・マウスを実時間で。値の毎フレーム記録も可）、`game_wait_for`
-  （毎フレーム判定、タイムアウト時は最後の値を返す）、`game_query`、`screenshot`、`logs_read`。
-- **シナリオテスト**: YAML/JSON のプレイテスト → ステップごとの成否、失敗時スクショ、ゲーム内エラー。[詳細](docs/scenarios.md)
-- **安全な編集**: エディタの変更は Godot の Undo 履歴に記録。`edit_undo` は MCP 経由の変更だけを戻し、人の編集は戻しません。
-  全編集ツールに `dry_run`。GDScript は**書き込む前に**コンパイル検証。プロパティ値も変更前に全件検証。
-- **サンドボックス**: localhost 限定 + セッションごとのトークン認証。`res://` のみ。`.godot/`・`.git/`・アドオン自身への書き込み禁止。
-  任意コード実行ツールは持ちません。[セキュリティ](docs/security.md)
-- **エラーで止まらない**: Godot のデバッガはスクリプトエラーでゲームを一時停止しますが、アドオンがエラーを記録して自動継続するため、
-  エージェントがハングせずエラーを把握できます。
-- **ゲーム側に追加ポート不要**: ゲームとエディタは Godot 標準のデバッガ接続で通信します。
-- **厳選した 48 ツール**: 数百のツールより、モデルが迷わず使える粒度を重視。
+アドオンを入れずに単体起動したGodotの画面です。RPGは序章の一場面です。
+[各作品の操作・プロジェクト・原寸画像](docs/samples.ja.md)。
 
-## 導入診断（0.11.0 以降）
+<!-- sample-showcase:start -->
+| 配布名 | 作品 | 確かめられること |
+|---|---|---|
+| `blocks` | Falling Blocks | 回転、盤面状態、得点 |
+| `shooter` | Vertical Shooter | 移動と射撃、ウェーブ、ボスの変化 |
+| `action` | Side-scroller | 可変ジャンプ、足場、当たり判定 |
+| `rpg` | 星剣のルカ | 会話、戦闘、状態遷移 |
+| `marble-3d` | Marble Run | 転がし、ジャンプ、チェックポイント、接触 |
+| `tower-defense` | 灯畑の番人 | 塔の配置、一時停止、勝敗、再挑戦 |
+<!-- sample-showcase:end -->
 
-`doctor <project> [--json] [--artwork]` で、設定を変更せず不足・版ずれ・判別不能を調べ、次の手動操作を案内します。
-エディターの起動、接続、修復はせず、実行時の動作は未確認と明示します。
+6作品とも、遊ぶだけならAIアカウントやMCP設定は不要です。それぞれ同じ道具の異なる使いどころを示します。
+制御用の試験シナリオが成功したことと、通常操作でゲーム全編を遊び終えたことは区別します。
+
+## サンプルを試す
+
+コピー用のコマンドにはNode.js20以降、ゲームにはGodot4.7（4.7.2で確認）を使います。
+作業フォルダーで、上表から配布名と新しい空きフォルダーを選んでください。例：
 
 ```sh
-npx -y godot-mcp-loop@0.11.0 doctor /ABS/my-game --json
+npx -y godot-mcp-loop@0.12.0 sample shooter ./my-shooter
+godot --headless --path ./my-shooter --import
+godot --path ./my-shooter
 ```
 
-Python/Pillow は `--artwork` 指定時だけ確認します。[日本語の診断ガイド](docs/doctor.ja.md)を参照してください。
+AIから編集/試験するときだけ、同じ選択済み配布物からアドオンを明示導入し、[クライアントを設定](docs/clients.md)します。
+遊ぶだけなら両方不要です。インストーラーは実行したサーバーの接続コマンドを表示しますが、
+通常登録の追加や既存接続の再起動は行いません。[詳しい導入](docs/getting-started.ja.md)。
 
-## 動作環境
+## 本体の構成
 
-- Godot **4.7**（4.7.2 で検証済み）。4.5〜4.6 でも動く見込み（4.5 で追加された `Logger` API を使用）ですが未検証です。
-- Node.js **20 以上**
-- MCP クライアント: Claude Code、Cursor、Claude Desktop、Codex、Hermes Agent など
+- [`server/src/`](server/src/)：MCPツールの定義・入力検査、対象プロジェクトへの接続、シナリオの進行。
+- [`addons/mcp_loop/`](addons/mcp_loop/)：Godotエディタでの編集と、標準デバッガを通したゲーム側への要求転送。
+- ゲーム側ランタイム：入力、状態取得、フレーム送り、画面、ログ。ゲーム操作用の別ポートは追加しません。
+- 任意の[`server/authoring/`](server/authoring/)：PNGの固定加工処理。原画生成はクライアント側の承認済み手段を利用します。
 
-## インストール
-
-**Claude Code プラグインとして**（Claude Code 2.1.275 以上。Godot プロジェクトのパスを 1 回だけ聞かれます）:
-
-```bash
-/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop
+```text
+MCPクライアント → 標準入出力のサーバー → 認証付きlocalhost接続 → Godotエディタ → デバッガ → 実行中ゲーム
 ```
 
-プラグインは `godot-loop` の MCP サーバーとエージェント用スキルを登録します。npm のパッケージを実行するので、
-プロジェクトに入れるアドオンと版を揃えてください（アドオンとサーバーは同じ版が必要です）。
+[構成と仕組み](docs/architecture.ja.md)では、エディタとゲームの役割、リポジトリ構成、データの流れ、保存の扱いを説明しています。
 
-**npm で入れる場合**(Node.js 20 以上):
-**npm で入れる場合**(Node.js 20 以上):
+## 主な機能と配布状態
 
-> MCP 公式レジストリに
-> [`io.github.AI-osho/godot-mcp-loop`](https://registry.modelcontextprotocol.io/v0/servers?search=godot-mcp-loop)
-> として掲載されています。レジストリ対応のクライアントからは一覧に出ます（手順は下と同じです）。
+| 分野 | できること |
+|---|---|
+| シーン・コード | シーンの確認/作成、ノードとGDScriptの編集、入力と対応するプロジェクト設定の変更 |
+| 実行・観察 | 入力、状態取得、フレーム記録、条件待機、物理フレーム送り、UI監査、画面、ログ |
+| 繰り返し検証 | シナリオの比較と証拠保存、録画、導入済みGUT/GdUnit4の試験、プリセットからの書き出し |
+| 原画・素材 | 制作方針/依頼/PNG返却の記録、再現可能な加工、プレビュー、改変検査、標準2Dノードへの配置 |
+| 一括構築 | node_add_tree（0.12.0）：空の対象シーンへ2D/UI構成を最大64ノード・深さ8で追加。保存は別 |
 
-1. **アドオン** — アドオンはサーバーと同じバージョンが必要です。サーバー自身にコピーと有効化をさせます。
-   ```bash
-   npx -y godot-mcp-loop@0.11.0 install-addon /絶対パス/my-game --skill
-   ```
-   `--skill` を付けると、エージェント用スキル(下の手順 5)も入ります。次の手順で使うバージョンが表示されます。
-2. **クライアント** — 表示されたバージョンでサーバーを登録します。例: Claude Code
-   ```bash
-   claude mcp add godot-loop -- npx -y godot-mcp-loop@<バージョン> --project /絶対パス/my-game
-   ```
-   その他のクライアント: [docs/clients.md](docs/clients.md)
-3. Godot エディタでプロジェクトを開き、エージェントに `godot_status` を呼ばせて接続を確認。
+| 配布物 | ツールと利用可能な範囲 |
+|---|---|
+| 現行 **0.12.0** | node_add_treeを含む**49**ツール、紹介6作品と内部の互換・試験用シーン |
+| 従来 **0.11.0** | **48**ツール。静的診断doctorは0.11.0から、原画・素材制作は**0.10.0**から |
 
-**ソースから入れる場合**:
-
-1. **アドオン** — `addons/mcp_loop` を自分のプロジェクトの `addons/` にコピーし、
-   *プロジェクト › プロジェクト設定 › プラグイン › MCP Loop* を有効化。オートロード `MCPLoopRuntime` が登録されます
-   （書き出したゲームでは無効）。
-2. **サーバー** —
-   ```bash
-   git clone https://github.com/AI-osho/godot-mcp-loop.git
-   cd godot-mcp-loop/server && npm ci && npm run build
-   ```
-3. **クライアント** — 例: Claude Code
-   ```bash
-   claude mcp add godot-loop -- node /絶対パス/godot-mcp-loop/server/dist/index.js --project /絶対パス/my-game
-   ```
-   その他のクライアント: [docs/clients.md](docs/clients.md)
-4. Godot エディタでプロジェクトを開き、エージェントに `godot_status` を呼ばせて接続を確認。
-5. **エージェント用スキル**（推奨） — `.claude/skills/godot-mcp-loop` を自分のプロジェクトの `.claude/skills/`
-   （全プロジェクトで使うなら `~/.claude/skills/`）にコピーします。
-   - 教える内容：ループの回し方、`game_step` を使った決定的な確認、シナリオの型、ドット絵の作り方
-   - [Agent Skills](https://agentskills.io) 形式なので、スキルを読める他のエージェントでも使えます。
-
-### 新しいゲームプロジェクトを作る
-
-```bash
-scripts/new-game.sh ~/games/my-game --name "My Game" --register-claude
-```
-
-このコマンドで、次のものがそろった Godot プロジェクトができます。
-- 有効化済みのアドオン
-- エージェント用スキル
-- 短い `AGENTS.md` / `CLAUDE.md`
-- `scenarios/` フォルダ
-- `PROGRESS.md`(目標・状況・済み・次・決定事項・既知の問題。エージェントが更新します)
-- Claude Code のプロジェクト設定 `.claude/settings.json`
-- 最初の git コミット
-
-あわせて、そのフォルダ用に MCP サーバーを Claude Code へ登録します。別の Claude Code 設定に登録したいときは `--claude-config DIR` を指定してください。作成後は `godot -e --path ~/games/my-game` で開きます。
-
-プロジェクト設定は、長い制作でも作業が途切れないようにするためのものです。
-- セッション開始時のフックで、`PROGRESS.md`、最近のコミット、未コミットの変更をエージェントに渡します。起動時、再開時、`/clear` の後、コンテキスト圧縮の後に働きます。
-- godot-loop のツールは、確認なしで使えます。この許可は、そのフォルダで Claude Code の信頼確認(trust)に同意すると有効になります。
-- 破壊的なシェルコマンド(`rm -rf`、force push、`git reset --hard`、`git clean`)は禁止します。
-
-### デモを試す
-
-このリポジトリ自体が小さなプラットフォーマー（`examples/platformer`、矢印キー + Space）を含む Godot プロジェクトです。
-Godot で開き、サーバーの `--project` をリポジトリのルートに向けて、エージェントに
-「`res://examples/platformer/scenarios/move_right.yaml` を `scenario_run` で実行して」と頼んでください。
-`intentional_failure.yaml` を実行すると失敗レポートの見え方を確認できます。
-
-### 5 分で試す
-
-1. **アドオンを入れる**（`addons/mcp_loop` をコピーし、プラグインを有効化し、エージェント用のスキルも配置します）:
-   ```bash
-   cd my-game && npx -y godot-mcp-loop@0.11.0 install-addon . --skill
-   ```
-2. **Godot（4.5 以上）でプロジェクトを開く**: `godot -e --path .` — エディタと一緒にブリッジが 127.0.0.1 で待ち受けます。
-3. **MCP クライアントを接続**: `npx -y godot-mcp-loop@0.11.0 --project /絶対パス/my-game` を登録し、`godot_status` を
-   呼びます。Godot の版、プロジェクト、開いているシーンが返れば成功です。
-4. **1 つ変更して、1 つ確かめる**: 「コインを 1 枚追加して、`scenario_run {"path": "res://scenarios/coins.yaml"}` を
-   実行して」と頼みます。失敗したステップは、実際の値とスクリーンショット付きで返ります。
-5. **録画する**: 同じシナリオを `"movie": {}` と `"save_to": "res://qa/evidence/tour"` 付きで実行し、
-   `qa/evidence/tour/movie.gif` を開きます。実行の全体と、要所のコマを並べた画像が残ります。
-
-## 上級サンプル
-
-[`examples/`](examples/) に完成したゲームが 5 本あります。どれも AI エージェントが godot-mcp-loop を使い、1 つの依頼文から
-コード、NES 風のドット絵（`image_write`）、入力アクション、テスト用フック、回帰シナリオまで作りました。そのうえで
-独立に検証しています（全シナリオ合格、ランダム入力でもエラー 0）。
-
-| | ゲーム | 作成したモデル | 規模 | シナリオ |
-|---|---|---|---|---|
-| <img src="docs/images/sample-blocks.png" width="200" alt="落ち物パズル"> | [落ち物パズル（Falling Blocks）](examples/blocks/) — SRS 方式の回転と壁キック、ゴースト表示、レベルと得点、シード固定の出現順 | Claude Opus 5.5（Claude Code） | 381 行 | 4 |
-| <img src="docs/images/sample-shooter.png" width="200" alt="縦シューティング"> | [縦シューティング](examples/shooter/) — 5 ウェーブに 4 種類の敵、3 つの攻撃パターンを持つボス、爆発、星空スクロール、ドット絵 11 枚 | Claude Opus 5.5（Claude Code） | 805 行 | 4 |
-| <img src="docs/images/sample-action.png" width="200" alt="横スクロールアクション"> | [横スクロールアクション](examples/action/) — 加減速と可変ジャンプ、穴と動く足場のある 8 画面のステージ、踏んで倒せる敵、コイン、ゴール、3 層の多重スクロール、ドット絵 12 枚 | DeepSeek V4.1 Flash（Claude Code） | 967 行 | 4 |
-| <img src="docs/images/sample-rpg.png" width="200" alt="NES 風 RPG"> | [RPG『星剣のルカ』](examples/rpg/) — オリジナルの物語とキャラクターによる NES 風 RPG。タイトルとプロローグ、マス移動、NPC との会話、ランダムエンカウント、呪文・道具・逃走・レベルアップのある正面視点の戦闘、ボスとエンディング | DeepSeek V4.1 Flash（Claude Code） | 2,284 行 | 6 |
-| <img src="docs/images/sample-marble.png" width="200" alt="Marble Run"> | [Marble Run](examples/marble/) — **初めての 3D サンプル**。坂を転がり、3 m と 2 m のすき間をジャンプで越え、細い梁を渡ってゴールへ。コイン 10 枚、チェックポイント 2 か所、残機 3、追従カメラ、タイム表示 | DeepSeek V4.1 Flash（Claude Code） | 676 行 | 7 |
-
-
-![Marble Run（3D サンプル）を scenario_run + movie で録画](docs/images/marble-run.gif)
-
-3D サンプルはパッケージに同梱されているので、このリポジトリを clone しなくても開けます。
-
-```bash
-npx -y godot-mcp-loop@0.11.0 sample marble-3d ./marble-3d
-cd marble-3d && npx -y godot-mcp-loop@0.11.0 install-addon . --skill && godot -e --path .
-```
-
-3D 向けの道具（`game_in_view` / `game_ray` / `game_contacts` / 3D の値の JSON 化）は、このゲームで必要になった
-ものばかりです。シナリオは 7 本で、`7_gap_needs_jump.yaml` が「転がるだけでは渡れない・ジャンプなら渡れる」を
-検証します。同梱物の一覧は `npx -y godot-mcp-loop@0.11.0 sample` で表示されます。
-
-`game_run {"scene": "res://examples/shooter/shooter.tscn"}` で起動でき（シーンを開いて F6 でも可）、
-`scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` で検証を再実行できます
-（フォルダを指定すると `{"path": "res://examples/shooter/scenarios"}` で全シナリオをまとめて実行します）。
-操作方法などの詳細: [examples/README.md](examples/README.md)（英語）
+サーバーとアドオンは同じ選択済み配布物から揃えます。版表示だけでは内容の一致を証明できず、ソースの変更が
+公開パッケージに入っているとも限りません。doctorは独立した静的診断CLIで、MCPツールや実行時接続の証明ではありません。
+[ツール参照](docs/tools.md) · [原画・素材制作](docs/art-production.ja.md) · [一括構築](docs/scene-tree-build.ja.md)。
 
 ## ツール一覧
+
+<details>
+<summary>0.12.0の49ツール（公開0.11.0は48）</summary>
 
 | 区分 | ツール |
 |---|---|
 | 状態 | `godot_status`, `project_info`, `project_list`, `project_connect`（プロジェクト切り替え） |
 | エディタ | `editor_launch`（Godot を探してプロジェクトを開く）, `editor_quit` |
 | シーン | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
-| ノード | `node_add`, `node_delete`, `node_get`, `node_set` |
+| ノード | `node_add`, `node_add_tree`（0.12.0：2D/UI の追加専用一括構築）, `node_delete`, `node_get`, `node_set` |
 | スクリプト | `script_read`, `script_write`, `script_edit`, `script_attach` |
-| 原画・素材制作（開発版） | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
+| 原画・素材制作（0.10.0以降） | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
 | ファイル・素材 | `file_write`（YAML/JSON/テキスト）, `image_write`（ドット絵 PNG）, `input_action_set`, `project_setting_set`（メインシーン・画面サイズ・ストレッチ） |
 | 取り消し | `edit_undo` |
 | 実行・観察 | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | ビルド | `project_export`（書き出し。出力は `res://build/` のみ、プリセット必須、シェルなし） |
 | 判定 | `scenario_run`（証拠フォルダ、`movie` で GIF とコンタクトシート）、`test_run`(GUT / GdUnit4 の単体テスト) |
 
-詳細: [docs/tools.md](docs/tools.md)（英語）
+</details>
 
-開発中ソースに、制作方針・既存の承認済み画像生成手段への依頼・実PNGの返却記録・再現可能な素材加工・
-プレビューと改変検査・Godotへの足元付き配置を追加しました。原画依頼は GPT Image 2 medium 要求で、
-MCP内での画像生成や認証情報の取得は行いません。PNG処理には任意依存のPython 3.11以降とPillow 13.0.0が必要です。
-従来の編集・実行機能には不要です。制作記録・加工出力は追記型で、配置の取り消しで原画を削除しません。
-公開中npm版や登録済みMCPが自動更新された、という意味ではありません。
-[日本語の使い方・レシピ・制限](docs/art-production.ja.md)。
+[全ツール参照](docs/tools.md) · [シナリオ](docs/scenarios.md) · [クライアント](docs/clients.md) · [プロトコル](docs/protocol.md)。
 
-## ヘッドレス / CI
+## 必要環境と信頼の前提
 
-*プロジェクト設定 › Editor › Run › Main Run Args* に `--headless` を入れると、ゲームをウィンドウなしで実行できます
-（`screenshot` 以外はすべて動作）。本リポジトリの CI も Linux 上でヘッドレスのエディタとゲームを起動して
-エンドツーエンドテストを実行しています（[.github/workflows/ci.yml](.github/workflows/ci.yml)）。
+- サーバーはNode.js **20以降**。Godot **4.7**を検証対象とし、**4.7.2**で動作確認しています。
+  Logger APIの導入は4.5ですが、それだけで4.5〜4.6の動作を保証するものではありません。
+- AI操作にはClaude Code、Codex、Cursor、Claude Desktop、Hermes等のMCPクライアント。遊ぶだけなら不要です。
+- Python **3.11以降**と**Pillow13.0.0**は任意のPNG加工だけに必要です。通常の編集・実行やnode_add_treeには不要で、自動導入しません。
+  C#スクリプト検証は未対応です。
+- 1つのエディタに対する認証済み接続は1つ。クライアントの登録や再接続は利用者が明示的に行います。
 
-## 開発
+localhost認証とプロジェクトのパス保護は、**OSの隔離環境ではありません**。
+プロジェクトを開く・検証する・動かす処理は、そのコードやプラグインを実行し得ます。
+信頼できるプロジェクトを使い、クライアント側の承認も確認してください。取り消しは複数ファイルの完全な取引ではなく、
+送信後に応答が失われた場合は、実際の状態を調べてから再試行します。[安全性の前提](docs/security.md)。
 
-```bash
-scripts/test-godot-unit.sh                   # GDScript ユニットテスト（ヘッドレス）
-cd server && npm run typecheck && npm test   # TypeScript ユニットテスト
-npm run build && npm run test:e2e            # 実際のヘッドレスエディタ + ゲームでの E2E
-E2E_GAME_WINDOW=1 npm run test:e2e           # ゲームをウィンドウ付きで（スクショ検証あり）
+## 開発と検証
+
+```sh
+scripts/test-godot-unit.sh
+cd server && npm ci
+npm run typecheck && npm test
+npm run build && npm run test:e2e
+E2E_SAMPLES=1 npm run test:e2e
 ```
 
-## 制限事項
-
-- 1 つのエディタに同時接続できる MCP クライアントは 1 つ（新しい接続が古い接続を置き換えます）。
-- `script_write` の事前検証は GDScript のみ。新規ファイルが**自分自身の** `class_name` を参照する場合、検証がやや緩くなります。
-- C# プロジェクトは未対応です。
+Linuxの画面付き試験にはxvfbと`E2E_GAME_WINDOW=1`が必要です。
+正本と生成コピーの関係は[旧版との比較](docs/sample-upgrades.ja.md)にまとめています。両方を別々に手編集しません。
+既定のplatformerシーンは内部の互換・試験用として残し、作品紹介には掲載しません。[公開手順](docs/releasing.md)。
 
 ## ライセンス
 

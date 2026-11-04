@@ -1,6 +1,6 @@
 # Artwork production through the existing game loop
 
-Development-source functionality; not a claim that the currently published npm version already contains these tools.
+Released since 0.10.0 and included in 0.12.0. These seven optional tools are separate from node_add_tree (added in 0.12.0). [Architecture](architecture.md) · [Getting started](getting-started.md).
 
 The production workflow is **brief → artwork request → real PNG receipt → reproducible build → native scene → ordinary-input verification**. This extends the existing editor/runtime loop rather than adding a second game engine, map editor or automatic game generator. Game rules, story and project-specific input routes remain the coding agent's work.
 

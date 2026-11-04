@@ -1,0 +1,286 @@
+[gd_scene format=3 uid="uid://clpe4fedi5ao6"]
+
+[ext_resource type="Script" uid="uid://b3t2rs4826bju" path="res://examples/tower-defense/scripts/game.gd" id="1_lnu2h"]
+[ext_resource type="Texture2D" path="res://examples/tower-defense/assets/board.png" id="1_yqjtg"]
+[ext_resource type="Texture2D" path="res://examples/tower-defense/assets/seedhouse.png" id="2_lnu2h"]
+[ext_resource type="Script" uid="uid://bleqw7pkdme8v" path="res://examples/tower-defense/scripts/actors.gd" id="3_lbhrr"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lbhrr"]
+bg_color = Color(0.078431375, 0.17254902, 0.21960784, 0.9490196)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.52156866, 0.5372549, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="Garden" type="Node2D" unique_id=365520774]
+script = ExtResource("1_lnu2h")
+
+[node name="World" type="Node2D" parent="." unique_id=1322636786]
+
+[node name="Board" type="Sprite2D" parent="World" unique_id=1973957643]
+position = Vector2(16, 86)
+scale = Vector2(2, 2)
+texture = ExtResource("1_yqjtg")
+centered = false
+
+[node name="Actors" type="Node2D" parent="World" unique_id=1533661810]
+script = ExtResource("3_lbhrr")
+
+[node name="Seedhouse" type="Sprite2D" parent="World" unique_id=1732487967]
+position = Vector2(604, 448)
+scale = Vector2(2, 2)
+texture = ExtResource("2_lnu2h")
+centered = false
+
+[node name="HUD" type="CanvasLayer" parent="World" unique_id=1475425142]
+
+[node name="UI" type="Control" parent="World/HUD" unique_id=1798608330]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+
+[node name="Topbar" type="ColorRect" parent="World/HUD/UI" unique_id=66655522]
+layout_mode = 0
+offset_right = 960.0
+offset_bottom = 74.0
+mouse_filter = 2
+color = Color(0.078431375, 0.17254902, 0.21960784, 1)
+
+[node name="Name" type="Label" parent="World/HUD/UI" unique_id=1429459712]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 14.0
+offset_right = 318.0
+offset_bottom = 58.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 27
+text = "灯畑の番人"
+vertical_alignment = 1
+
+[node name="Wave" type="Label" parent="World/HUD/UI" unique_id=83683577]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 20.0
+offset_right = 490.0
+offset_bottom = 56.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 21
+text = "波 0 / 3"
+vertical_alignment = 1
+
+[node name="Health" type="Label" parent="World/HUD/UI" unique_id=1948812537]
+layout_mode = 0
+offset_left = 506.0
+offset_top = 20.0
+offset_right = 660.0
+offset_bottom = 56.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 21
+text = "耐久 8 / 8"
+vertical_alignment = 1
+
+[node name="Coins" type="Label" parent="World/HUD/UI" unique_id=1614541255]
+layout_mode = 0
+offset_left = 670.0
+offset_top = 20.0
+offset_right = 802.0
+offset_bottom = 56.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 21
+text = "資金 140"
+vertical_alignment = 1
+
+[node name="Pause" type="Button" parent="World/HUD/UI" unique_id=775209827]
+layout_mode = 0
+offset_left = 816.0
+offset_top = 14.0
+offset_right = 944.0
+offset_bottom = 60.0
+theme_override_font_sizes/font_size = 18
+text = "一時停止"
+
+[node name="Sidebar" type="ColorRect" parent="World/HUD/UI" unique_id=1137183182]
+layout_mode = 0
+offset_left = 744.0
+offset_top = 86.0
+offset_right = 944.0
+offset_bottom = 626.0
+mouse_filter = 2
+color = Color(0.078431375, 0.17254902, 0.21960784, 1)
+
+[node name="Build" type="Label" parent="World/HUD/UI" unique_id=353624194]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 98.0
+offset_right = 928.0
+offset_bottom = 130.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 20
+text = "01  塔を選ぶ"
+vertical_alignment = 1
+
+[node name="Amber" type="Button" parent="World/HUD/UI" unique_id=1877403774]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 148.0
+offset_right = 928.0
+offset_bottom = 206.0
+theme_override_font_sizes/font_size = 18
+text = "灯火塔  50"
+
+[node name="AmberInfo" type="Label" parent="World/HUD/UI" unique_id=1934355847]
+layout_mode = 0
+offset_left = 764.0
+offset_top = 212.0
+offset_right = 924.0
+offset_bottom = 258.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "単体に強い灯り
+射程 140 / 威力 16"
+vertical_alignment = 1
+
+[node name="Mist" type="Button" parent="World/HUD/UI" unique_id=370674963]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 278.0
+offset_right = 928.0
+offset_bottom = 336.0
+theme_override_font_sizes/font_size = 18
+text = "霧鈴塔  40"
+
+[node name="MistInfo" type="Label" parent="World/HUD/UI" unique_id=1453090066]
+layout_mode = 0
+offset_left = 764.0
+offset_top = 342.0
+offset_right = 924.0
+offset_bottom = 388.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "周囲をまとめて足止め
+射程 120 / 速度45%"
+vertical_alignment = 1
+
+[node name="WaveHint" type="Label" parent="World/HUD/UI" unique_id=602500037]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 408.0
+offset_right = 928.0
+offset_bottom = 438.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 18
+text = "02  準備したら"
+vertical_alignment = 1
+
+[node name="NextWave" type="Button" parent="World/HUD/UI" unique_id=280661239]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 448.0
+offset_right = 928.0
+offset_bottom = 506.0
+theme_override_font_sizes/font_size = 18
+text = "第1波を呼ぶ"
+
+[node name="Status" type="Label" parent="World/HUD/UI" unique_id=2144758846]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 524.0
+offset_right = 928.0
+offset_bottom = 582.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "石台をクリック
+先に塔を置こう"
+vertical_alignment = 1
+
+[node name="Selected" type="Label" parent="World/HUD/UI" unique_id=1846631208]
+layout_mode = 0
+offset_left = 760.0
+offset_top = 590.0
+offset_right = 928.0
+offset_bottom = 618.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "選択：なし"
+vertical_alignment = 1
+
+[node name="Footer" type="Label" parent="World/HUD/UI" unique_id=817507305]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 610.0
+offset_right = 728.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 15
+text = "塔を選ぶ → 石台 A〜H をクリック  /  右クリックで解除"
+vertical_alignment = 1
+
+[node name="PauseOverlay" type="Control" parent="World/HUD/UI" unique_id=865427827]
+visible = false
+anchors_preset = 0
+offset_right = 960.0
+offset_bottom = 640.0
+
+[node name="Dim" type="ColorRect" parent="World/HUD/UI/PauseOverlay" unique_id=701226823]
+layout_mode = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+color = Color(0.0627451, 0.15294118, 0.20784314, 0.8509804)
+
+[node name="Panel" type="PanelContainer" parent="World/HUD/UI/PauseOverlay" unique_id=1894640494]
+layout_mode = 0
+offset_left = 232.0
+offset_top = 192.0
+offset_right = 728.0
+offset_bottom = 444.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lbhrr")
+
+[node name="Heading" type="Label" parent="World/HUD/UI/PauseOverlay" unique_id=1317288641]
+layout_mode = 0
+offset_left = 264.0
+offset_top = 218.0
+offset_right = 696.0
+offset_bottom = 266.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 32
+text = "ひとやすみ"
+vertical_alignment = 1
+
+[node name="Body" type="Label" parent="World/HUD/UI/PauseOverlay" unique_id=1735001311]
+layout_mode = 0
+offset_left = 264.0
+offset_top = 280.0
+offset_right = 696.0
+offset_bottom = 328.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 18
+text = "庭の時間は止まっています。
+再開して、ひかりの実を守りましょう。"
+vertical_alignment = 1
+
+[node name="Resume" type="Button" parent="World/HUD/UI/PauseOverlay" unique_id=898671762]
+layout_mode = 0
+offset_left = 264.0
+offset_top = 364.0
+offset_right = 464.0
+offset_bottom = 416.0
+theme_override_font_sizes/font_size = 18
+text = "庭にもどる"
+
+[node name="ReturnTitle" type="Button" parent="World/HUD/UI/PauseOverlay" unique_id=1607860396]
+layout_mode = 0
+offset_left = 496.0
+offset_top = 364.0
+offset_right = 696.0
+offset_bottom = 416.0
+theme_override_font_sizes/font_size = 18
+text = "タイトルへ"

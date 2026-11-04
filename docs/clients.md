@@ -1,17 +1,24 @@
 # Connecting MCP clients
 
+[Play-first guide](getting-started.md) · [Architecture](architecture.md) · [Samples](samples.md).
+Client registration is an explicit configuration change, not a prerequisite for ordinary standalone play.
+Current 0.12.0 has 49 MCP tools and the six-game showcase. Previous 0.11.0 has 48 tools. The minimal platformer remains
+an internal compatibility fixture, not a seventh showcased game. See the play-first guide's distribution table.
+Keep the addon and server from the exact same selected distribution, not merely an equal internal version label.
+
 The server needs to know which Godot project to talk to: pass `--project /absolute/path/to/your/project`
 (the folder containing `project.godot`), or set `GODOT_PROJECT_PATH`, or start it from that folder.
 Then open that project in the Godot editor with the **MCP Loop** plugin enabled.
 
-Two ways to start the server — use the same version as the addon in your project (`version=` in
-`addons/mcp_loop/plugin.cfg`; `npx -y godot-mcp-loop@latest install-addon <project>` installs a matching one):
+Two ways to start the server — select the exact distribution that installed the addon (`version=` in
+`addons/mcp_loop/plugin.cfg`; `npx -y godot-mcp-loop@0.12.0 install-addon ./my-game` selects the public 0.12.0 addon).
+For a source build, invoke that build's `dist/index.js install-addon` instead; do not assume an equally labelled registry build has identical contents.
 
 - **npm**: command `npx`, arguments `-y godot-mcp-loop@<version> --project /ABS/my-game` (Node.js 20+).
 - **From source**: build once (`cd godot-mcp-loop/server && npm ci && npm run build`), then command `node`, arguments
   `/ABS/godot-mcp-loop/server/dist/index.js --project /ABS/my-game`.
 
-The examples use npm; replace `<version>` and `/ABS/my-game` with yours.
+The examples below use the published npm route; replace `<version>` and `/ABS/my-game` with your selected published version/project. For source or unpacked builds, use the installer's printed absolute executable path instead, not an npm fallback. A matching plugin.cfg version is only a compatibility check, not proof of identical package contents.
 
 ## Claude Code
 
@@ -70,7 +77,7 @@ mcp_servers:
 
 The agent then lists the projects with `project_list` and switches with `project_connect {"path": "other-game"}`; the
 following tool calls work on that project. Only projects below a projects root are allowed — without the flag the
-server stays on `--project`. Each project needs the addon (same version) and its own open editor.
+server stays on `--project`. Each project needs an addon from that same selected distribution and its own open editor.
 
 ## Letting the agent open the editor
 

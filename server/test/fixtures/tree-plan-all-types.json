@@ -1,0 +1,520 @@
+{
+  "schema_version": 1,
+  "scene": "res://tree_work.tscn",
+  "nodes": [
+    {
+      "id": "top",
+      "type": "Node2D",
+      "name": "Content"
+    },
+    {
+      "id": "depth1",
+      "type": "Node2D",
+      "name": "Depth1",
+      "parent_id": "top"
+    },
+    {
+      "id": "depth2",
+      "type": "Node2D",
+      "name": "Depth2",
+      "parent_id": "depth1"
+    },
+    {
+      "id": "depth3",
+      "type": "Node2D",
+      "name": "Depth3",
+      "parent_id": "depth2"
+    },
+    {
+      "id": "depth4",
+      "type": "Node2D",
+      "name": "Depth4",
+      "parent_id": "depth3"
+    },
+    {
+      "id": "depth5",
+      "type": "Node2D",
+      "name": "Depth5",
+      "parent_id": "depth4"
+    },
+    {
+      "id": "depth6",
+      "type": "Node2D",
+      "name": "Depth6",
+      "parent_id": "depth5"
+    },
+    {
+      "id": "depth7",
+      "type": "Node2D",
+      "name": "Depth7",
+      "parent_id": "depth6"
+    },
+    {
+      "id": "body",
+      "type": "CharacterBody2D",
+      "name": "Player",
+      "parent_id": "top",
+      "properties": {
+        "position": [
+          120,
+          160
+        ],
+        "collision_layer": 3,
+        "collision_mask": 5
+      }
+    },
+    {
+      "id": "rectangle",
+      "type": "CollisionShape2D",
+      "name": "Collision",
+      "parent_id": "body",
+      "properties": {
+        "shape": {
+          "new": "RectangleShape2D",
+          "properties": {
+            "size": [
+              24,
+              32
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "sprite",
+      "type": "Sprite2D",
+      "name": "Visual",
+      "parent_id": "body",
+      "properties": {
+        "texture": {
+          "res": "res://assets/shared.png"
+        },
+        "modulate": "#aabbccff",
+        "flip_h": true
+      }
+    },
+    {
+      "id": "camera",
+      "type": "Camera2D",
+      "name": "Camera",
+      "parent_id": "body",
+      "properties": {
+        "enabled": false,
+        "zoom": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "wall",
+      "type": "StaticBody2D",
+      "name": "Wall",
+      "parent_id": "top",
+      "properties": {
+        "collision_layer": 4,
+        "collision_mask": 8
+      }
+    },
+    {
+      "id": "circle",
+      "type": "CollisionShape2D",
+      "name": "CircleCollision",
+      "parent_id": "wall",
+      "properties": {
+        "shape": {
+          "new": "CircleShape2D",
+          "properties": {
+            "radius": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "area",
+      "type": "Area2D",
+      "name": "Trigger",
+      "parent_id": "top",
+      "properties": {
+        "monitoring": false,
+        "monitorable": false
+      }
+    },
+    {
+      "id": "capsule",
+      "type": "CollisionShape2D",
+      "name": "CapsuleCollision",
+      "parent_id": "area",
+      "properties": {
+        "shape": {
+          "new": "CapsuleShape2D",
+          "properties": {
+            "radius": 6,
+            "height": 24
+          }
+        }
+      }
+    },
+    {
+      "id": "hud",
+      "type": "CanvasLayer",
+      "name": "HUD",
+      "parent_id": "top",
+      "properties": {
+        "layer": 2
+      }
+    },
+    {
+      "id": "ui",
+      "type": "Control",
+      "name": "UI",
+      "parent_id": "hud",
+      "properties": {
+        "custom_minimum_size": [
+          400,
+          300
+        ]
+      }
+    },
+    {
+      "id": "column",
+      "type": "VBoxContainer",
+      "name": "Column",
+      "parent_id": "ui",
+      "properties": {
+        "custom_minimum_size": [
+          400,
+          300
+        ],
+        "theme_override_constants/separation": 8
+      }
+    },
+    {
+      "id": "label",
+      "type": "Label",
+      "name": "説明",
+      "parent_id": "column",
+      "properties": {
+        "text": "一括構築の試験 😀",
+        "autowrap_mode": 3,
+        "horizontal_alignment": 1,
+        "theme_override_font_sizes/font_size": 18,
+        "theme_override_colors/font_color": "#aabbccff"
+      }
+    },
+    {
+      "id": "button",
+      "type": "Button",
+      "name": "Start",
+      "parent_id": "column",
+      "properties": {
+        "text": "開始",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "color",
+      "type": "ColorRect",
+      "name": "Swatch",
+      "parent_id": "ui",
+      "properties": {
+        "color": [
+          0.25,
+          0.5,
+          0.75,
+          1
+        ],
+        "custom_minimum_size": [
+          32,
+          16
+        ]
+      }
+    },
+    {
+      "id": "panel",
+      "type": "PanelContainer",
+      "name": "Panel",
+      "parent_id": "ui",
+      "properties": {
+        "theme_override_styles/panel": {
+          "new": "StyleBoxFlat",
+          "properties": {
+            "bg_color": [
+              0.25,
+              0.5,
+              0.75,
+              1
+            ],
+            "border_width_top": 2,
+            "corner_radius_top_left": 3,
+            "content_margin_left": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "margin",
+      "type": "MarginContainer",
+      "name": "Margin",
+      "parent_id": "panel",
+      "properties": {
+        "theme_override_constants/margin_left": 4,
+        "theme_override_constants/margin_top": 4
+      }
+    },
+    {
+      "id": "hbox",
+      "type": "HBoxContainer",
+      "name": "Row",
+      "parent_id": "margin",
+      "properties": {
+        "theme_override_constants/separation": 6
+      }
+    },
+    {
+      "id": "center",
+      "type": "CenterContainer",
+      "name": "Center",
+      "parent_id": "hbox",
+      "properties": {
+        "custom_minimum_size": [
+          32,
+          16
+        ]
+      }
+    },
+    {
+      "id": "grid",
+      "type": "GridContainer",
+      "name": "Grid",
+      "parent_id": "column",
+      "properties": {
+        "columns": 2,
+        "theme_override_constants/h_separation": 3,
+        "theme_override_constants/v_separation": 4
+      }
+    },
+    {
+      "id": "generic",
+      "type": "Node",
+      "name": "Data",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler28",
+      "type": "Node2D",
+      "name": "Filler28",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler29",
+      "type": "Node2D",
+      "name": "Filler29",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler30",
+      "type": "Node2D",
+      "name": "Filler30",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler31",
+      "type": "Node2D",
+      "name": "Filler31",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler32",
+      "type": "Node2D",
+      "name": "Filler32",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler33",
+      "type": "Node2D",
+      "name": "Filler33",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler34",
+      "type": "Node2D",
+      "name": "Filler34",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler35",
+      "type": "Node2D",
+      "name": "Filler35",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler36",
+      "type": "Node2D",
+      "name": "Filler36",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler37",
+      "type": "Node2D",
+      "name": "Filler37",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler38",
+      "type": "Node2D",
+      "name": "Filler38",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler39",
+      "type": "Node2D",
+      "name": "Filler39",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler40",
+      "type": "Node2D",
+      "name": "Filler40",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler41",
+      "type": "Node2D",
+      "name": "Filler41",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler42",
+      "type": "Node2D",
+      "name": "Filler42",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler43",
+      "type": "Node2D",
+      "name": "Filler43",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler44",
+      "type": "Node2D",
+      "name": "Filler44",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler45",
+      "type": "Node2D",
+      "name": "Filler45",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler46",
+      "type": "Node2D",
+      "name": "Filler46",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler47",
+      "type": "Node2D",
+      "name": "Filler47",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler48",
+      "type": "Node2D",
+      "name": "Filler48",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler49",
+      "type": "Node2D",
+      "name": "Filler49",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler50",
+      "type": "Node2D",
+      "name": "Filler50",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler51",
+      "type": "Node2D",
+      "name": "Filler51",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler52",
+      "type": "Node2D",
+      "name": "Filler52",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler53",
+      "type": "Node2D",
+      "name": "Filler53",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler54",
+      "type": "Node2D",
+      "name": "Filler54",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler55",
+      "type": "Node2D",
+      "name": "Filler55",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler56",
+      "type": "Node2D",
+      "name": "Filler56",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler57",
+      "type": "Node2D",
+      "name": "Filler57",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler58",
+      "type": "Node2D",
+      "name": "Filler58",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler59",
+      "type": "Node2D",
+      "name": "Filler59",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler60",
+      "type": "Node2D",
+      "name": "Filler60",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler61",
+      "type": "Node2D",
+      "name": "Filler61",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler62",
+      "type": "Node2D",
+      "name": "Filler62",
+      "parent_id": "top"
+    },
+    {
+      "id": "filler63",
+      "type": "Node2D",
+      "name": "Filler63",
+      "parent_id": "top"
+    }
+  ]
+}

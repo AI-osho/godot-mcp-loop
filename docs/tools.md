@@ -1,6 +1,6 @@
 # Tools reference
 
-48 tools, grouped by what they do in the loop: **plan → produce → inspect → edit → run → observe → judge**.
+49 tools, available in 0.12.0: **plan → produce → inspect → edit → run → observe → judge**. Previous 0.11.0 exposes 48; node_add_tree was added in 0.12.0.
 
 Conventions
 
@@ -25,7 +25,7 @@ Conventions
   another tool fails loudly instead of being ignored.
 - Errors come back as `Error <CODE>: <message>` plus a `Hint:` line the agent can act on (codes in [protocol.md](protocol.md)).
 
-## Artwork production (development-source addition)
+## Artwork production (released in 0.10.0)
 
 These are optional 2D production tools. They do not execute an image API or acquire credentials. The client's
 existing authorized image producer performs generation; requested and reported quality remain separate.
@@ -84,6 +84,7 @@ finishes; a concurrent `project_connect` returns `BUSY` rather than redirecting 
 | `scene_save` | Save the edited scene after validating its current native destination. Native play/save-all also checks every open scene, including inactive roots; unsafe destinations return `PATH_FORBIDDEN`. |
 | `scene_tree` | Hierarchy with class, path, script, instanced scene (`depth` limit). |
 | `node_add` | Add by `type` (engine class or `class_name`) or instance a `scene`; optional initial `properties` validated up front. |
+| `node_add_tree` | Development: `schema_version: 1`, explicit current `scene`, parent-first `nodes`, optional `dry_run`. One new native Node2D/Control subtree, up to 64 nodes, depth 8 and 512 properties, only into an empty scriptless ordinary Node2D/Control scene. Strict typed values, shapes/styles and ready bounded PNG references only; unlike legacy tools, no numeric-string coercion, scripts, custom classes or scene instances. Preview does not edit scene/history; apply is one undo action and `disk_saved=false`. A known refusal reports `applied=false`/`created_count=0` in `structuredContent`; an ambiguous dispatched result uses null and must not be retried blindly. [Full contract](scene-tree-build.md). |
 | `node_delete` | Delete a node subtree (root is protected). Undo restores it exactly, including owners. |
 | `node_get` | Properties of a node — by default only non-default values plus script variables. |
 | `node_set` | Set several properties as one undo step; returns `before`/`after`. Nothing changes if any value is invalid. |

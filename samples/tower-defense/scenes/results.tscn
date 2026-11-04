@@ -1,0 +1,123 @@
+[gd_scene format=3 uid="uid://bhyxxfwga4vgl"]
+
+[ext_resource type="Script" uid="uid://b8ku3ltj8asvo" path="res://scripts/results.gd" id="1_21kdr"]
+[ext_resource type="Texture2D" uid="uid://cmr3kv8sws1r2" path="res://assets/title_vista.png" id="1_qh7lt"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_21kdr"]
+bg_color = Color(0.078431375, 0.17254902, 0.21960784, 0.9490196)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.52156866, 0.5372549, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="Results" type="Control" unique_id=1339915814]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_21kdr")
+
+[node name="Screen" type="Control" parent="." unique_id=309438239]
+anchors_preset = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+
+[node name="Vista" type="Sprite2D" parent="Screen" unique_id=1338840183]
+scale = Vector2(2, 2)
+texture = ExtResource("1_qh7lt")
+centered = false
+
+[node name="Veil" type="ColorRect" parent="Screen" unique_id=369475687]
+layout_mode = 0
+offset_right = 960.0
+offset_bottom = 640.0
+mouse_filter = 2
+color = Color(0.0627451, 0.15294118, 0.20784314, 0.72156864)
+
+[node name="Panel" type="PanelContainer" parent="Screen" unique_id=465638780]
+layout_mode = 0
+offset_left = 176.0
+offset_top = 74.0
+offset_right = 784.0
+offset_bottom = 582.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_21kdr")
+
+[node name="Eyebrow" type="Label" parent="Screen" unique_id=1599552983]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 98.0
+offset_right = 742.0
+offset_bottom = 130.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 17
+text = "ほたる畑の夜"
+vertical_alignment = 1
+
+[node name="Heading" type="Label" parent="Screen" unique_id=668086894]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 146.0
+offset_right = 742.0
+offset_bottom = 210.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 36
+text = "夜明けをまもった"
+vertical_alignment = 1
+
+[node name="Message" type="Label" parent="Screen" unique_id=1471091142]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 222.0
+offset_right = 742.0
+offset_bottom = 288.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 21
+text = "ひかりの実は、明日も育ちます。"
+vertical_alignment = 1
+
+[node name="Stats" type="Label" parent="Screen" unique_id=2108295391]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 312.0
+offset_right = 742.0
+offset_bottom = 412.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 20
+text = "耐久 8 / 8
+撃破 0  /  配置 0
+到達ウェーブ 0 / 3"
+vertical_alignment = 1
+
+[node name="Retry" type="Button" parent="Screen" unique_id=459895196]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 454.0
+offset_right = 464.0
+offset_bottom = 512.0
+theme_override_font_sizes/font_size = 18
+text = "もう一度まもる"
+
+[node name="ReturnTitle" type="Button" parent="Screen" unique_id=1451130837]
+layout_mode = 0
+offset_left = 496.0
+offset_top = 454.0
+offset_right = 742.0
+offset_bottom = 512.0
+theme_override_font_sizes/font_size = 18
+text = "タイトルへ"
+
+[node name="Footer" type="Label" parent="Screen" unique_id=1368181436]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 536.0
+offset_right = 742.0
+offset_bottom = 562.0
+theme_override_colors/font_color = Color(0.9411765, 0.8862745, 0.7254902, 1)
+theme_override_font_sizes/font_size = 16
+text = "同じ庭で、違う配置を試してみよう。"
+vertical_alignment = 1

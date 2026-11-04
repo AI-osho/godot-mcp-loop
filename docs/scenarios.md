@@ -1,5 +1,9 @@
 # Scenario tests
 
+[Getting started](getting-started.md) · [Sample catalog](samples.md) · [Architecture](architecture.md).
+The six legacy games provide 26 expected-success scenarios; the platformer's intentional_failure.yaml is a separate
+negative teaching example. Controlled seeds, warps and state setters are not ordinary-input completion proof.
+
 A scenario is a small, declarative play-test. `scenario_run` (re)starts the game, runs the steps in order, stops at
 the first failure, always stops the game afterwards, and returns a report.
 

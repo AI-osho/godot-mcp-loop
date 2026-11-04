@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "scene": "res://examples/tower-defense/scenes/results.tscn",
+  "nodes": [
+    {
+      "id": "screen",
+      "type": "Control",
+      "name": "Screen",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "vista",
+      "type": "Sprite2D",
+      "name": "Vista",
+      "parent_id": "screen",
+      "properties": {
+        "texture": {
+          "res": "res://examples/tower-defense/assets/title_vista.png"
+        },
+        "centered": false,
+        "scale": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "veil",
+      "type": "ColorRect",
+      "name": "Veil",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "color": "#102735b8",
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "panel",
+      "type": "PanelContainer",
+      "name": "Panel",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 176,
+        "offset_top": 74,
+        "offset_right": 784,
+        "offset_bottom": 582,
+        "theme_override_styles/panel": {
+          "new": "StyleBoxFlat",
+          "properties": {
+            "bg_color": "#142c38f2",
+            "border_color": "#668589ff",
+            "border_width_left": 2,
+            "border_width_top": 2,
+            "border_width_right": 2,
+            "border_width_bottom": 2,
+            "corner_radius_top_left": 12,
+            "corner_radius_top_right": 12,
+            "corner_radius_bottom_left": 12,
+            "corner_radius_bottom_right": 12
+          }
+        },
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "eyebrow",
+      "type": "Label",
+      "name": "Eyebrow",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 98,
+        "offset_right": 742,
+        "offset_bottom": 130,
+        "text": "ほたる畑の夜",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 17,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "heading",
+      "type": "Label",
+      "name": "Heading",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 146,
+        "offset_right": 742,
+        "offset_bottom": 210,
+        "text": "夜明けをまもった",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 36,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "message",
+      "type": "Label",
+      "name": "Message",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 222,
+        "offset_right": 742,
+        "offset_bottom": 288,
+        "text": "ひかりの実は、明日も育ちます。",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 21,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "stats",
+      "type": "Label",
+      "name": "Stats",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 312,
+        "offset_right": 742,
+        "offset_bottom": 412,
+        "text": "耐久 8 / 8\n撃破 0  /  配置 0\n到達ウェーブ 0 / 3",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 20,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "retry",
+      "type": "Button",
+      "name": "Retry",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 454,
+        "offset_right": 464,
+        "offset_bottom": 512,
+        "text": "もう一度まもる",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "title",
+      "type": "Button",
+      "name": "ReturnTitle",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 496,
+        "offset_top": 454,
+        "offset_right": 742,
+        "offset_bottom": 512,
+        "text": "タイトルへ",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "footer",
+      "type": "Label",
+      "name": "Footer",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 218,
+        "offset_top": 536,
+        "offset_right": 742,
+        "offset_bottom": 562,
+        "text": "同じ庭で、違う配置を試してみよう。",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 16,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    }
+  ]
+}

@@ -161,7 +161,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          xvfb-run -a -s "-screen 0 1280x1024x24" npx vitest run test/e2e/samples.e2e.test.ts test/e2e/movie.e2e.test.ts
+          xvfb-run -a -s "-screen 0 1280x1024x24" npx vitest run test/e2e/samples.e2e.test.ts test/e2e/movie.e2e.test.ts test/e2e/standalone-samples.e2e.test.ts test/e2e/tower-defense-sample.e2e.test.ts
 
       - name: Keep the evidence (screenshots, reports, GIFs)
         if: always()

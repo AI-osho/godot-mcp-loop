@@ -1,0 +1,11 @@
+# Passing scenario: the player lands, walks right, jumps once, and nothing errors.
+name: player moves right and jumps
+scene: res://examples/platformer/main.tscn
+steps:
+  - wait_for: { node: Player, property: "position:y", op: ">=", value: 370, timeout_ms: 5000 }
+  - input: { action: move_right, hold_ms: 1000 }
+  - assert: { node: Player, property: "position:x", op: ">", value: 250 }
+  - input: { action: jump, hold_ms: 100 }
+  - wait_for: { node: Player, property: jumps, op: "==", value: 1, timeout_ms: 2000 }
+  - screenshot: after_jump
+  - assert_no_errors: true

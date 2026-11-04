@@ -1,20 +1,20 @@
-# Marble Run — the 3D sample
+# Marble Run
 
-A small 3D game built end to end by an AI agent through godot-mcp-loop, and then verified independently: seven
-regression scenarios, a 40-second random-input run without a single script error, and every screen checked by
-screenshot. It is the game the 3D tools were hardened against — `game_in_view`, `game_ray`, `game_contacts`,
-JSON `Transform3D` values and `record.method` all exist because this game needed them.
+Collect coins and roll/jump across ramps, gaps and checkpoints to reach the goal before the timer expires.
+The existing course, grounded jumps, camera and life/checkpoint rules are retained.
 
 ## Play it
 
-```bash
-cd marble-3d
-npx -y godot-mcp-loop@latest install-addon . --skill   # the addon must match the server version
-godot -e --path .                                      # Godot 4.5 or newer
+The standalone game does not require the MCP addon or an AI account. Godot 4.7.2 is the verified engine.
+
+```sh
+godot --headless --path . --import
+godot --path .
 ```
 
-Open it in the editor (or run `godot --headless --path . --import`) once before a headless run: a fresh folder has no
-global class cache yet, so `class_name MarbleBall` and friends are unknown until Godot has imported the project.
+For agent editing/testing, explicitly install the addon from the same selected server build and open the editor.
+Included in 0.12.0 alongside the other showcased games. Earlier 0.11.0 also includes this sample.
+[日本語の操作](PLAY.ja.md) · [Delivery changes](UPGRADING.md).
 
 Why the course is built the way it is — the staircase rule and the numbers behind it, the movement and camera model,
 the state machine and the deliberate limits — is in [DESIGN.md](DESIGN.md).
@@ -49,7 +49,7 @@ Collect 10 coins, pass the two checkpoints, and reach the goal before the timer 
 scenario_run {"path": "res://scenarios", "save_to": "res://qa/evidence"}
 ```
 
-## How it was verified
+## Recorded sample qualification
 
 - `scenario_run` on the folder: 7/7 passed, twice in a row.
 - 40 seconds of random input: 0 script errors, 0 debugger stops.

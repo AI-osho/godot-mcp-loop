@@ -1,0 +1,6 @@
+{
+  "ink":"#142c38", "night":"#102735", "sky":"#183c4c", "grass_dark":"#244e4b", "grass":"#366455", "grass_light":"#517e5e",
+  "leaf":"#70966a", "mint":"#add6a0", "soil_shadow":"#755649", "soil":"#a77d59", "soil_light":"#c9aa76",
+  "stone_dark":"#3e5963", "stone":"#668589", "stone_light":"#9fb9ac", "wood_dark":"#654d47", "wood":"#9c6d4d",
+  "cream":"#f0e2b9", "gold":"#f6bf65", "amber":"#e88b48", "red":"#c76359", "blue":"#638eae", "ice":"#b0e7df", "purple":"#9d7caa"
+}

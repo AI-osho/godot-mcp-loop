@@ -29,7 +29,7 @@ Several games: when `godot_status` shows `projects_roots`, `project_list` lists 
 `project_connect {path}` points every following tool call at another one (check that its result names the project
 you meant before editing).
 
-## Illustrated 2D artwork production (development tools)
+## Illustrated 2D artwork production (since 0.10.0)
 
 Use this optional path when the work needs original illustration rather than a quick text-palette sprite.
 `production_plan` -> `art_request` -> the client's existing authorized image producer -> `art_register` ->
@@ -56,10 +56,38 @@ Use this optional path when the work needs original illustration rather than a q
   the user's acceptance of visual style, fun or sound. No automatic publication or sample-game changes.
 
 The packaged runtime is under `authoring/`; full recipes and limitations are in the repository's
-`docs/art-production.md` and `docs/art-production.ja.md`. Use the matched development server/addon pair; the
-currently published package or a client that has not reconnected may not contain these tools.
+`docs/art-production.md` and `docs/art-production.ja.md`. They ship in 0.12.0 and were introduced in 0.10.0. Use
+the same selected server/addon distribution and reconnect existing clients explicitly when needed.
 
 ## Editing
+
+For a new ordinary empty Node2D/Control scene, `node_add_tree` (since 0.12.0) can add one complete native
+subtree. Version 0.12.0 has 49 tools; previous 0.11.0 has 48. Use the same selected server/addon distribution, not a floating npm
+command. Create/open the explicit empty target first, preview, apply, and save with `scene_save` separately.
+
+```json tool=node_add_tree
+{
+  "schema_version": 1,
+  "scene": "res://scenes/new_ui.tscn",
+  "dry_run": true,
+  "nodes": [
+    {"id":"ui","type":"Control","name":"UI"},
+    {"id":"title","parent_id":"ui","type":"Label","name":"Title","properties":{"text":"拠点を守ろう","offset_left":24,"offset_top":24,"offset_right":320,"offset_bottom":56}},
+    {"id":"start","parent_id":"ui","type":"Button","name":"Start","properties":{"text":"開始","offset_left":24,"offset_top":80,"offset_right":200,"offset_bottom":126}}
+  ]
+}
+```
+
+- One parent-first top (Node2D/Control); only supported native types/properties. At most 64 nodes, depth 8,
+  32 properties/node and 512 total including embedded resources. Use literal finite JSON values, not numeric strings.
+- Only bounded imported PNG references and new RectangleShape2D/CircleShape2D/CapsuleShape2D/StyleBoxFlat resources;
+  no scripts, custom classes, scene instances, arbitrary resources or existing children. No automatic import repair.
+- Preview leaves the scene/history unchanged. Apply is one undo action with all descendant owners set; saving is
+  separate. A later human edit prevents MCP undo. Native redo does not become a new public tool.
+- `structuredContent.applied=false`/`created_count=0` means a known refusal. Null means a dispatched result is
+  uncertain: inspect `scene_tree` and history before retrying. Timeout/disconnect is never automatic-retry permission.
+- Inspect actual runtime UI/screenshots/input. Detached preview does not certify final Container/theme layout.
+  Full property policy and bounds are in the source `docs/scene-tree-build.md` / `docs/scene-tree-build.ja.md`.
 
 | Do | With |
 |---|---|

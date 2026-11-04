@@ -10,6 +10,7 @@ import { registerScenarioTools } from "./tools/scenario.js";
 import { registerStatusTools } from "./tools/status.js";
 import { registerTestTools } from "./tools/tests.js";
 import { registerAuthoringTools } from "./tools/authoring.js";
+import { registerTreeTools } from "./tools/tree.js";
 import { SERVER_VERSION } from "./version.js";
 
 export const SERVER_NAME = "godot-mcp-loop";
@@ -37,5 +38,6 @@ export function createServer(conn: GodotConnection, opts: ServerOptions = {}): M
   registerScenarioTools(server, conn);
   registerTestTools(server, conn);
   registerAuthoringTools(server, conn);
+  registerTreeTools(server, conn);
   return server;
 }

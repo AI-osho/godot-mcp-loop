@@ -1,0 +1,20 @@
+{
+ "name":"02 通常ボタンで停止と再開",
+ "scene":"res://tests/test_entry.tscn",
+ "steps":[
+  {"wait_for":{"node":".","method":"summary","property":"state","op":"==","value":"title","timeout_ms":5000}},
+  {"input":{"mouse_click":[735,478],"wait_frames":3}},
+  {"input":{"mouse_click":[844,177]}},
+  {"input":{"mouse_click":[162,248]}},
+  {"input":{"mouse_click":[844,477],"wait_frames":120}},
+  {"input":{"mouse_click":[880,37]}},
+  {"assert":{"node":".","method":"summary","property":"paused","op":"==","value":true}},
+  {"input":{"mouse_click":[328,260],"wait_frames":30}},
+  {"assert":{"node":".","method":"summary","property":"tower_count","op":"==","value":1}},
+  {"screenshot":"paused"},
+  {"input":{"mouse_click":[364,390]}},
+  {"assert":{"node":".","method":"summary","property":"paused","op":"==","value":false}},
+  {"assert":{"node":".","method":"summary","property":"input_receipts:resume","op":"==","value":1}},
+  {"assert_no_errors":true}
+ ]
+}

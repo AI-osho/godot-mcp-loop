@@ -1,0 +1,58 @@
+# 5. Flee success/failure with fixed rng seeds, and defeat -> king's castle, gold halved.
+name: "5 flee seeds and defeat handling"
+scene: "res://examples/rpg/main.tscn"
+steps:
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false, rng_seed: 3, message_instant: true, fast_mode: true } }
+  # Seed 3 is a successful escape roll (50% + 0 at level 1).
+  - call: { node: ., method: start_battle, args: [pulun] }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - call: { node: ., method: battle_command, args: [flee] }
+  - assert: { node: Battle, property: last_flee_success, op: "==", value: true }
+  - wait_for: { node: Battle, property: phase, op: "==", value: escaped, timeout_ms: 2000 }
+  - screenshot: battle_escaped
+  - call: { node: ., method: finish_battle }
+  - assert: { node: ., property: last_battle_result, op: "==", value: escaped }
+  - assert: { node: ., property: state, op: "==", value: field }
+  - assert: { node: ., property: player:gold, op: "==", value: 40 }
+  # Seed 1 fails the roll; the enemy gets its turn and the menu returns.
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false, rng_seed: 1, message_instant: true, fast_mode: true } }
+  - call: { node: ., method: start_battle, args: [pulun] }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - pause: true
+  - call: { node: ., method: battle_command, args: [flee] }
+  - assert: { node: Battle, property: last_flee_success, op: "==", value: false }
+  - step: 20
+  - assert: { node: Battle, property: phase, op: "==", value: menu }
+  - assert: { node: Battle, property: turn, op: "==", value: 1 }
+  - assert: { node: Battle, property: flee_attempts, op: "==", value: 1 }
+  - pause: false
+  # Defeat with 1 HP against ホネせんし; gold 41 becomes 20, back to the castle at (7,9).
+  - call: { node: ., method: start_new_game }
+  - set: { node: ., properties: { encounters_enabled: false, rng_seed: 777, message_instant: true, fast_mode: true } }
+  - call:
+      node: .
+      method: set_player_stats
+      args: [{ hp: 1, mp: 10, gold: 41 }]
+  - call: { node: ., method: start_battle, args: [hone] }
+  - wait_for: { node: Battle, property: phase, op: "==", value: menu, timeout_ms: 4000 }
+  - pause: true
+  - call: { node: ., method: battle_command, args: [attack] }
+  - step: 30
+  - assert: { node: Battle, property: phase, op: "==", value: defeat }
+  - screenshot: battle_defeat
+  - call: { node: ., method: finish_battle }
+  - assert: { node: ., property: last_battle_result, op: "==", value: defeat }
+  - wait_for: { node: ., property: state, op: "==", value: field, timeout_ms: 2000 }
+  - assert: { node: ., property: player:gold, op: "==", value: 20 }
+  - assert: { node: ., property: player:hp, op: "==", value: 30 }
+  - assert: { node: ., property: player:mp, op: "==", value: 10 }
+  - assert: { node: ., property: map_name, op: "==", value: castle }
+  - assert: { node: ., property: tile, op: "==", value: [7, 9] }
+  - assert: { node: ., property: facing, op: "==", value: up }
+  - assert: { node: ., property: dialog_active, op: "==", value: true }
+  - assert: { node: ., property: dialog_full, op: "contains", value: "はんぶん" }
+  - screenshot: defeat_wakeup
+  - pause: false
+  - assert_no_errors: true

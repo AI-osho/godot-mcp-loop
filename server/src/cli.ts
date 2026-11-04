@@ -254,9 +254,14 @@ export function runCli(argv: string[], log: (line: string) => void = (l) => proc
         [
           `Copied ${r.name} (${r.files} files) to ${r.project}`,
           "",
-          "Next:",
-          `  cd ${shq(r.project)} && npx -y godot-mcp-loop@${SERVER_VERSION} install-addon . --skill`,
+          "Play (no addon needed):",
+          `  godot --headless --path ${shq(r.project)} --import`,
+          `  godot --path ${shq(r.project)}`,
+          "",
+          "For MCP editing (explicit project change):",
+          `  ${shq(process.execPath)} ${shq(join(pkgRoot, "dist", "index.js"))} install-addon ${shq(r.project)} --skill`,
           `  godot -e --path ${shq(r.project)}`,
+          "  Configure your client explicitly with this same server installation.",
         ].join("\n"),
       );
       return 0;
@@ -301,9 +306,11 @@ export function runCli(argv: string[], log: (line: string) => void = (l) => proc
     log(
       [
         "",
-        "Next: open the project in Godot 4 and connect your MCP client, e.g. Claude Code:",
-        `  cd ${p} && claude mcp add godot-loop -- npx -y godot-mcp-loop@${SERVER_VERSION} --project ${p}`,
-        `Other clients: command "npx", args ["-y", "godot-mcp-loop@${SERVER_VERSION}", "--project", "${r.project}"].`,
+        "Next: open the project in Godot 4 and explicitly configure your MCP client for this exact server installation:",
+        `  cd ${p} && claude mcp add godot-loop -- ${shq(process.execPath)} ${shq(join(pkgRoot, "dist", "index.js"))} --project ${p}`,
+        `Other clients: command ${JSON.stringify(process.execPath)}, args ${JSON.stringify([join(pkgRoot, "dist", "index.js"), "--project", r.project])}.`,
+        "Keep this installation at a stable path. A matching version label alone does not prove matching published content.",
+        "For confirmed registry releases and other client choices, see https://github.com/AI-osho/godot-mcp-loop/blob/main/docs/clients.md",
       ].join("\n"),
     );
     return 0;

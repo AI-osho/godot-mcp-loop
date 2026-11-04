@@ -1,0 +1,123 @@
+name: "2_enemies"
+description: "Stomp from above kills a walker, hopper hops as the second enemy type, side contact costs a life and respawns."
+scene: "res://examples/action/action_game.tscn"
+steps:
+  - call:
+      node: "."
+      method: "start_at"
+      args: [24, 189]
+  - set:
+      node: "."
+      properties:
+        enemies_frozen: true
+        timer_frozen: true
+  # --- Stomp: frozen walker at 650, player dropped from above.
+  - call:
+      node: "."
+      method: "clear_enemies"
+  - call:
+      node: "."
+      method: "spawn_enemy"
+      args: ["walker", 650]
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [650, 160]
+  - wait_for:
+      node: "."
+      property: "kills"
+      op: "=="
+      value: 1
+      timeout_ms: 3000
+  - assert:
+      node: "."
+      property: "stomps"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 3
+  - assert:
+      node: "."
+      property: "score"
+      op: "=="
+      value: 100
+  - assert:
+      node: "."
+      property: "enemy_count"
+      op: "=="
+      value: 0
+  # --- Hopper: second enemy type hops (y drops) and patrols horizontally.
+  - call:
+      node: "."
+      method: "clear_enemies"
+  - set:
+      node: "."
+      properties:
+        enemies_frozen: false
+  - call:
+      node: "."
+      method: "spawn_enemy"
+      args: ["hopper", 800]
+  - wait_for:
+      node: "Enemies/Hopper_1"
+      property: "position:y"
+      op: "<="
+      value: 185
+      timeout_ms: 3000
+  - assert:
+      node: "Enemies/Hopper_1"
+      property: "on_ground"
+      op: "=="
+      value: false
+  - wait_for:
+      node: "Enemies/Hopper_1"
+      property: "position:x"
+      op: "<="
+      value: 799
+      timeout_ms: 1000
+  # --- Side contact: frozen walker, player standing beside/overlapping it.
+  - call:
+      node: "."
+      method: "clear_enemies"
+  - set:
+      node: "."
+      properties:
+        enemies_frozen: true
+  - call:
+      node: "."
+      method: "spawn_enemy"
+      args: ["walker", 700]
+  - call:
+      node: "."
+      method: "set_player_position"
+      args: [694, 189]
+  - wait_for:
+      node: "."
+      property: "lives"
+      op: "=="
+      value: 2
+      timeout_ms: 2000
+  - assert:
+      node: "."
+      property: "hits_taken"
+      op: "=="
+      value: 1
+  - assert:
+      node: "."
+      property: "last_cause"
+      op: "=="
+      value: "enemy"
+  - assert:
+      node: "."
+      property: "player_x"
+      op: "=="
+      value: 24
+  - assert:
+      node: "."
+      property: "state"
+      op: "=="
+      value: "play"
+  - assert_no_errors: true

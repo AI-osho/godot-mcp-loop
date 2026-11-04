@@ -1,232 +1,140 @@
 # godot-mcp-loop
 
-**Let AI agents edit your Godot 4 game _and check their own work_.**
-An MCP server + Godot editor addon focused on the verification loop: **change → run → observe → judge**.
+**Edit, run, inspect and test Godot 4 projects from an MCP client.**
+A TypeScript MCP server and a Godot editor addon let an AI coding agent change scenes/scripts,
+send gameplay input, inspect live state and replay checks. Work remains in normal Godot projects and resources.
 
-[日本語 README](README.ja.md) · [Tools](docs/tools.md) · [Scenarios](docs/scenarios.md) · [Clients](docs/clients.md) · [Security](docs/security.md) · [Protocol](docs/protocol.md)
+[日本語](README.ja.md) · [Get started](docs/getting-started.md) · [Architecture](docs/architecture.md) · [Samples](docs/samples.md) · [Sample changes](docs/sample-upgrades.md)
 
-![The platformer demo, captured by the screenshot tool after the agent moved and jumped](docs/images/demo-screenshot.png)
+## The development loop
 
-There are many Godot MCP servers that let an agent edit scenes. Few let it **find out whether the edit worked**.
-godot-mcp-loop gives the agent a play-tester's toolkit — launch the game, send real input, wait for conditions,
-read live state, take screenshots, collect errors — plus declarative scenario tests that return a pass/fail
-report with the failing value. Editor changes are deliberately conservative: undoable, previewable,
-validated before it is applied, and sandboxed to your project.
+1. **Edit:** inspect a scene, change nodes, scripts or input settings.
+2. **Run:** launch that project and send Godot action/key/mouse events.
+3. **Observe:** read state, capture frames, inspect UI, physics and logs.
+4. **Check:** compare expected values or replay YAML/JSON scenarios before making the next change.
 
-## What an agent can do
+The agent chooses and calls the tools; this is not a hosted service that automatically finishes a game.
+Game rules, artwork, sound, level design and playtesting remain authored work. Supported edits offer preview and undo;
+scene saving and file-backed operations have separate behavior.
 
-```text
-godot_status                                    → editor connected, Godot 4.7.2, main.tscn open
-script_write res://player.gd (dry_run)          → unified diff; compile errors with line numbers if any
-script_write res://player.gd                    → written (undoable)
-game_run                                        → game running, runtime connected
-game_input [{action: move_right, hold_ms: 1000}]
-game_wait_for Player position:x > 250           → met after 0.8 s
-screenshot                                      → (image)
-logs_read source=game min_level=error           → []
-scenario_run res://tests/move_right.yaml        → PASSED (7/7 steps)
-```
+## Six sample games
 
-## Highlights
+![Six sample games included in 0.12.0](docs/images/samples-current.png)
 
-- **Closed loop**: `game_run`, `game_input` (actions, keys, mouse, with real timing; can record values every frame), `game_wait_for`
-  (checked every frame, reports the last value on timeout), `game_query`, `screenshot`, `logs_read`.
-- **Scenario tests**: YAML/JSON play-tests → per-step pass/fail, failure screenshot, game errors. [Details](docs/scenarios.md).
-- **Safe editing**: every edit goes through Godot's undo history; `edit_undo` only ever reverts edits made via MCP;
-  `dry_run` everywhere; GDScript is compiled *before* it is written; property values are validated before anything changes.
-- **Sandboxed**: localhost-only bridge with a per-session token; `res://` paths only; no writes to `.godot/`, `.git/`
-  or the addon; no arbitrary-code-execution tool. [Security notes](docs/security.md).
-- **Doesn't freeze on errors**: Godot's debugger pauses games on script errors; the addon logs the error and
-  continues, so the agent sees it instead of hanging.
-- **No extra ports in the game**: the game talks to the editor over Godot's own debugger connection.
-- **48 focused tools** rather than hundreds — easier for models to use well.
+Native Godot captures from standalone projects, without the addon installed. The RPG frame is the prologue.
+[Controls, project paths and original images](docs/samples.md).
 
-## Installation diagnosis (0.11.0+)
+<!-- sample-showcase:start -->
+| Sample | Game | What to inspect |
+|---|---|---|
+| `blocks` | Falling Blocks | Rotation, board state and scoring |
+| `shooter` | Vertical Shooter | Movement/fire, waves and boss transitions |
+| `action` | Side-scroller | Variable jumps, platforms and collision |
+| `rpg` | Luka of the Star Sword | Dialogue, battles and state transitions |
+| `marble-3d` | Marble Run | Rolling, jumps, checkpoints and contacts |
+| `tower-defense` | 灯畑の番人 | Tower placement, pause, victory/defeat and retry |
+<!-- sample-showcase:end -->
 
-`doctor <project> [--json] [--artwork]` provides read-only static installation checks, manual next-action hints,
-and explicit runtime-not-checked results. No editor launch, bridge connection or repair.
+All six run without an AI account or MCP setup. They show different uses of the same editing/observation tools;
+a fixture check is not a claim that an agent completed every game through ordinary play.
+
+## Try a sample
+
+Use Node.js 20+ for the copy command and Godot 4.7 (tested with 4.7.2) to play. From a working folder,
+choose one of the six IDs above and a new/empty destination:
 
 ```sh
-npx -y godot-mcp-loop@0.11.0 doctor /ABS/my-game --json
+npx -y godot-mcp-loop@0.12.0 sample shooter ./my-shooter
+godot --headless --path ./my-shooter --import
+godot --path ./my-shooter
 ```
 
-Python/Pillow is checked only with `--artwork`. See [the doctor guide](docs/doctor.md).
+For agent editing/testing, explicitly install the addon from the same selected distribution and configure your
+[client](docs/clients.md). Play alone does not need either step. The installer supplies its actual server executable;
+it does not register a client or restart an existing connection for you. [Full setup guide](docs/getting-started.md).
 
-## Requirements
+## How the pieces fit
 
-- Godot **4.7** (tested on 4.7.2). 4.5–4.6 should work — the addon needs the `Logger` API added in 4.5 — but are not tested yet.
-- Node.js **20+**
-- An MCP client: Claude Code, Cursor, Claude Desktop, Codex, Hermes Agent, …
+- [`server/src/`](server/src/) exposes MCP tools, validates their input, connects to the selected project and runs scenarios.
+- [`addons/mcp_loop/`](addons/mcp_loop/) edits through the Godot editor and forwards runtime requests through Godot's debugger.
+- The game's runtime agent provides input, state, frame stepping, screenshots and logs. It adds no separate game-control listener.
+- Optional [`server/authoring/`](server/authoring/) helpers process PNGs. Original image generation uses the client's separately authorized producer.
 
-## Install
-
-**As a Claude Code plugin** (Claude Code 2.1.275+; asks for your Godot project path once):
-
-```bash
-/plugin install godot-mcp-loop --marketplace AI-osho/godot-mcp-loop
+```text
+MCP client → stdio server → authenticated loopback WebSocket → Godot editor → debugger → running game
 ```
 
-The plugin registers the `godot-loop` MCP server and the agent skill; it runs the npm package, so keep the addon it
-copies into your project in step (the addon and server must share a version).
+[Architecture](docs/architecture.md) explains the two process layers, repository layout, data flow and persistence.
 
-**With npm** (Node.js 20+):
-**With npm** (Node.js 20+):
+## Capabilities and distribution status
 
-> Listed in the official MCP Registry as
-> [`io.github.AI-osho/godot-mcp-loop`](https://registry.modelcontextprotocol.io/v0/servers?search=godot-mcp-loop) —
-> clients that browse the registry can add it from there; the steps below are the same.
+| Area | Use |
+|---|---|
+| Scene and code | Inspect/create scenes, edit nodes and GDScript, configure input and selected project settings |
+| Runtime observation | Input, state queries, per-frame records, waits, physics stepping, UI audit, images and logs |
+| Repeatable checks | Scenario assertions, evidence, recordings, installed GUT/GdUnit4 suites and preset-based exports |
+| Artwork support | Brief/request/PNG receipts, deterministic processing, previews, change detection and standard 2D placement |
+| Bounded construction | `node_add_tree` (since 0.12.0): one new 2D/UI subtree in an eligible empty scene, up to 64 nodes/depth 8; save separately |
 
-1. **Addon** — the addon must match the server's version, so let the server copy it into your project and enable it:
-   ```bash
-   npx -y godot-mcp-loop@0.11.0 install-addon /ABS/my-game --skill
-   ```
-   `--skill` also adds the agent skill (step 5 below). The command prints the version to use next.
-2. **Client** — register the server with that version, e.g. Claude Code:
-   ```bash
-   claude mcp add godot-loop -- npx -y godot-mcp-loop@<version> --project /ABS/my-game
-   ```
-   Other clients: [docs/clients.md](docs/clients.md).
-3. Open your project in the Godot editor and ask the agent to call `godot_status`.
+| Distribution | Tools and availability |
+|---|---|
+| Current **0.12.0** | **49** MCP tools, including `node_add_tree`; six showcased games and a retained internal compatibility fixture |
+| Previous **0.11.0** | **48** tools; static doctor CLI since 0.11.0; artwork tools since **0.10.0** |
 
-**From source**:
-
-1. **Addon** — copy `addons/mcp_loop` into your project's `addons/` folder, then enable
-   *Project › Project Settings › Plugins › MCP Loop*. The plugin registers an autoload `MCPLoopRuntime`
-   (inactive in exported games).
-2. **Server** —
-   ```bash
-   git clone https://github.com/AI-osho/godot-mcp-loop.git
-   cd godot-mcp-loop/server && npm ci && npm run build
-   ```
-3. **Client** — e.g. Claude Code:
-   ```bash
-   claude mcp add godot-loop -- node /ABS/godot-mcp-loop/server/dist/index.js --project /ABS/my-game
-   ```
-   Other clients: [docs/clients.md](docs/clients.md).
-4. Open your project in the Godot editor and ask the agent to call `godot_status`.
-5. **Agent skill** (recommended) — copy `.claude/skills/godot-mcp-loop` into your project's `.claude/skills/` (or
-   `~/.claude/skills/` for every project). It teaches the agent the loop, deterministic checks with `game_step`,
-   scenario patterns and pixel art. It follows the [Agent Skills](https://agentskills.io) format, so other agents
-   that read skills can use it too.
-
-### Start a new game project
-
-```bash
-scripts/new-game.sh ~/games/my-game --name "My Game" --register-claude
-```
-
-creates a Godot project with the addon enabled, the agent skill, short `AGENTS.md` / `CLAUDE.md` files, a
-`scenarios/` folder and an initial git commit, and registers the MCP server with Claude Code for that folder
-(`--claude-config DIR` for a separate Claude Code configuration). Then open it with `godot -e --path ~/games/my-game`.
-
-For long builds the project also gets `PROGRESS.md` (goal, status, done, next, decisions, known issues), which the
-agent keeps current, and Claude Code project settings (`.claude/settings.json`): a session-start hook prints
-`PROGRESS.md`, the last commits and uncommitted changes into the agent's context — at startup, on resume, after
-`/clear` and after context compaction — the godot-loop tools run without permission prompts, and destructive shell
-commands (`rm -rf`, force push, `git reset --hard`, `git clean`) are denied. Claude Code applies the allow rule once you
-accept its trust prompt for the folder.
-
-### Try the demo
-
-This repository is itself a Godot project with a tiny platformer
-(`examples/platformer`, arrow keys + Space). Open it in Godot, point the server at the repository root, and ask your
-agent to *"run `scenario_run` on `res://examples/platformer/scenarios/move_right.yaml`"* — then try
-`intentional_failure.yaml` to see a failure report.
-
-### A five-minute tour
-
-1. **Install the addon** in your project folder (it copies `addons/mcp_loop`, enables the plugin and drops the agent
-   skill into `.claude/skills/`):
-   ```bash
-   cd my-game && npx -y godot-mcp-loop@0.11.0 install-addon . --skill
-   ```
-2. **Open the project in Godot** (4.5+): `godot -e --path .` — the bridge starts with the editor and listens on
-   127.0.0.1.
-3. **Connect your MCP client** to `npx -y godot-mcp-loop@0.11.0 --project /absolute/path/to/my-game`, then ask for
-   `godot_status`: it should report the Godot version, the project and the scene the editor has open.
-4. **Ask for one change and one check**: *"add a coin to the level, then run
-   `scenario_run {"path": "res://scenarios/coins.yaml"}`"*. A failing step comes back with the observed value and a
-   screenshot.
-5. **Record it**: run the same scenario with `"movie": {}` and `"save_to": "res://qa/evidence/tour"`, then open
-   `qa/evidence/tour/movie.gif` — the whole run, plus a contact sheet of the key frames.
-
-## Advanced samples
-
-Five complete games live in [`examples/`](examples/). Each was generated end to end by an AI agent through
-godot-mcp-loop from a single prompt — code, NES-style pixel art (`image_write`), input actions, test hooks and
-regression scenarios — and then verified independently: every scenario passes and random-input runs log no errors.
-
-![Marble Run, the 3D sample, recorded with scenario_run + movie](docs/images/marble-run.gif)
-
-The 3D sample ships with the package, so you can open it without cloning this repository:
-
-```bash
-npx -y godot-mcp-loop@0.11.0 sample marble-3d ./marble-3d
-cd marble-3d && npx -y godot-mcp-loop@0.11.0 install-addon . --skill && godot -e --path .
-```
-
-It is the game the 3D tools were built against: seven scenarios (`7_gap_needs_jump.yaml` proves a gap cannot be
-rolled over), a chase camera, coins, checkpoints, lives and a timed clear. `npx -y godot-mcp-loop@0.11.0 sample`
-lists everything bundled.
-
-| | Game | Generated by | Size | Scenarios |
-|---|---|---|---|---|
-| <img src="docs/images/sample-blocks.png" width="200" alt="Falling Blocks"> | [Falling Blocks](examples/blocks/) — falling-block puzzle: SRS-style rotation with wall kicks, ghost piece, levels and scoring, seeded piece order | Claude Opus 5.5 (Claude Code) | 381 lines | 4 |
-| <img src="docs/images/sample-shooter.png" width="200" alt="Vertical shooter"> | [Vertical shooter](examples/shooter/) — 4 enemy types over 5 waves, a boss with 3 attack patterns, explosions, scrolling starfield, 11 sprites | Claude Opus 5.5 (Claude Code) | 805 lines | 4 |
-| <img src="docs/images/sample-action.png" width="200" alt="Side-scroller"> | [Side-scroller](examples/action/) — acceleration and variable jump, 8-screen stage with pits and moving platforms, stompable enemies, coins, goal, 3-layer parallax, 12 sprites | DeepSeek V4.1 Flash (Claude Code) | 967 lines | 4 |
-| <img src="docs/images/sample-rpg.png" width="200" alt="NES-style RPG"> | [RPG "星剣のルカ"](examples/rpg/) — NES-style RPG with an original story and cast: title and prologue, grid movement, NPC dialogue, random encounters, front-view battles with spells, items, fleeing and level-ups, a boss and an ending (Japanese text) | DeepSeek V4.1 Flash (Claude Code) | 2,284 lines | 6 |
-| <img src="docs/images/sample-marble.png" width="200" alt="Marble Run"> | [Marble Run](examples/marble/) — the first 3D sample: a rolling marble over ramps and gaps, 10 coins, checkpoints and lives, a chase camera, timed clears and a full HUD | DeepSeek V4.1 Flash (Claude Code) | 676 lines | 7 |
-
-Play one with `game_run {"scene": "res://examples/shooter/shooter.tscn"}` (or open the scene and press F6) and
-replay its checks with `scenario_run {"path": "res://examples/shooter/scenarios/4_boss_clear.yaml"}` — or all of them
-with `{"path": "res://examples/shooter/scenarios"}`. Controls and details: [examples/README.md](examples/README.md).
+Use the same selected distribution for the server and addon. Version labels alone do not prove equal contents;
+source checkouts can differ from published packages. `doctor` is a static CLI, not an MCP tool or runtime connection test.
+[Tool reference](docs/tools.md) · [Artwork](docs/art-production.md) · [Subtree construction](docs/scene-tree-build.md).
 
 ## Tools
+
+<details>
+<summary>All 49 tools in 0.12.0 (previous 0.11.0 has 48)</summary>
 
 | Area | Tools |
 |---|---|
 | Status | `godot_status`, `project_info`, `project_list`, `project_connect` (switch projects) |
 | Editor | `editor_launch` (finds Godot, opens the project), `editor_quit` |
 | Scenes | `scene_open`, `scene_create`, `scene_save`, `scene_tree` |
-| Nodes | `node_add`, `node_delete`, `node_get`, `node_set` |
+| Nodes | `node_add`, `node_add_tree` (development: one bounded native 2D/UI subtree), `node_delete`, `node_get`, `node_set` |
 | Scripts | `script_read`, `script_write`, `script_edit`, `script_attach` |
-| Artwork production (development) | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
+| Artwork production (0.10.0+) | `production_plan`, `art_request`, `art_register`, `asset_build`, `asset_preview`, `asset_verify`, `asset_scene_add` |
 | Files & assets | `file_write` (YAML/JSON/text), `image_write` (pixel-art PNG), `input_action_set`, `project_setting_set` (main scene, viewport, stretch) |
 | Undo | `edit_undo` |
 | Run & observe | `game_run`, `game_stop`, `game_query`, `game_ui_audit`, `game_in_view`, `game_ray`, `game_contacts`, `game_input`, `game_wait_for`, `game_set`, `game_call`, `game_pause`, `game_step`, `logs_read`, `screenshot` |
 | Build | `project_export` (release export from a preset into `res://build/` only, no shell) |
 | Judge | `scenario_run` (evidence folder, `movie` → GIF + contact sheet), `test_run` (GUT / GdUnit4 unit tests) |
 
-Full reference: [docs/tools.md](docs/tools.md).
+</details>
 
-The new artwork workflow is development-source functionality, not a claim that the published npm package has
-already been updated. It connects a production brief and the client's existing authorized GPT Image 2 medium
-producer to actual PNG receipts, reproducible processing, frame/foot-anchor previews and undoable Godot placement.
-It does not itself generate images. PNG processing needs optional Python 3.11+ and Pillow 13.0.0; existing tools
-do not. Records/builds are append-only artifacts rather than editor undo entries.
-[Workflow, recipes and limitations](docs/art-production.md) · [日本語](docs/art-production.ja.md).
+[Complete reference](docs/tools.md) · [Scenarios](docs/scenarios.md) · [Clients](docs/clients.md) · [Protocol](docs/protocol.md).
 
-## Headless / CI
+## Requirements and trust
 
-Add `--headless` to *Project Settings › Editor › Run › Main Run Args* to run games without a window (everything
-except `screenshot` works). The repository's own CI runs a headless editor and headless games on Linux for the
-end-to-end tests — see [.github/workflows/ci.yml](.github/workflows/ci.yml).
+- Node.js **20+** for the server; Godot **4.7** is the qualified target (tested with **4.7.2**).
+  The Logger API was introduced in 4.5; that does not qualify 4.5–4.6 for this distribution.
+- Claude Code, Codex, Cursor, Claude Desktop, Hermes or another MCP client for agent control; none is needed just to play.
+- Python **3.11+** / **Pillow 13.0.0** only for optional PNG processing, not normal editing/play or `node_add_tree`.
+  Dependencies are not installed automatically. C# script validation is not supported.
+- One authenticated active MCP client per editor. Client setup/reconnection is explicit, not a side effect of copying a sample.
+
+Loopback authentication and project-path guards are **not an OS sandbox**. Opening, validating or running a project
+can execute its code/plugins. Use trusted projects and client-side approvals. Undo is not a cross-file transaction;
+a missing response after dispatch does not prove that nothing changed. Inspect actual state before retrying.
+[Security model](docs/security.md).
 
 ## Development
 
-```bash
-scripts/test-godot-unit.sh                   # GDScript unit tests (headless)
-cd server && npm run typecheck && npm test   # TypeScript unit tests
-npm run build && npm run test:e2e            # end-to-end against a real headless editor + game
-E2E_GAME_WINDOW=1 npm run test:e2e           # same, with game windows (enables screenshot checks)
+```sh
+scripts/test-godot-unit.sh
+cd server && npm ci
+npm run typecheck && npm test
+npm run build && npm run test:e2e
+E2E_SAMPLES=1 npm run test:e2e
 ```
 
-## Limitations
-
-- One MCP client per editor at a time (a new connection replaces the old one).
-- `script_write` validates GDScript only; a script that references its *own new* `class_name` may compile-check
-  slightly less strictly.
-- C# projects are not supported yet.
+Windowed Linux checks need xvfb and `E2E_GAME_WINDOW=1`. Source authorities and generated copies are documented in
+[sample changes](docs/sample-upgrades.md); do not edit both independently. The default `platformer` scene remains an
+internal compatibility/test fixture and is not in the showcase. [Release procedure](docs/releasing.md).
 
 ## License
 

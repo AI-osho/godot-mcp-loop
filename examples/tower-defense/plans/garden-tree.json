@@ -1,0 +1,467 @@
+{
+  "schema_version": 1,
+  "scene": "res://examples/tower-defense/scenes/game.tscn",
+  "nodes": [
+    {
+      "id": "world",
+      "type": "Node2D",
+      "name": "World",
+      "properties": {}
+    },
+    {
+      "id": "board",
+      "type": "Sprite2D",
+      "name": "Board",
+      "parent_id": "world",
+      "properties": {
+        "texture": {
+          "res": "res://examples/tower-defense/assets/board.png"
+        },
+        "centered": false,
+        "position": [
+          16,
+          86
+        ],
+        "scale": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "actors",
+      "type": "Node2D",
+      "name": "Actors",
+      "parent_id": "world",
+      "properties": {}
+    },
+    {
+      "id": "base",
+      "type": "Sprite2D",
+      "name": "Seedhouse",
+      "parent_id": "world",
+      "properties": {
+        "texture": {
+          "res": "res://examples/tower-defense/assets/seedhouse.png"
+        },
+        "centered": false,
+        "position": [
+          604,
+          448
+        ],
+        "scale": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "hud",
+      "type": "CanvasLayer",
+      "name": "HUD",
+      "parent_id": "world",
+      "properties": {}
+    },
+    {
+      "id": "ui",
+      "type": "Control",
+      "name": "UI",
+      "parent_id": "hud",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "top",
+      "type": "ColorRect",
+      "name": "Topbar",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 74,
+        "color": "#142c38ff",
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "name",
+      "type": "Label",
+      "name": "Name",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 24,
+        "offset_top": 14,
+        "offset_right": 318,
+        "offset_bottom": 58,
+        "text": "灯畑の番人",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 27,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "wave",
+      "type": "Label",
+      "name": "Wave",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 340,
+        "offset_top": 20,
+        "offset_right": 490,
+        "offset_bottom": 56,
+        "text": "波 0 / 3",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 21,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "health",
+      "type": "Label",
+      "name": "Health",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 506,
+        "offset_top": 20,
+        "offset_right": 660,
+        "offset_bottom": 56,
+        "text": "耐久 8 / 8",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 21,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "coins",
+      "type": "Label",
+      "name": "Coins",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 670,
+        "offset_top": 20,
+        "offset_right": 802,
+        "offset_bottom": 56,
+        "text": "資金 140",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 21,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "pause",
+      "type": "Button",
+      "name": "Pause",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 816,
+        "offset_top": 14,
+        "offset_right": 944,
+        "offset_bottom": 60,
+        "text": "一時停止",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "sidebar",
+      "type": "ColorRect",
+      "name": "Sidebar",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 744,
+        "offset_top": 86,
+        "offset_right": 944,
+        "offset_bottom": 626,
+        "color": "#142c38ff",
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "build",
+      "type": "Label",
+      "name": "Build",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 98,
+        "offset_right": 928,
+        "offset_bottom": 130,
+        "text": "01  塔を選ぶ",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 20,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "amber",
+      "type": "Button",
+      "name": "Amber",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 148,
+        "offset_right": 928,
+        "offset_bottom": 206,
+        "text": "灯火塔  50",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "amberinfo",
+      "type": "Label",
+      "name": "AmberInfo",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 764,
+        "offset_top": 212,
+        "offset_right": 924,
+        "offset_bottom": 258,
+        "text": "単体に強い灯り\n射程 140 / 威力 16",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "mist",
+      "type": "Button",
+      "name": "Mist",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 278,
+        "offset_right": 928,
+        "offset_bottom": 336,
+        "text": "霧鈴塔  40",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "mistinfo",
+      "type": "Label",
+      "name": "MistInfo",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 764,
+        "offset_top": 342,
+        "offset_right": 924,
+        "offset_bottom": 388,
+        "text": "周囲をまとめて足止め\n射程 120 / 速度45%",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "wavehint",
+      "type": "Label",
+      "name": "WaveHint",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 408,
+        "offset_right": 928,
+        "offset_bottom": 438,
+        "text": "02  準備したら",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 18,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "next",
+      "type": "Button",
+      "name": "NextWave",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 448,
+        "offset_right": 928,
+        "offset_bottom": 506,
+        "text": "第1波を呼ぶ",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "status",
+      "type": "Label",
+      "name": "Status",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 524,
+        "offset_right": 928,
+        "offset_bottom": 582,
+        "text": "石台をクリック\n先に塔を置こう",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "selected",
+      "type": "Label",
+      "name": "Selected",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 760,
+        "offset_top": 590,
+        "offset_right": 928,
+        "offset_bottom": 618,
+        "text": "選択：なし",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "footer",
+      "type": "Label",
+      "name": "Footer",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 28,
+        "offset_top": 610,
+        "offset_right": 728,
+        "offset_bottom": 636,
+        "text": "塔を選ぶ → 石台 A〜H をクリック  /  右クリックで解除",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "overlay",
+      "type": "Control",
+      "name": "PauseOverlay",
+      "parent_id": "ui",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "visible": false
+      }
+    },
+    {
+      "id": "dim",
+      "type": "ColorRect",
+      "name": "Dim",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "color": "#102735d9",
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "pausepanel",
+      "type": "PanelContainer",
+      "name": "Panel",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 232,
+        "offset_top": 192,
+        "offset_right": 728,
+        "offset_bottom": 444,
+        "theme_override_styles/panel": {
+          "new": "StyleBoxFlat",
+          "properties": {
+            "bg_color": "#142c38f2",
+            "border_color": "#668589ff",
+            "border_width_left": 2,
+            "border_width_top": 2,
+            "border_width_right": 2,
+            "border_width_bottom": 2,
+            "corner_radius_top_left": 12,
+            "corner_radius_top_right": 12,
+            "corner_radius_bottom_left": 12,
+            "corner_radius_bottom_right": 12
+          }
+        },
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "pausetitle",
+      "type": "Label",
+      "name": "Heading",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 264,
+        "offset_top": 218,
+        "offset_right": 696,
+        "offset_bottom": 266,
+        "text": "ひとやすみ",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 32,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "pausebody",
+      "type": "Label",
+      "name": "Body",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 264,
+        "offset_top": 280,
+        "offset_right": 696,
+        "offset_bottom": 328,
+        "text": "庭の時間は止まっています。\n再開して、ひかりの実を守りましょう。",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 18,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "resume",
+      "type": "Button",
+      "name": "Resume",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 264,
+        "offset_top": 364,
+        "offset_right": 464,
+        "offset_bottom": 416,
+        "text": "庭にもどる",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "title",
+      "type": "Button",
+      "name": "ReturnTitle",
+      "parent_id": "overlay",
+      "properties": {
+        "offset_left": 496,
+        "offset_top": 364,
+        "offset_right": 696,
+        "offset_bottom": 416,
+        "text": "タイトルへ",
+        "theme_override_font_sizes/font_size": 18
+      }
+    }
+  ]
+}

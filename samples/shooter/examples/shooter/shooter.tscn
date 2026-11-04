@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://k822nl6dxkk6"]
+
+[ext_resource type="Script" uid="uid://cvgsttty8hdxh" path="res://examples/shooter/shooter.gd" id="1_r366u"]
+
+[node name="Shooter" type="Node2D" unique_id=825666628]
+script = ExtResource("1_r366u")

@@ -1,3 +1,70 @@
+# Security audit — 0.12.0
+
+Date: 2026-11-04. This is a bounded assessment, not a blanket security guarantee. It supersedes the historical release
+assessments below for 0.12.0. Publication checks (required CI on the exact merged tree, release asset identity, npm
+staged approval and a fresh public-consumer test) are release gates recorded outside this file.
+
+## What changed since 0.11.0
+
+- New tool `node_add_tree`: one bounded 2D/UI subtree into an explicitly selected, eligible empty scene. Strict policy
+  and types, at most 64 nodes and depth 8, confined imported-PNG references, non-mutating preview, owner assignment and
+  one undo action. Saving stays separate.
+- Native validation and the transaction path refuse scripts, custom classes, scene instances, unsupported resources,
+  protected or escaping references and over-budget requests. A request that was sent but got no reply is reported as
+  unknown; it is not replayed automatically or described as unapplied.
+- Standalone sample packaging, generated-copy checks, ordinary Tower Defense mouse-route coverage and rewritten public
+  documentation. Six games are presented equally; the minimal platformer remains an internal compatibility fixture.
+- Installer and sample CLI advice names the executable that was actually selected, not a registry fallback inferred
+  from a version label. All version and pinned manifests are 0.12.0; server/addon/registry/plugin parity is tested.
+  No dependency constraint changed.
+- Game scripts, scenes, artwork and the addon are unchanged from the qualified presentation candidate. Release-time
+  changes are version/description metadata, documentation, the matching test selectors, and the sample CLI's play hint,
+  which now prints the one-time import a fresh copy needs (found while smoke-testing the release tarball).
+
+## Evidence
+
+- Build, typecheck and 682 TypeScript unit tests pass. `npm audit` on the locked tree: 0 vulnerabilities.
+- Godot 4.7.2: cold import and 326 native unit tests pass with 0 native errors and 0 leak warnings. Full native
+  integration: 187 passed, 0 failed, 18 optional cases not applicable on this host. Windowed sample, movie, unit and
+  Tower Defense ordinary-input checks: 18 of 18 in each of two rounds. Changes made after these runs are limited to
+  Markdown, the gallery provenance JSON, TypeScript unit tests and the text printed by `sample`; no addon, game, scene,
+  asset or integration-test file differs.
+- Independent source review by a different model family (OpenAI Codex, read-only) covered native validation, the legacy
+  sample guides, Tower Defense gameplay and construction plans, the installer/release delta and the published
+  documentation delta, each with complete required-path coverage and no blocker or major finding. Earlier
+  identity-bound reviews are reused only for paths that are byte-identical.
+- Secret scans: source 1 raw match and history 2 raw matches, all the same fixed synthetic redaction sentinel in the
+  doctor unit test; 0 live credentials. No scanner suppression was added. Open GitHub secret-scanning, code-scanning
+  and Dependabot alerts: 0 each.
+- Sample images keep their actual pre-release capture provenance. Recomposing the gallery is not a new gameplay,
+  full-route, audio or human-acceptance run. The RPG defeat text now says "castle starting position", matching the code.
+
+## Review findings kept as non-blocking
+
+- Tower Defense `scripts/audio.gd` `finish_capture()` writes diagnostic WAV files under `res://qa/audio` without
+  checking `FileAccess.open()`. Nothing in ordinary play or the shipped tests calls it; it remains an explicit
+  developer diagnostic. Game code was not changed late in the release for this.
+- The Tower Defense art generator uses one shading color outside its named palette, and the pad letters are drawn with
+  Pillow's bundled antialiased default font. The asset provenance now states both; the artwork is unchanged.
+- `scripts/release-artifacts.sh` checks tag, package and addon versions; `server.json` and `.claude-plugin/plugin.json`
+  parity is enforced by the unit tests the release workflow runs. The marketplace entry's own version field is not
+  separately asserted.
+- A replaced policy file could admit fractional bounds for an integer descriptor. The shipped policy uses only integral
+  bounds, and replacing package files is outside the trusted-package boundary.
+
+## Residual limits
+
+Loopback authentication and project guards are not an OS sandbox. Loading, validating or running project scripts,
+resources, plugins, tests or selected executables can execute trusted project or user code. No containment against a
+hostile same-user process and no new Windows-native assurance is claimed. Scene undo is not a cross-file transaction;
+exports need templates. This release adds no image/provider service, authorization change, MCP registration change,
+global install or change to existing game saves. Human play/listening preference and productivity or rights claims are
+outside this assessment.
+
+---
+
+## Historical record: 0.11.0 and earlier assessments (unchanged)
+
 # Security audit — 0.11.0 release candidate
 
 Date: 2026-11-03. This is a bounded doctor-CLI release assessment, not a blanket safety guarantee.

@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "scene": "res://examples/tower-defense/scenes/title.tscn",
+  "nodes": [
+    {
+      "id": "screen",
+      "type": "Control",
+      "name": "Screen",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "vista",
+      "type": "Sprite2D",
+      "name": "Vista",
+      "parent_id": "screen",
+      "properties": {
+        "texture": {
+          "res": "res://examples/tower-defense/assets/title_vista.png"
+        },
+        "centered": false,
+        "scale": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "veil",
+      "type": "ColorRect",
+      "name": "Veil",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 0,
+        "offset_top": 0,
+        "offset_right": 960,
+        "offset_bottom": 640,
+        "color": "#10273522",
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "eyebrow",
+      "type": "Label",
+      "name": "Eyebrow",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 48,
+        "offset_top": 38,
+        "offset_right": 498,
+        "offset_bottom": 70,
+        "text": "小さな庭のタワーディフェンス",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 16,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "name",
+      "type": "Label",
+      "name": "Name",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 48,
+        "offset_top": 78,
+        "offset_right": 548,
+        "offset_bottom": 144,
+        "text": "灯畑の番人",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 48,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "tagline",
+      "type": "Label",
+      "name": "Tagline",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 52,
+        "offset_top": 150,
+        "offset_right": 502,
+        "offset_bottom": 196,
+        "text": "ひかりの実を、夜明けまで。",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 23,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "panel",
+      "type": "PanelContainer",
+      "name": "Panel",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 550,
+        "offset_top": 58,
+        "offset_right": 920,
+        "offset_bottom": 578,
+        "theme_override_styles/panel": {
+          "new": "StyleBoxFlat",
+          "properties": {
+            "bg_color": "#142c38f2",
+            "border_color": "#668589ff",
+            "border_width_left": 2,
+            "border_width_top": 2,
+            "border_width_right": 2,
+            "border_width_bottom": 2,
+            "corner_radius_top_left": 12,
+            "corner_radius_top_right": 12,
+            "corner_radius_bottom_left": 12,
+            "corner_radius_bottom_right": 12
+          }
+        },
+        "mouse_filter": 2
+      }
+    },
+    {
+      "id": "how",
+      "type": "Label",
+      "name": "How",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 580,
+        "offset_top": 84,
+        "offset_right": 890,
+        "offset_bottom": 126,
+        "text": "夜の庭をまもろう",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 25,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "rules",
+      "type": "Label",
+      "name": "Instructions",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 580,
+        "offset_top": 144,
+        "offset_right": 890,
+        "offset_bottom": 330,
+        "text": "煤虫が曲がり道を進んできます。\n\n塔を選び、石台 A〜H に配置。\n灯火で攻撃、霧鈴で足止め。\n\n3ウェーブをしのげば勝利。\n種小屋の耐久が0になると敗北。",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 17,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "controls",
+      "type": "Label",
+      "name": "Controls",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 580,
+        "offset_top": 354,
+        "offset_right": 890,
+        "offset_bottom": 426,
+        "text": "操作：左クリックだけで遊べます\n右クリック：塔の選択を解除\n上部で一時停止、中央で再開",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 16,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    },
+    {
+      "id": "start",
+      "type": "Button",
+      "name": "Start",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 580,
+        "offset_top": 450,
+        "offset_right": 890,
+        "offset_bottom": 508,
+        "text": "庭をまもる  →",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "quit",
+      "type": "Button",
+      "name": "Quit",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 580,
+        "offset_top": 522,
+        "offset_right": 890,
+        "offset_bottom": 560,
+        "text": "終了",
+        "theme_override_font_sizes/font_size": 18
+      }
+    },
+    {
+      "id": "footer",
+      "type": "Label",
+      "name": "Footer",
+      "parent_id": "screen",
+      "properties": {
+        "offset_left": 48,
+        "offset_top": 592,
+        "offset_right": 904,
+        "offset_bottom": 618,
+        "text": "1つの庭  /  2つの塔  /  3つの波   ·   音が出ます",
+        "mouse_filter": 2,
+        "theme_override_font_sizes/font_size": 15,
+        "theme_override_colors/font_color": "#f0e2b9ff",
+        "vertical_alignment": 1
+      }
+    }
+  ]
+}

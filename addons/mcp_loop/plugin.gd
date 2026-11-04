@@ -11,6 +11,7 @@ const EditorContext = preload("res://addons/mcp_loop/commands/context.gd")
 const ProjectCommands = preload("res://addons/mcp_loop/commands/project_commands.gd")
 const SceneCommands = preload("res://addons/mcp_loop/commands/scene_commands.gd")
 const NodeCommands = preload("res://addons/mcp_loop/commands/node_commands.gd")
+const TreeCommands = preload("res://addons/mcp_loop/commands/tree_commands.gd")
 const ScriptCommands = preload("res://addons/mcp_loop/commands/script_commands.gd")
 const PlayCommands = preload("res://addons/mcp_loop/commands/play_commands.gd")
 const AssetCommands = preload("res://addons/mcp_loop/commands/asset_commands.gd")
@@ -54,6 +55,7 @@ func _enter_tree() -> void:
 		ProjectCommands.new(_ctx),
 		SceneCommands.new(_ctx),
 		NodeCommands.new(_ctx),
+		TreeCommands.new(_ctx),
 		ScriptCommands.new(_ctx),
 		AssetCommands.new(_ctx),
 		PlayCommands.new(_ctx, _debugger, get_tree()),

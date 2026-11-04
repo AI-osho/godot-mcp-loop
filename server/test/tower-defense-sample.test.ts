@@ -37,6 +37,11 @@ describe("tower-defense sample delivery", () => {
     const workflow = readFileSync(join(repo, ".github/workflows/ci.yml"), "utf8");
     expect(workflow).toContain("test/e2e/standalone-samples.e2e.test.ts");
     expect(workflow).toContain("test/e2e/tower-defense-sample.e2e.test.ts");
+    // Windowed games are timing-sensitive (held keys repeat per frame): run the files one at a time so cold imports in
+    // one file cannot stall frames in another, matching the sequential local qualification.
+    const windowed = workflow.split("\n").find((line) => line.includes("xvfb-run") && line.includes("samples.e2e.test.ts")) ?? "";
+    expect(windowed).toContain("--maxWorkers=1");
+    expect(windowed).toContain("--fileParallelism=false");
     const registered = readFileSync(join(repo, "server/test/e2e/samples.e2e.test.ts"), "utf8");
     expect(registered).toContain('name: "tower-defense"');
   });
